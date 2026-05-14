@@ -48,10 +48,3 @@ def create_app() -> FastAPI:
 app = create_app()
 
 
-def cli() -> None:
-    """Console entry point — `lighthouse` launches the API with sane defaults
-    so first-time users don't have to learn uvicorn flags before they can
-    `pip install lighthouse && lighthouse`."""
-    import uvicorn
-
-    uvicorn.run("lighthouse.api.main:app", host="0.0.0.0", port=8000, reload=False)

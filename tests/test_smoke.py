@@ -1,18 +1,17 @@
-"""Smoke tests — boot the API in-process via TestClient and verify the
-routes are wired up. These don't talk to FalkorDB; the graph layer is
-exercised end-to-end in a separate integration suite (TBD)."""
+"""Smoke tests — boot the API in-process via TestClient against a fake
+graph. The real graph backend is exercised in
+``tests/integration/test_falkordb.py`` (gated behind
+``LIGHTHOUSE_INTEGRATION=1``)."""
 
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
+from datetime import UTC, datetime
 
-from lighthouse.api.main import app
+from lighthouse.core.graph import GraphNode, GraphSearchHit
 from lighthouse.librarian.agent import _parse_decision
 
-client = TestClient(app)
 
-
-def test_health_returns_ok() -> None:
+def test_health_returns_ok(client) -> None:
     r = client.get("/health")
     assert r.status_code == 200
     body = r.json()
@@ -20,24 +19,69 @@ def test_health_returns_ok() -> None:
     assert "version" in body
 
 
-def test_search_returns_empty_stub() -> None:
-    r = client.get("/search", params={"q": "anything", "top_k": 3})
+def test_search_projects_graph_hits(client, fake_graph) -> None:
+    fake_graph.search_hits = [
+        GraphSearchHit(
+            node_id="edge-1",
+            summary="FastAPI 0.115 supports lifespan context managers.",
+            source_node_uuid="node-a",
+            target_node_uuid="node-b",
+            valid_from=datetime(2025, 1, 1, tzinfo=UTC),
+        ),
+        GraphSearchHit(
+            node_id="edge-2",
+            summary="Pydantic v2 added ConfigDict.",
+        ),
+    ]
+
+    r = client.get("/search", params={"q": "fastapi lifespan", "top_k": 5})
     assert r.status_code == 200
     body = r.json()
-    assert body["query"] == "anything"
-    assert body["hits"] == []
+    assert body["query"] == "fastapi lifespan"
+    assert len(body["hits"]) == 2
+    assert body["hits"][0]["node_id"] == "edge-1"
+    assert "lifespan" in body["hits"][0]["summary"]
+    assert body["hits"][0]["source_node_id"] == "node-a"
+    assert body["hits"][0]["valid_from"] == "2025-01-01T00:00:00+00:00"
 
 
-def test_search_rejects_empty_query() -> None:
-    # Pydantic validation should kick in on q="".
+def test_search_respects_top_k(client, fake_graph) -> None:
+    fake_graph.search_hits = [
+        GraphSearchHit(node_id=f"e-{i}", summary=f"fact {i}") for i in range(10)
+    ]
+    r = client.get("/search", params={"q": "anything", "top_k": 3})
+    assert r.status_code == 200
+    assert len(r.json()["hits"]) == 3
+
+
+def test_search_rejects_empty_query(client) -> None:
     r = client.get("/search", params={"q": ""})
     assert r.status_code == 422
 
 
-def test_propose_without_key_when_auth_disabled_succeeds(monkeypatch) -> None:
-    # Default .env.example ships an empty key → auth disabled → anyone
-    # can propose. Explicit test so the "empty key means disabled"
-    # contract is pinned, not accidental.
+def test_fetch_returns_node(client, fake_graph) -> None:
+    fake_graph.nodes["n-1"] = GraphNode(
+        node_id="n-1",
+        name="FastAPI",
+        summary="An async Python web framework.",
+        labels=["Entity", "Framework"],
+        attributes={"language": "python"},
+    )
+    r = client.get("/fetch/n-1")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["node_id"] == "n-1"
+    assert body["name"] == "FastAPI"
+    assert "Framework" in body["labels"]
+    assert body["attributes"]["language"] == "python"
+
+
+def test_fetch_missing_returns_404(client) -> None:
+    r = client.get("/fetch/does-not-exist")
+    assert r.status_code == 404
+
+
+def test_propose_without_key_when_auth_disabled_succeeds(client, monkeypatch) -> None:
     from lighthouse.core import config
 
     config.get_settings.cache_clear()
@@ -56,9 +100,10 @@ def test_propose_without_key_when_auth_disabled_succeeds(monkeypatch) -> None:
     body = r.json()
     assert body["status"] == "queued"
     assert body["proposal_id"]
+    config.get_settings.cache_clear()
 
 
-def test_propose_with_wrong_key_rejected(monkeypatch) -> None:
+def test_propose_with_wrong_key_rejected(client, monkeypatch) -> None:
     from lighthouse.core import config
 
     config.get_settings.cache_clear()
