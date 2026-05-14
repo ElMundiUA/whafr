@@ -48,6 +48,12 @@ class Settings(BaseSettings):
     # --- Sources ---
     lighthouse_markdown_source: str = "./data/sources/markdown"
 
+    # --- Proposal store ---
+    # Local directory where the git-backed proposal store lives. One
+    # markdown file per proposal; the directory is git-init'd on first
+    # use so every state change becomes a commit.
+    lighthouse_proposals_dir: str = "./data/proposals"
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

@@ -10,13 +10,20 @@ and exercise the real backend; they're skipped by default and require
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
-from lighthouse.api.dependencies import get_graph
+from lighthouse.api.dependencies import (
+    get_graph,
+    get_librarian,
+    get_proposal_store,
+)
 from lighthouse.api.main import app
 from lighthouse.core.graph import GraphNode, GraphSearchHit, KnowledgeGraph
+from lighthouse.librarian.agent import Librarian
+from lighthouse.proposals.store import GitProposalStore
 
 
 class FakeGraph(KnowledgeGraph):
@@ -67,21 +74,86 @@ class FakeGraph(KnowledgeGraph):
         pass
 
 
+class FakeLibrarian(Librarian):
+    """In-memory stand-in for the Anthropic-backed Librarian.
+
+    Tests set ``next_decision`` / ``next_reason`` to script what the
+    next call to :meth:`evaluate_proposal` returns. The fake also
+    records every call in ``calls`` so tests can assert on the prompt
+    payload (evidence, rationale, content).
+    """
+
+    def __init__(self) -> None:
+        # Skip parent __init__ — we don't want Settings or Anthropic SDK.
+        self.next_decision: str = "accept"
+        self.next_reason: str = "looks good"
+        self.calls: list[dict[str, object]] = []
+        self.raise_on_next: Exception | None = None
+
+    async def evaluate_proposal(  # type: ignore[override]
+        self,
+        *,
+        proposal_type: str,
+        content: str,
+        evidence: list[str],
+        rationale: str,
+        target_node_id: str | None = None,
+    ) -> tuple[str, str]:
+        self.calls.append(
+            {
+                "proposal_type": proposal_type,
+                "content": content,
+                "evidence": list(evidence),
+                "rationale": rationale,
+                "target_node_id": target_node_id,
+            }
+        )
+        if self.raise_on_next is not None:
+            exc = self.raise_on_next
+            self.raise_on_next = None
+            raise exc
+        return self.next_decision, self.next_reason  # type: ignore[return-value]
+
+
 @pytest.fixture
 def fake_graph() -> FakeGraph:
     return FakeGraph()
 
 
 @pytest.fixture
-def client(fake_graph: FakeGraph) -> TestClient:
-    """TestClient with the graph dependency overridden.
+def fake_librarian() -> FakeLibrarian:
+    return FakeLibrarian()
 
-    Yielding semantics ensure the override is removed after the test
-    so cross-test bleed is impossible.
+
+@pytest.fixture
+def proposal_store(tmp_path: Path) -> GitProposalStore:
+    """Real GitProposalStore against an isolated tmp directory.
+
+    We use the real store (not a mock) because its git interaction is
+    the whole point — mocking it out would hide the bug a test of
+    "proposal pipeline" most needs to catch.
+    """
+    return GitProposalStore(tmp_path / "proposals")
+
+
+@pytest.fixture
+def client(
+    fake_graph: FakeGraph,
+    fake_librarian: FakeLibrarian,
+    proposal_store: GitProposalStore,
+) -> TestClient:
+    """TestClient with graph + librarian + store dependencies overridden.
+
+    Yielding semantics ensure overrides are removed after the test so
+    cross-test bleed is impossible.
     """
     app.dependency_overrides[get_graph] = lambda: fake_graph
+    app.dependency_overrides[get_librarian] = lambda: fake_librarian
+    app.dependency_overrides[get_proposal_store] = lambda: proposal_store
     try:
         with TestClient(app) as c:
             yield c
     finally:
         app.dependency_overrides.pop(get_graph, None)
+        app.dependency_overrides.pop(get_librarian, None)
+        app.dependency_overrides.pop(get_proposal_store, None)
