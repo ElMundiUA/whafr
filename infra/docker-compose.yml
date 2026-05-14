@@ -1,0 +1,34 @@
+services:
+  falkordb:
+    image: falkordb/falkordb:latest
+    container_name: lighthouse-falkordb
+    ports:
+      - "6379:6379"
+    volumes:
+      - falkordb-data:/var/lib/falkordb/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    container_name: lighthouse-api
+    ports:
+      - "8000:8000"
+    environment:
+      FALKORDB_HOST: falkordb
+      FALKORDB_PORT: 6379
+      FALKORDB_DATABASE: lighthouse
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      LIGHTHOUSE_PROPOSAL_API_KEY: ${LIGHTHOUSE_PROPOSAL_API_KEY:-}
+    depends_on:
+      falkordb:
+        condition: service_healthy
+    command: ["uvicorn", "lighthouse.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+volumes:
+  falkordb-data:
