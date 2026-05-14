@@ -29,6 +29,7 @@ dependencies = [
     "llama-index-readers-file>=0.4",
     "anthropic>=0.40",
     "python-multipart>=0.0.12",
+    "mcp>=1.0",
 ]
 
 [project.optional-dependencies]

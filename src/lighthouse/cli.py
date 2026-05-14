@@ -28,6 +28,17 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("serve", help="Run the FastAPI app under uvicorn")
 
+    mcp_cmd = sub.add_parser("mcp", help="Run the MCP server (for AI clients)")
+    mcp_cmd.add_argument(
+        "--transport",
+        choices=["stdio", "http", "sse"],
+        default="stdio",
+        help="stdio for desktop clients (Claude Desktop, Cursor); "
+        "http/sse for remote agents",
+    )
+    mcp_cmd.add_argument("--host", default="127.0.0.1")
+    mcp_cmd.add_argument("--port", type=int, default=8765)
+
     ingest = sub.add_parser("ingest", help="Drain a source into the graph")
     ingest_sub = ingest.add_subparsers(dest="source", required=True)
     md = ingest_sub.add_parser("markdown", help="Ingest a directory of .md files")
@@ -43,6 +54,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "serve":
         return _serve()
+    if args.cmd == "mcp":
+        return _mcp(args.transport, args.host, args.port)
     if args.cmd == "ingest" and args.source == "markdown":
         return asyncio.run(_ingest_markdown(args.path))
 
@@ -54,6 +67,16 @@ def _serve() -> int:
     import uvicorn
 
     uvicorn.run("lighthouse.api.main:app", host="0.0.0.0", port=8000, reload=False)
+    return 0
+
+
+def _mcp(transport: str, host: str, port: int) -> int:
+    from lighthouse.mcp.server import run_http, run_stdio
+
+    if transport == "stdio":
+        run_stdio()
+    else:
+        run_http(host=host, port=port, transport="sse" if transport == "sse" else "streamable-http")
     return 0
 
 
