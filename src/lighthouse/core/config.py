@@ -24,10 +24,21 @@ class Settings(BaseSettings):
     falkordb_port: int = 6379
     falkordb_database: str = "lighthouse"
 
-    # --- LLM ---
+    # --- Anthropic (Librarian agent) ---
     anthropic_api_key: str = ""
     lighthouse_model_main: str = "claude-sonnet-4-6"
     lighthouse_model_fast: str = "claude-haiku-4-5-20251001"
+
+    # --- OpenAI (Graphiti entity extraction + embeddings) ---
+    # Graphiti needs both an LLM (for entity/relationship extraction
+    # during ingest) and an embedder (for vector retrieval). We use
+    # OpenAI for both today; Graphiti supports Gemini/Voyage/Anthropic
+    # variants if we want to swap later.
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o-mini"
+    openai_small_model: str = "gpt-4o-mini"
+    openai_embedding_model: str = "text-embedding-3-small"
+    openai_embedding_dim: int = 1024
 
     # --- API auth ---
     # Single shared key gates the proposal endpoint. Empty string means

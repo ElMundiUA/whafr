@@ -79,17 +79,43 @@ class KnowledgeGraph:
         # or quick CLI runs that don't touch the graph.
         from graphiti_core import Graphiti
         from graphiti_core.driver.falkordb_driver import FalkorDriver
+        from graphiti_core.embedder.openai import OpenAIEmbedder, OpenAIEmbedderConfig
+        from graphiti_core.llm_client.config import LLMConfig
+        from graphiti_core.llm_client.openai_client import OpenAIClient
 
         self._driver = FalkorDriver(
             host=self._settings.falkordb_host,
             port=self._settings.falkordb_port,
             database=self._settings.falkordb_database,
         )
-        # Graphiti requires an LLM client and embedder for ingest-time
-        # entity extraction. For search-only deployments these go unused;
-        # we let Graphiti pick its defaults (which read API keys from env)
-        # so we don't have to bind a specific provider here.
-        self._client = Graphiti(graph_driver=self._driver)
+
+        if not self._settings.openai_api_key:
+            raise RuntimeError(
+                "OPENAI_API_KEY is not set — Graphiti needs OpenAI for "
+                "entity extraction and embeddings. Set it in .env or "
+                "the environment before running ingest/search."
+            )
+
+        llm_client = OpenAIClient(
+            config=LLMConfig(
+                api_key=self._settings.openai_api_key,
+                model=self._settings.openai_model,
+                small_model=self._settings.openai_small_model,
+            )
+        )
+        embedder = OpenAIEmbedder(
+            config=OpenAIEmbedderConfig(
+                api_key=self._settings.openai_api_key,
+                embedding_model=self._settings.openai_embedding_model,
+                embedding_dim=self._settings.openai_embedding_dim,
+            )
+        )
+
+        self._client = Graphiti(
+            graph_driver=self._driver,
+            llm_client=llm_client,
+            embedder=embedder,
+        )
         return self._client
 
     async def initialize(self) -> None:
