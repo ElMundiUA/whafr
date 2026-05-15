@@ -106,11 +106,39 @@ class CrawlConnector(Connector):
         # poll the returned job id until "completed". For ingest-time
         # use a generous timeout: large doc trees can take minutes.
         async with httpx.AsyncClient(timeout=600.0, headers=headers) as client:
-            try:
-                start = await client.post(f"{base}/v1/crawl", json=payload)
-                start.raise_for_status()
-            except httpx.HTTPError:
-                logger.exception("firecrawl start failed for %s", self._root)
+            # Firecrawl free / hobby plans rate-limit POST /v1/crawl
+            # aggressively — fire-and-forget submits get 429'd when
+            # multiple scheduler workers hit it within the same second.
+            # Retry with exponential backoff so concurrent runs are
+            # serialised at the SUBMIT step (polling is fine in
+            # parallel).
+            import asyncio
+
+            start = None
+            for attempt in range(5):
+                try:
+                    resp = await client.post(f"{base}/v1/crawl", json=payload)
+                    if resp.status_code == 429:
+                        wait = (2 ** attempt) + 1.0
+                        logger.warning(
+                            "firecrawl 429 for %s — retry in %ss (attempt %d)",
+                            self._root,
+                            wait,
+                            attempt + 1,
+                        )
+                        await asyncio.sleep(wait)
+                        continue
+                    resp.raise_for_status()
+                    start = resp
+                    break
+                except httpx.HTTPError:
+                    logger.exception("firecrawl start failed for %s", self._root)
+                    return
+            if start is None:
+                logger.error(
+                    "firecrawl 429 exhausted retries for %s — giving up",
+                    self._root,
+                )
                 return
             job = start.json()
             job_id = job.get("id") or job.get("jobId")
