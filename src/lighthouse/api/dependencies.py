@@ -15,6 +15,7 @@ from pathlib import Path
 from lighthouse.core.config import get_settings
 from lighthouse.core.graph import KnowledgeGraph
 from lighthouse.librarian.agent import Librarian
+from lighthouse.proposals.queue import ProposalQueue
 from lighthouse.proposals.store import GitProposalStore
 
 
@@ -40,3 +41,19 @@ def get_proposal_store() -> GitProposalStore:
 def get_librarian() -> Librarian:
     """Process-singleton :class:`Librarian` for proposal evaluation."""
     return Librarian()
+
+
+@lru_cache(maxsize=1)
+def get_proposal_queue() -> ProposalQueue:
+    """Process-singleton :class:`ProposalQueue`.
+
+    Wired against the same store / librarian / graph singletons the
+    routes use. Bootstrapped from the FastAPI lifespan in
+    :mod:`lighthouse.api.main` so the queue picks up any in-flight
+    proposals from a prior crash before the API starts serving traffic.
+    """
+    return ProposalQueue(
+        store=get_proposal_store(),
+        librarian=get_librarian(),
+        graph=get_graph(),
+    )

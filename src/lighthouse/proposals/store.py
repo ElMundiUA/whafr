@@ -130,6 +130,25 @@ class GitProposalStore:
             self._write(record)
             self._commit(record.id, action=action, subject=record.status)
 
+    async def list_pending(self) -> list[ProposalRecord]:
+        """Scan the store and return records still awaiting decision.
+
+        Used by the queue's startup bootstrap to re-enqueue any
+        proposals stranded in ``queued`` or ``evaluating`` state by a
+        prior crash. The scan is filesystem-level — no git ops — so it
+        stays cheap even with thousands of decided proposals on disk.
+        """
+        out: list[ProposalRecord] = []
+        for path in sorted(self._root.glob("*.md")):
+            try:
+                record = self._parse(path)
+            except Exception:
+                logger.exception("could not parse proposal file %s", path)
+                continue
+            if record.status in {"queued", "evaluating"}:
+                out.append(record)
+        return out
+
     # --- internals -----------------------------------------------------
 
     def _path(self, proposal_id: str) -> Path:

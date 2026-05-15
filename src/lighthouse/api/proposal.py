@@ -12,7 +12,6 @@ because proposal content can be sensitive (project-specific evidence).
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Annotated, Literal
 
@@ -21,13 +20,11 @@ from fastapi.security import APIKeyHeader
 from pydantic import BaseModel, Field
 
 from lighthouse.api.dependencies import (
-    get_graph,
-    get_librarian,
+    get_proposal_queue,
     get_proposal_store,
 )
 from lighthouse.core.config import get_settings
-from lighthouse.core.graph import KnowledgeGraph
-from lighthouse.librarian.agent import Librarian
+from lighthouse.proposals.queue import ProposalQueue
 from lighthouse.proposals.store import (
     GitProposalStore,
     ProposalRecord,
@@ -35,7 +32,6 @@ from lighthouse.proposals.store import (
     new_proposal_id,
     utc_now,
 )
-from lighthouse.proposals.worker import process_proposal
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["proposal"])
@@ -104,8 +100,7 @@ class ProposalState(BaseModel):
 async def propose(
     proposal: Proposal,
     store: Annotated[GitProposalStore, Depends(get_proposal_store)],
-    librarian: Annotated[Librarian, Depends(get_librarian)],
-    graph: Annotated[KnowledgeGraph, Depends(get_graph)],
+    queue: Annotated[ProposalQueue, Depends(get_proposal_queue)],
     _: Annotated[str, Depends(_require_api_key)],
 ) -> ProposalReceipt:
     proposal_id = new_proposal_id()
@@ -122,18 +117,10 @@ async def propose(
     )
     await store.create(record)
 
-    # Fire-and-forget — the worker decides asynchronously. We attach
-    # the task to the event loop so it survives the request lifecycle
-    # but don't await it; the client polls /v1/proposals/:id.
-    asyncio.create_task(
-        process_proposal(
-            proposal_id,
-            store=store,
-            librarian=librarian,
-            graph=graph,
-        ),
-        name=f"proposal-{proposal_id[:8]}",
-    )
+    # Hand off to the queue. The queue bounds concurrency, tracks
+    # in-flight workers for graceful shutdown, and is the unit that
+    # gets bootstrapped on app startup to recover stranded proposals.
+    await queue.submit(proposal_id)
 
     return ProposalReceipt(proposal_id=proposal_id, status="queued")
 

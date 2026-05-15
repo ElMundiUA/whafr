@@ -26,7 +26,6 @@ HTTP MCP server publicly, gate the whole endpoint, not individual tools.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Literal
 
@@ -35,6 +34,7 @@ from pydantic import BaseModel, Field
 
 from lighthouse.core.graph import KnowledgeGraph
 from lighthouse.librarian.agent import Librarian
+from lighthouse.proposals.queue import ProposalQueue
 from lighthouse.proposals.store import (
     GitProposalStore,
     ProposalRecord,
@@ -42,7 +42,6 @@ from lighthouse.proposals.store import (
     new_proposal_id,
     utc_now,
 )
-from lighthouse.proposals.worker import process_proposal
 
 logger = logging.getLogger(__name__)
 
@@ -82,16 +81,25 @@ def build_server(
     *,
     store: GitProposalStore | None = None,
     librarian: Librarian | None = None,
+    queue: ProposalQueue | None = None,
 ) -> FastMCP:
     """Wire a :class:`FastMCP` instance with all three tools.
 
     Each dependency is a parameter so tests inject fakes without
     touching this module. Production constructs real instances in
     :func:`lighthouse.cli._mcp` once and threads them through.
+
+    The ``queue`` is optional: if not passed but ``store`` + ``librarian``
+    are, we build one on the fly so a CLI ``lighthouse mcp`` doesn't
+    require the caller to wire the queue explicitly. Tests pass a fake
+    queue to verify ``submit`` is called without spinning a real worker.
     """
     g = graph or KnowledgeGraph()
     s = store
     lib = librarian
+    q = queue
+    if q is None and s is not None and lib is not None:
+        q = ProposalQueue(store=s, librarian=lib, graph=g)
 
     mcp = FastMCP(
         name="lighthouse",
@@ -168,7 +176,7 @@ def build_server(
         rationale: str = "",
         submitted_by: str = "mcp-client",
     ) -> McpProposalReceipt:
-        if s is None or lib is None:
+        if s is None or q is None:
             # build_server() was called search-only mode (no store/librarian
             # passed). Refuse loudly rather than silently dropping the
             # proposal — surfaces a config bug to the operator.
@@ -190,15 +198,7 @@ def build_server(
             rationale=rationale,
         )
         await s.create(record)
-        asyncio.create_task(
-            process_proposal(
-                proposal_id,
-                store=s,
-                librarian=lib,
-                graph=g,
-            ),
-            name=f"proposal-{proposal_id[:8]}",
-        )
+        await q.submit(proposal_id)
         return McpProposalReceipt(proposal_id=proposal_id, status="queued")
 
     return mcp
@@ -209,6 +209,7 @@ def run_stdio(
     *,
     store: GitProposalStore | None = None,
     librarian: Librarian | None = None,
+    queue: ProposalQueue | None = None,
 ) -> None:
     """Launch the MCP server over stdio.
 
@@ -217,7 +218,7 @@ def run_stdio(
     on stdin and write replies on stdout. Anything we log must go to
     stderr so it doesn't corrupt the framing.
     """
-    server = build_server(graph, store=store, librarian=librarian)
+    server = build_server(graph, store=store, librarian=librarian, queue=queue)
     server.run(transport="stdio")
 
 
@@ -226,6 +227,7 @@ def run_http(
     *,
     store: GitProposalStore | None = None,
     librarian: Librarian | None = None,
+    queue: ProposalQueue | None = None,
     host: str = "127.0.0.1",
     port: int = 8765,
     transport: Literal["sse", "streamable-http"] = "streamable-http",
@@ -237,7 +239,7 @@ def run_http(
     standard fetch-with-stream loop; ``sse`` is the legacy
     server-sent-events variant kept for older clients.
     """
-    server = build_server(graph, store=store, librarian=librarian)
+    server = build_server(graph, store=store, librarian=librarian, queue=queue)
     server.settings.host = host
     server.settings.port = port
     server.run(transport=transport)

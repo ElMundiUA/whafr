@@ -18,11 +18,13 @@ from fastapi.testclient import TestClient
 from lighthouse.api.dependencies import (
     get_graph,
     get_librarian,
+    get_proposal_queue,
     get_proposal_store,
 )
 from lighthouse.api.main import app
 from lighthouse.core.graph import GraphNode, GraphSearchHit, KnowledgeGraph
 from lighthouse.librarian.agent import Librarian
+from lighthouse.proposals.queue import ProposalQueue
 from lighthouse.proposals.store import GitProposalStore
 
 
@@ -137,12 +139,33 @@ def proposal_store(tmp_path: Path) -> GitProposalStore:
 
 
 @pytest.fixture
+def proposal_queue(
+    proposal_store: GitProposalStore,
+    fake_librarian: FakeLibrarian,
+    fake_graph: FakeGraph,
+) -> ProposalQueue:
+    """A real ProposalQueue wired against the test fakes.
+
+    We use the real queue (not a mock) because its bootstrap + drain
+    semantics are precisely what we want exercised in higher-level
+    tests. Workers execute against ``fake_librarian`` and ``fake_graph``
+    so no API calls happen."""
+    return ProposalQueue(
+        store=proposal_store,
+        librarian=fake_librarian,
+        graph=fake_graph,
+    )
+
+
+@pytest.fixture
 def client(
     fake_graph: FakeGraph,
     fake_librarian: FakeLibrarian,
     proposal_store: GitProposalStore,
+    proposal_queue: ProposalQueue,
 ) -> TestClient:
-    """TestClient with graph + librarian + store dependencies overridden.
+    """TestClient with graph + librarian + store + queue dependencies
+    overridden.
 
     Yielding semantics ensure overrides are removed after the test so
     cross-test bleed is impossible.
@@ -150,6 +173,7 @@ def client(
     app.dependency_overrides[get_graph] = lambda: fake_graph
     app.dependency_overrides[get_librarian] = lambda: fake_librarian
     app.dependency_overrides[get_proposal_store] = lambda: proposal_store
+    app.dependency_overrides[get_proposal_queue] = lambda: proposal_queue
     try:
         with TestClient(app) as c:
             yield c
@@ -157,3 +181,4 @@ def client(
         app.dependency_overrides.pop(get_graph, None)
         app.dependency_overrides.pop(get_librarian, None)
         app.dependency_overrides.pop(get_proposal_store, None)
+        app.dependency_overrides.pop(get_proposal_queue, None)

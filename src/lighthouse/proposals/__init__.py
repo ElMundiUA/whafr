@@ -7,6 +7,7 @@ knowledge graph; rejected ones surface their reason back to the
 submitter via ``GET /v1/proposals/:id``.
 """
 
+from lighthouse.proposals.queue import ProposalQueue
 from lighthouse.proposals.store import (
     GitProposalStore,
     ProposalRecord,
@@ -16,6 +17,7 @@ from lighthouse.proposals.worker import process_proposal
 
 __all__ = [
     "GitProposalStore",
+    "ProposalQueue",
     "ProposalRecord",
     "ProposalStatus",
     "process_proposal",
