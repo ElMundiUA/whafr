@@ -1,0 +1,211 @@
+# Phase 6 — sources surfaced by wave-6 audit
+# (DevSecOps, Postgres deep, blockchain/web3, healthcare/FHIR, CMS)
+sources:
+
+  # ── DevSecOps / supply chain (88% gap) ────────────────────────────
+  - name: devsec-slsa
+    connector: sitemap
+    args:
+      root: https://slsa.dev
+      max_pages: 100
+    schedule:
+      every: 90d
+  - name: devsec-sigstore
+    connector: sitemap
+    args:
+      root: https://docs.sigstore.dev
+      max_pages: 150
+    schedule:
+      every: 60d
+  - name: devsec-cyclonedx
+    connector: sitemap
+    args:
+      root: https://cyclonedx.org
+      max_pages: 100
+    schedule:
+      every: 60d
+  - name: devsec-kyverno
+    connector: sitemap
+    args:
+      root: https://kyverno.io
+      max_pages: 200
+    schedule:
+      every: 60d
+  - name: devsec-opa-gatekeeper
+    connector: sitemap
+    args:
+      root: https://open-policy-agent.github.io
+      max_pages: 200
+    schedule:
+      every: 60d
+  - name: devsec-falco
+    connector: sitemap
+    args:
+      root: https://falco.org
+      max_pages: 100
+    schedule:
+      every: 60d
+  - name: devsec-cisa-sbom
+    connector: web
+    args:
+      urls:
+        - https://www.cisa.gov/sbom
+        - https://www.whitehouse.gov/briefing-room/presidential-actions/2021/05/12/executive-order-on-improving-the-nations-cybersecurity/
+    schedule:
+      every: 365d
+
+  # ── Postgres deep (95% gap) ───────────────────────────────────────
+  - name: pg-official-current
+    connector: sitemap
+    args:
+      root: https://www.postgresql.org
+      max_pages: 400
+      include_paths: ["/docs/current/"]
+    schedule:
+      every: 30d
+  - name: pg-wiki
+    connector: sitemap
+    args:
+      root: https://wiki.postgresql.org
+      max_pages: 250
+    schedule:
+      every: 60d
+  - name: pg-pgbouncer
+    connector: sitemap
+    args:
+      root: https://www.pgbouncer.org
+      max_pages: 50
+    schedule:
+      every: 60d
+  - name: pg-pgvector
+    connector: web
+    args:
+      urls:
+        - https://github.com/pgvector/pgvector
+    schedule:
+      every: 60d
+
+  # ── Blockchain / web3 (100% gap) ──────────────────────────────────
+  - name: web3-solidity-docs
+    connector: sitemap
+    args:
+      root: https://docs.soliditylang.org
+      max_pages: 300
+    schedule:
+      every: 60d
+  - name: web3-openzeppelin
+    connector: sitemap
+    args:
+      root: https://docs.openzeppelin.com
+      max_pages: 200
+    schedule:
+      every: 60d
+  - name: web3-eips
+    connector: sitemap
+    args:
+      root: https://eips.ethereum.org
+      max_pages: 300
+    schedule:
+      every: 60d
+  - name: web3-foundry-book
+    connector: sitemap
+    args:
+      root: https://book.getfoundry.sh
+      max_pages: 200
+    schedule:
+      every: 60d
+  - name: web3-viem-wagmi
+    connector: sitemap
+    args:
+      root: https://viem.sh
+      max_pages: 150
+    schedule:
+      every: 60d
+  - name: web3-chainlink
+    connector: sitemap
+    args:
+      root: https://docs.chain.link
+      max_pages: 200
+    schedule:
+      every: 60d
+
+  # ── Healthcare / FHIR (100% gap) ──────────────────────────────────
+  - name: fhir-r4-spec
+    connector: sitemap
+    args:
+      root: https://hl7.org
+      max_pages: 400
+      include_paths: ["/fhir/R4/", "/fhir/smart-app-launch/", "/fhir/us/core/"]
+    schedule:
+      every: 60d
+  - name: fhir-bulk-data
+    connector: sitemap
+    args:
+      root: https://hl7.org
+      max_pages: 200
+      include_paths: ["/fhir/uv/bulkdata/"]
+    schedule:
+      every: 60d
+  - name: fhir-cds-hooks
+    connector: sitemap
+    args:
+      root: https://cds-hooks.hl7.org
+      max_pages: 80
+    schedule:
+      every: 90d
+  - name: fhir-uscdi
+    connector: web
+    args:
+      urls:
+        - https://www.healthit.gov/isa/united-states-core-data-interoperability-uscdi
+        - https://www.hhs.gov/hipaa/for-professionals/security/laws-regulations/
+    schedule:
+      every: 180d
+
+  # ── CMS / content engineering (100% gap) ──────────────────────────
+  - name: cms-sanity-docs
+    connector: sitemap
+    args:
+      root: https://www.sanity.io
+      max_pages: 250
+      include_paths: ["/docs"]
+    schedule:
+      every: 30d
+  - name: cms-contentful
+    connector: sitemap
+    args:
+      root: https://www.contentful.com
+      max_pages: 200
+      include_paths: ["/developers/docs/"]
+    schedule:
+      every: 30d
+  - name: cms-payload
+    connector: sitemap
+    args:
+      root: https://payloadcms.com
+      max_pages: 200
+      include_paths: ["/docs"]
+    schedule:
+      every: 30d
+  - name: cms-strapi
+    connector: sitemap
+    args:
+      root: https://docs.strapi.io
+      max_pages: 200
+    schedule:
+      every: 30d
+  - name: cms-velite
+    connector: sitemap
+    args:
+      root: https://velite.js.org
+      max_pages: 80
+    schedule:
+      every: 60d
+  - name: cms-astro-collections
+    connector: web
+    args:
+      urls:
+        - https://docs.astro.build/en/guides/content-collections/
+        - https://docs.astro.build/en/concepts/islands/
+    schedule:
+      every: 60d
