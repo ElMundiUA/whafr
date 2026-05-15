@@ -92,12 +92,30 @@ def _serve() -> int:
 
 
 def _mcp(transport: str, host: str, port: int) -> int:
+    from pathlib import Path
+
+    from lighthouse.core.config import get_settings
+    from lighthouse.core.graph import KnowledgeGraph
+    from lighthouse.librarian.agent import Librarian
     from lighthouse.mcp.server import run_http, run_stdio
+    from lighthouse.proposals.store import GitProposalStore
+
+    settings = get_settings()
+    graph = KnowledgeGraph(settings)
+    store = GitProposalStore(Path(settings.lighthouse_proposals_dir))
+    librarian = Librarian(settings)
 
     if transport == "stdio":
-        run_stdio()
+        run_stdio(graph, store=store, librarian=librarian)
     else:
-        run_http(host=host, port=port, transport="sse" if transport == "sse" else "streamable-http")
+        run_http(
+            graph,
+            store=store,
+            librarian=librarian,
+            host=host,
+            port=port,
+            transport="sse" if transport == "sse" else "streamable-http",
+        )
     return 0
 
 

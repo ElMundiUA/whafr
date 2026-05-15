@@ -1,28 +1,32 @@
 """MCP server adapter.
 
-Exposes the same two operations as the HTTP retrieval API — ``search``
-and ``fetch`` — as MCP tools. Any MCP client (Claude Desktop, Cursor,
-the Ship navigator) can plug this in and call the tools without writing
-HTTP code.
+Exposes three tools to MCP clients (Claude Desktop, Cursor, the Ship
+navigator, anything else that speaks MCP):
 
-Why a separate adapter rather than the HTTP API doubling as the MCP
-surface? Two reasons:
+- ``search`` — hybrid retrieval, returns ranked facts
+- ``fetch`` — pull one entity node by uuid
+- ``propose`` — submit a knowledge proposal for librarian review
+
+Why a separate adapter rather than the HTTP API doubling as MCP:
 
 1. **Different transport ergonomics.** MCP defaults to stdio for desktop
    clients (one process per session, parent talks JSON-RPC over pipes);
-   HTTP needs a long-running server with auth. Keeping them as separate
-   entry points lets each have its own deployment story.
-2. **Schema control.** FastMCP introspects the tool function's
-   signature to generate the schema MCP clients see. Reusing our own
-   typed models means clients get structured output instead of a string
-   blob — which Claude Desktop and Cursor render as proper tables.
+   HTTP needs a long-running server with its own auth. Keeping them
+   separate lets each have its own deployment story.
+2. **Schema control.** FastMCP introspects each tool function to
+   generate the schema MCP clients see. Reusing our typed models means
+   clients get structured output instead of string blobs — Claude
+   Desktop and Cursor render that as proper tables.
 
-Both adapters share :class:`KnowledgeGraph`; this module just adds the
-MCP framing.
+Auth note: the MCP transport itself is the trust boundary. Stdio MCP
+runs in-process with the user; HTTP MCP should sit behind a trusted
+ingress. We don't bolt on a per-tool API key — if you're exposing the
+HTTP MCP server publicly, gate the whole endpoint, not individual tools.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Literal
 
@@ -30,6 +34,15 @@ from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field
 
 from lighthouse.core.graph import KnowledgeGraph
+from lighthouse.librarian.agent import Librarian
+from lighthouse.proposals.store import (
+    GitProposalStore,
+    ProposalRecord,
+    ProposalStatus,
+    new_proposal_id,
+    utc_now,
+)
+from lighthouse.proposals.worker import process_proposal
 
 logger = logging.getLogger(__name__)
 
@@ -59,21 +72,37 @@ class McpNode(BaseModel):
     attributes: dict[str, str] = Field(default_factory=dict)
 
 
-def build_server(graph: KnowledgeGraph | None = None) -> FastMCP:
-    """Wire a ``FastMCP`` instance with ``search`` and ``fetch`` tools.
+class McpProposalReceipt(BaseModel):
+    proposal_id: str
+    status: ProposalStatus = "queued"
 
-    The graph is a parameter so tests can inject a fake without
-    importing this module at all. In production the CLI creates one
-    instance and hands it in.
+
+def build_server(
+    graph: KnowledgeGraph | None = None,
+    *,
+    store: GitProposalStore | None = None,
+    librarian: Librarian | None = None,
+) -> FastMCP:
+    """Wire a :class:`FastMCP` instance with all three tools.
+
+    Each dependency is a parameter so tests inject fakes without
+    touching this module. Production constructs real instances in
+    :func:`lighthouse.cli._mcp` once and threads them through.
     """
     g = graph or KnowledgeGraph()
+    s = store
+    lib = librarian
+
     mcp = FastMCP(
         name="lighthouse",
         instructions=(
             "Knowledge base for AI agents. Use `search` for natural-"
-            "language lookups across the indexed facts (returns ranked "
+            "language lookups across indexed facts (returns ranked "
             "edges with temporal windows). Use `fetch` with a node uuid "
-            "to retrieve a specific entity's full record."
+            "to retrieve a specific entity's full record. Use `propose` "
+            "to submit a new fact, correction, or deprecation — it goes "
+            "through the librarian's review pipeline; you can poll its "
+            "status via the HTTP API."
         ),
     )
 
@@ -119,10 +148,68 @@ def build_server(graph: KnowledgeGraph | None = None) -> FastMCP:
             attributes={k: str(v) for k, v in node.attributes.items()},
         )
 
+    @mcp.tool(
+        name="propose",
+        description=(
+            "Submit a knowledge proposal for librarian review. The "
+            "proposal is queued immediately; the librarian decides "
+            "asynchronously whether to accept (write to graph), reject "
+            "(return reason), or escalate (human review). Poll status "
+            "via GET /v1/proposals/{id} on the HTTP API. `type` is one "
+            "of 'add', 'correct', 'deprecate'. Pass `target_node_id` "
+            "from a prior `search`/`fetch` when correcting or deprecating."
+        ),
+    )
+    async def propose(
+        content: str,
+        type: Literal["add", "correct", "deprecate"] = "add",
+        target_node_id: str | None = None,
+        evidence: list[str] | None = None,
+        rationale: str = "",
+        submitted_by: str = "mcp-client",
+    ) -> McpProposalReceipt:
+        if s is None or lib is None:
+            # build_server() was called search-only mode (no store/librarian
+            # passed). Refuse loudly rather than silently dropping the
+            # proposal — surfaces a config bug to the operator.
+            raise RuntimeError(
+                "MCP propose tool requires store + librarian — server "
+                "was built without them"
+            )
+
+        proposal_id = new_proposal_id()
+        record = ProposalRecord(
+            id=proposal_id,
+            status="queued",
+            type=type,
+            content=content,
+            submitted_at=utc_now(),
+            submitted_by=submitted_by,
+            target_node_id=target_node_id,
+            evidence=list(evidence or []),
+            rationale=rationale,
+        )
+        await s.create(record)
+        asyncio.create_task(
+            process_proposal(
+                proposal_id,
+                store=s,
+                librarian=lib,
+                graph=g,
+            ),
+            name=f"proposal-{proposal_id[:8]}",
+        )
+        return McpProposalReceipt(proposal_id=proposal_id, status="queued")
+
     return mcp
 
 
-def run_stdio(graph: KnowledgeGraph | None = None) -> None:
+def run_stdio(
+    graph: KnowledgeGraph | None = None,
+    *,
+    store: GitProposalStore | None = None,
+    librarian: Librarian | None = None,
+) -> None:
     """Launch the MCP server over stdio.
 
     This is the transport Claude Desktop / Cursor expect when wiring a
@@ -130,12 +217,15 @@ def run_stdio(graph: KnowledgeGraph | None = None) -> None:
     on stdin and write replies on stdout. Anything we log must go to
     stderr so it doesn't corrupt the framing.
     """
-    server = build_server(graph)
+    server = build_server(graph, store=store, librarian=librarian)
     server.run(transport="stdio")
 
 
 def run_http(
     graph: KnowledgeGraph | None = None,
+    *,
+    store: GitProposalStore | None = None,
+    librarian: Librarian | None = None,
     host: str = "127.0.0.1",
     port: int = 8765,
     transport: Literal["sse", "streamable-http"] = "streamable-http",
@@ -147,7 +237,7 @@ def run_http(
     standard fetch-with-stream loop; ``sse`` is the legacy
     server-sent-events variant kept for older clients.
     """
-    server = build_server(graph)
+    server = build_server(graph, store=store, librarian=librarian)
     server.settings.host = host
     server.settings.port = port
     server.run(transport=transport)

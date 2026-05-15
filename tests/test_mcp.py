@@ -24,17 +24,17 @@ from tests.conftest import FakeGraph
 
 
 @pytest.fixture
-def server_with_fake():
+def server_with_fake(proposal_store, fake_librarian):
     fake = FakeGraph()
-    server = build_server(fake)
+    server = build_server(fake, store=proposal_store, librarian=fake_librarian)
     return server, fake
 
 
-async def test_mcp_lists_search_and_fetch_tools(server_with_fake) -> None:
+async def test_mcp_lists_all_three_tools(server_with_fake) -> None:
     server, _ = server_with_fake
     tools = await server.list_tools()
     names = {t.name for t in tools}
-    assert names == {"search", "fetch"}
+    assert names == {"search", "fetch", "propose"}
 
 
 async def test_mcp_search_marshals_graph_hits(server_with_fake) -> None:
@@ -91,3 +91,45 @@ async def test_mcp_fetch_returns_null_when_missing(server_with_fake) -> None:
     # FastMCP wraps a None return into {"result": None} when the
     # function's declared return type is Optional.
     assert structured.get("result") is None
+
+
+async def test_mcp_propose_queues_proposal(
+    server_with_fake, proposal_store, fake_librarian
+) -> None:
+    server, fake_graph = server_with_fake
+    fake_librarian.next_decision = "accept"
+    fake_librarian.next_reason = "matches docs"
+
+    _, structured = await server.call_tool(
+        "propose",
+        {
+            "content": "FastAPI 0.115 supports lifespan context managers.",
+            "type": "add",
+            "evidence": ["https://fastapi.tiangolo.com/release-notes/"],
+            "rationale": "release notes",
+            "submitted_by": "mcp-smoke",
+        },
+    )
+    # Non-Optional return types come back un-wrapped from FastMCP, so
+    # the receipt model serialises directly into ``structured``.
+    proposal_id = structured["proposal_id"]
+    assert structured["status"] == "queued"
+    assert proposal_id  # uuid present
+
+    # The record must have landed in the store before the receipt was
+    # returned — this is the durability contract the worker relies on.
+    record = await proposal_store.read(proposal_id)
+    assert record is not None
+    assert record.content.startswith("FastAPI 0.115")
+    assert record.submitted_by == "mcp-smoke"
+    assert record.evidence == ["https://fastapi.tiangolo.com/release-notes/"]
+
+
+async def test_mcp_propose_without_store_raises() -> None:
+    """If build_server is constructed search-only (no store/librarian),
+    calling propose must error rather than silently dropping the
+    submission. Regression fence so an operator misconfiguring stdio
+    server gets a loud signal."""
+    server = build_server(FakeGraph())  # no store, no librarian
+    with pytest.raises(Exception):  # RuntimeError wrapped by FastMCP
+        await server.call_tool("propose", {"content": "anything"})
