@@ -1,14 +1,15 @@
-"""Knowledge graph wrapper around Graphiti + FalkorDB.
+"""Knowledge graph wrapper around Graphiti + Neo4j.
 
 Graphiti gives us temporal knowledge graph semantics out of the box:
 each fact (an :class:`EntityEdge`) carries ``valid_at`` / ``invalid_at``
 windows, entity dedup happens automatically across ingests, and hybrid
-search (vector + BM25 + cross-encoder rerank + graph BFS) is one call.
+search (vector + BM25 + cross-encoder rerank) is one call.
 
-We pick FalkorDB over Neo4j as the default backend because: (a) it's a
-Redis module so a single container gets us both KV and graph without
-operating two databases, and (b) its BSL license is friendlier for
-opensource self-hosters than Neo4j's GPLv3 community edition.
+Backend is Neo4j 5.26 Community Edition (GPLv3) — we moved off FalkorDB
+in v0.2 because its BSL ("Business Source License") is source-available,
+not OSS, and that's a problem for an opensource project. Neo4j CE is
+a touch heavier to operate (separate process, JVM) but its license is
+clean for self-hosters and managed offerings.
 
 This module is a thin facade. Subsystems (api, librarian, connectors)
 talk to :class:`KnowledgeGraph` so we can swap the backend or even
@@ -35,6 +36,11 @@ class GraphSearchHit:
     imports from ``graphiti_core`` directly — keeps the swap seam clean.
     The ``summary`` field maps to the edge's ``fact`` (natural-language
     statement of the relationship); ``node_id`` is the edge's UUID.
+
+    ``episode_ids`` carries the UUID(s) of the Episodic nodes this fact
+    was extracted from — feed any of them into
+    :meth:`KnowledgeGraph.fetch_source` to read the original ingested
+    chunk instead of paying for N more entity drill-ins.
     """
 
     node_id: str
@@ -44,6 +50,24 @@ class GraphSearchHit:
     valid_from: datetime | None = None
     valid_until: datetime | None = None
     attributes: dict[str, Any] = field(default_factory=dict)
+    episode_ids: list[str] = field(default_factory=list)
+
+
+@dataclass(slots=True)
+class GraphSource:
+    """One Episodic node — the raw source chunk an edge was extracted from.
+
+    Returned by :meth:`KnowledgeGraph.fetch_source`. Agents read this
+    when the short fact summary from search isn't enough and they want
+    the surrounding paragraphs without doing N entity fetches.
+    """
+
+    episode_id: str
+    name: str
+    source: str  # ``<connector>:<url>`` as we record it at ingest
+    content: str
+    created_at: datetime | None = None
+    valid_at: datetime | None = None
 
 
 @dataclass(slots=True)
@@ -74,19 +98,23 @@ class KnowledgeGraph:
     async def _client_lazy(self) -> Any:
         if self._client is not None:
             return self._client
-        # Lazy imports — graphiti and its falkordb extra pull a lot of
+        # Lazy imports — graphiti and its neo4j extra pull a lot of
         # transitive deps that we don't want to pay for on test boots
         # or quick CLI runs that don't touch the graph.
         from graphiti_core import Graphiti
-        from graphiti_core.driver.falkordb_driver import FalkorDriver
+        from graphiti_core.cross_encoder.openai_reranker_client import (
+            OpenAIRerankerClient,
+        )
+        from graphiti_core.driver.neo4j_driver import Neo4jDriver
         from graphiti_core.embedder.openai import OpenAIEmbedder, OpenAIEmbedderConfig
         from graphiti_core.llm_client.config import LLMConfig
         from graphiti_core.llm_client.openai_client import OpenAIClient
 
-        self._driver = FalkorDriver(
-            host=self._settings.falkordb_host,
-            port=self._settings.falkordb_port,
-            database=self._settings.falkordb_database,
+        self._driver = Neo4jDriver(
+            uri=self._settings.neo4j_uri,
+            user=self._settings.neo4j_user,
+            password=self._settings.neo4j_password,
+            database=self._settings.neo4j_database,
         )
 
         if not self._settings.openai_api_key:
@@ -111,15 +139,27 @@ class KnowledgeGraph:
             )
         )
 
+        # Wire a cross-encoder so we can use Graphiti's CROSS_ENCODER
+        # search recipe. Without one, falling back to RRF gives much
+        # noisier hits (lexical false-positives dominate top_k).
+        reranker = OpenAIRerankerClient(
+            config=LLMConfig(
+                api_key=self._settings.openai_api_key,
+                model=self._settings.openai_small_model,
+                small_model=self._settings.openai_small_model,
+            )
+        )
+
         self._client = Graphiti(
             graph_driver=self._driver,
             llm_client=llm_client,
             embedder=embedder,
+            cross_encoder=reranker,
         )
         return self._client
 
     async def initialize(self) -> None:
-        """Create the FalkorDB indices and constraints Graphiti expects.
+        """Create the Neo4j indices and constraints Graphiti expects.
 
         Safe to call repeatedly — ``delete_existing=False`` makes this
         idempotent. The intended caller is a one-shot bootstrap script
@@ -129,76 +169,180 @@ class KnowledgeGraph:
         await client.build_indices_and_constraints(delete_existing=False)
 
     async def search(self, query: str, top_k: int = 10) -> list[GraphSearchHit]:
-        """Run a hybrid (BM25 + vector + BFS) search across the graph.
+        """Run a hybrid (BM25 + vector + cross-encoder rerank) search.
 
-        Graphiti returns ``EntityEdge`` instances — each edge is a fact
-        connecting two entity nodes. We project them flat for the API
-        layer; callers that need the full subgraph can chase
-        ``source_node_uuid`` / ``target_node_uuid`` through :meth:`fetch`.
+        Uses Graphiti's ``EDGE_HYBRID_SEARCH_CROSS_ENCODER`` recipe (a
+        copy with our own ``limit``) instead of the default convenience
+        path, which falls back to RRF when no cross-encoder is wired and
+        produces noisier top_k. We oversample ``MIN_OVERSAMPLE`` × top_k
+        candidates, let the cross-encoder rerank, then post-filter:
+
+        - drop summaries shorter than ``MIN_SUMMARY_CHARS`` (one-word
+          declarations like "X was discussed" hurt more than help);
+        - dedupe by normalized first-80-chars (Graphiti can return the
+          same fact under two edge uuids when a source has been ingested
+          twice).
+
+        Callers that need the full subgraph chase ``source_node_uuid`` /
+        ``target_node_uuid`` through :meth:`fetch`.
         """
+        from copy import deepcopy
+
+        from graphiti_core.search.search_config_recipes import (
+            EDGE_HYBRID_SEARCH_CROSS_ENCODER,
+        )
+
+        MIN_SUMMARY_CHARS = 40
+        MIN_OVERSAMPLE = 3
+
         client = await self._client_lazy()
-        edges = await client.search(query=query, num_results=top_k)
-        out: list[GraphSearchHit] = []
-        for e in edges:
-            out.append(
-                GraphSearchHit(
-                    node_id=str(e.uuid),
-                    summary=str(getattr(e, "fact", "") or getattr(e, "name", "")),
-                    source_node_uuid=str(getattr(e, "source_node_uuid", "") or ""),
-                    target_node_uuid=str(getattr(e, "target_node_uuid", "") or ""),
-                    valid_from=getattr(e, "valid_at", None),
-                    valid_until=getattr(e, "invalid_at", None),
-                    attributes=dict(getattr(e, "attributes", {}) or {}),
-                )
+        cfg = deepcopy(EDGE_HYBRID_SEARCH_CROSS_ENCODER)
+        cfg.limit = max(top_k * MIN_OVERSAMPLE, 20)
+        # Strip BFS — it issues O(n²) Cypher that times out on FalkorDB
+        # once the graph gets past a few thousand edges. BM25 + cosine
+        # + cross-encoder rerank covers the same recall surface for our
+        # bench tasks without the latency cliff.
+        try:
+            from graphiti_core.search.search_config import EdgeSearchMethod
+
+            cfg.edge_config.search_methods = [
+                m
+                for m in cfg.edge_config.search_methods
+                if m != EdgeSearchMethod.bfs
+            ]
+        except Exception:  # pragma: no cover — keep working if import shape shifts
+            pass
+        try:
+            results = await client._search(query=query, config=cfg)
+            edges = list(getattr(results, "edges", None) or [])
+        except Exception:
+            # Cross-encoder path can fail (e.g. quota), fall back to
+            # the convenience search rather than 500 the request.
+            logger.warning("cross-encoder search failed, falling back to RRF", exc_info=True)
+            edges = await client.search(query=query, num_results=top_k * MIN_OVERSAMPLE)
+
+        def _project(e) -> GraphSearchHit:
+            eps_raw = getattr(e, "episodes", None) or []
+            episode_ids = [str(x) for x in eps_raw if x]
+            return GraphSearchHit(
+                node_id=str(e.uuid),
+                summary=str(getattr(e, "fact", "") or getattr(e, "name", "") or "").strip(),
+                source_node_uuid=str(getattr(e, "source_node_uuid", "") or ""),
+                target_node_uuid=str(getattr(e, "target_node_uuid", "") or ""),
+                valid_from=getattr(e, "valid_at", None),
+                valid_until=getattr(e, "invalid_at", None),
+                attributes=dict(getattr(e, "attributes", {}) or {}),
+                episode_ids=episode_ids,
             )
+
+        out: list[GraphSearchHit] = []
+        seen_keys: set[str] = set()
+        for e in edges:
+            hit = _project(e)
+            if len(hit.summary) < MIN_SUMMARY_CHARS:
+                continue
+            key = " ".join(hit.summary.lower().split())[:80]
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            out.append(hit)
+            if len(out) >= top_k:
+                break
+
+        # Fallback: if the filter wiped everything (e.g. all candidates
+        # were one-liners), return up to top_k of the raw reranked list
+        # rather than an empty array. Empty results are worse than
+        # noisy ones — the agent loses retrieval *and* has no chance
+        # to evaluate relevance itself.
+        if not out and edges:
+            for e in edges[:top_k]:
+                hit = _project(e)
+                if hit.summary:
+                    out.append(hit)
         return out
 
     async def fetch(self, node_id: str) -> GraphNode | None:
         """Look up one entity node by uuid.
 
-        Graphiti exposes node lookups through the driver rather than a
-        helper on the client, so we issue a parameterised Cypher query
-        directly. The ``query_executor`` interface is stable across the
-        backends Graphiti supports (FalkorDB, Neo4j, Kuzu, Neptune).
+        Uses the Neo4j async driver directly (parameter-bound Cypher).
         """
-        client = await self._client_lazy()
-        driver = self._driver
-        if driver is None:  # pragma: no cover — set in _client_lazy
+        from neo4j import AsyncGraphDatabase
+
+        driver = AsyncGraphDatabase.driver(
+            self._settings.neo4j_uri,
+            auth=(self._settings.neo4j_user, self._settings.neo4j_password),
+        )
+        try:
+            async with driver.session(database=self._settings.neo4j_database) as session:
+                result = await session.run(
+                    "MATCH (n:Entity {uuid: $uuid}) "
+                    "RETURN n.uuid AS uuid, n.name AS name, "
+                    "n.summary AS summary, labels(n) AS labels LIMIT 1",
+                    uuid=node_id,
+                )
+                row = await result.single()
+        finally:
+            await driver.close()
+        if row is None:
             return None
+        return GraphNode(
+            node_id=str(row["uuid"] or node_id),
+            name=str(row["name"] or ""),
+            summary=str(row["summary"] or ""),
+            labels=list(row["labels"] or []),
+            attributes={},
+        )
 
-        # Both Entity and Episodic nodes carry a ``uuid`` property; we
-        # only return Entity here because Episodic nodes are raw source
-        # chunks the API doesn't surface as standalone records.
-        async with driver.session() as session:
-            result = await session.run(
-                "MATCH (n:Entity {uuid: $uuid}) "
-                "RETURN n.uuid AS uuid, n.name AS name, n.summary AS summary, "
-                "       labels(n) AS labels, n.attributes AS attributes "
-                "LIMIT 1",
-                uuid=node_id,
-            )
-            records = await result.values() if hasattr(result, "values") else result
-            row = records[0] if records else None
+    async def fetch_source(self, episode_id: str) -> GraphSource | None:
+        """Return the raw Episodic chunk a search hit was extracted from.
 
+        Agents use this to cut round-trips: instead of N ``fetch`` calls
+        chasing the entities a fact relates, they pull the source
+        paragraph once and read it directly. Returns ``None`` if the id
+        doesn't match an Episodic node (it might be an Entity uuid by
+        mistake — callers should distinguish).
+        """
+        from neo4j import AsyncGraphDatabase
+        from neo4j.time import DateTime as Neo4jDateTime
+
+        driver = AsyncGraphDatabase.driver(
+            self._settings.neo4j_uri,
+            auth=(self._settings.neo4j_user, self._settings.neo4j_password),
+        )
+        try:
+            async with driver.session(database=self._settings.neo4j_database) as session:
+                result = await session.run(
+                    "MATCH (n:Episodic {uuid: $uuid}) "
+                    "RETURN n.uuid AS uuid, n.name AS name, "
+                    "n.source_description AS source, n.content AS content, "
+                    "n.created_at AS created_at, n.valid_at AS valid_at LIMIT 1",
+                    uuid=episode_id,
+                )
+                row = await result.single()
+        finally:
+            await driver.close()
         if row is None:
             return None
 
-        # Driver row shape varies slightly across backends; coerce to a
-        # dict so we don't bind to FalkorDB's tuple layout specifically.
-        if isinstance(row, dict):
-            uuid_v = row.get("uuid") or node_id
-            name = row.get("name") or ""
-            summary = row.get("summary") or ""
-            labels = list(row.get("labels") or [])
-            attrs = dict(row.get("attributes") or {})
-        else:  # list/tuple
-            uuid_v, name, summary, labels, attrs = (list(row) + [None] * 5)[:5]
-        return GraphNode(
-            node_id=str(uuid_v or node_id),
-            name=str(name or ""),
-            summary=str(summary or ""),
-            labels=list(labels or []),
-            attributes=dict(attrs or {}),
+        def _to_dt(v):
+            if v is None:
+                return None
+            if isinstance(v, Neo4jDateTime):
+                return v.to_native()
+            if isinstance(v, str):
+                try:
+                    return datetime.fromisoformat(v.replace("Z", "+00:00"))
+                except ValueError:
+                    return None
+            return None
+
+        return GraphSource(
+            episode_id=str(row["uuid"] or episode_id),
+            name=str(row["name"] or ""),
+            source=str(row["source"] or ""),
+            content=str(row["content"] or ""),
+            created_at=_to_dt(row["created_at"]),
+            valid_at=_to_dt(row["valid_at"]),
         )
 
     async def upsert_episode(
@@ -229,7 +373,15 @@ class KnowledgeGraph:
             reference_time=reference_time or datetime.now(UTC),
             group_id=group_id,
         )
-        return str(getattr(result, "episode_uuid", "") or getattr(result, "uuid", ""))
+        # Graphiti's AddEpisodeResults shape — episode is nested.
+        # Fall back to legacy fields for older versions.
+        episode = getattr(result, "episode", None)
+        uuid = getattr(episode, "uuid", None) if episode is not None else None
+        return str(
+            uuid
+            or getattr(result, "episode_uuid", "")
+            or getattr(result, "uuid", "")
+        )
 
     async def close(self) -> None:
         """Release the underlying driver connection.

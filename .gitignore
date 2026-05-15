@@ -24,3 +24,11 @@ htmlcov/
 data/
 *.db
 *.dump
+
+# Internal planning docs — not for public repo
+RELEASE_PLAN.md
+
+# Raw bench outputs (per-task JSON + intermediate logs). Summary PDFs
+# in ``reports/`` are the public artifact; raw runs are too noisy to
+# track in git.
+tools/eval/

@@ -2,7 +2,7 @@
 
 The graph fake here is the canonical seam for unit tests: routes get a
 :class:`FakeGraph` via ``app.dependency_overrides`` so we never touch
-FalkorDB. Integration tests in ``tests/integration/`` opt out of this
+Neo4j. Integration tests in ``tests/integration/`` opt out of this
 and exercise the real backend; they're skipped by default and require
 ``LIGHTHOUSE_INTEGRATION=1`` to run.
 """
@@ -21,7 +21,7 @@ from lighthouse.api.dependencies import (
     get_proposal_queue,
     get_proposal_store,
 )
-from lighthouse.api.main import app
+from lighthouse.api.main import create_app
 from lighthouse.core.graph import GraphNode, GraphSearchHit, KnowledgeGraph
 from lighthouse.librarian.agent import Librarian
 from lighthouse.proposals.queue import ProposalQueue
@@ -167,18 +167,15 @@ def client(
     """TestClient with graph + librarian + store + queue dependencies
     overridden.
 
-    Yielding semantics ensure overrides are removed after the test so
-    cross-test bleed is impossible.
+    A fresh ``app`` is built per test so each one owns its own FastMCP
+    session-manager — FastMCP's ``run()`` context isn't reentrant, and
+    sharing a module-level ``app`` across tests deadlocks the second
+    lifespan entry.
     """
+    app = create_app()
     app.dependency_overrides[get_graph] = lambda: fake_graph
     app.dependency_overrides[get_librarian] = lambda: fake_librarian
     app.dependency_overrides[get_proposal_store] = lambda: proposal_store
     app.dependency_overrides[get_proposal_queue] = lambda: proposal_queue
-    try:
-        with TestClient(app) as c:
-            yield c
-    finally:
-        app.dependency_overrides.pop(get_graph, None)
-        app.dependency_overrides.pop(get_librarian, None)
-        app.dependency_overrides.pop(get_proposal_store, None)
-        app.dependency_overrides.pop(get_proposal_queue, None)
+    with TestClient(app) as c:
+        yield c

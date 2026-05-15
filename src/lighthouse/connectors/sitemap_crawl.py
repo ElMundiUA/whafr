@@ -1,4 +1,4 @@
-"""Sitemap-driven crawl connector — Firecrawl-free for static docs.
+"""Sitemap-driven crawl connector — pure-OSS spider for static docs.
 
 Most documentation sites (python.org, postgresql.org, martinfowler.com,
 nextjs.org, kubernetes.io, atlassian.com, …) are server-side rendered
@@ -6,9 +6,9 @@ and expose a ``sitemap.xml`` listing every URL. We don't need a
 headless browser; we just enumerate the sitemap and feed each URL
 through trafilatura.
 
-This covers ~90% of what we'd pay Firecrawl for, free. The
-``crawl`` (Firecrawl) connector stays for the remaining SPA / JS-
-rendered cases (Linear docs, some Notion-rendered sites).
+This is the only spider Lighthouse ships. SPA / JS-rendered docs are
+out of scope by design — keeps the dependency footprint small and
+the license story clean.
 
 Per-source rate-limit is intentionally polite (1 req/s by default).
 To still finish in reasonable time, run many sources concurrently —

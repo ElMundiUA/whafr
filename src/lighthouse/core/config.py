@@ -19,10 +19,15 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # --- Graph backend ---
-    falkordb_host: str = "localhost"
-    falkordb_port: int = 6379
-    falkordb_database: str = "lighthouse"
+    # --- Graph backend (Neo4j 5.26 Community Edition) ---
+    # Neo4j replaced FalkorDB as the default backend in v0.2 for
+    # licensing reasons: Neo4j CE is GPLv3-licensed, FalkorDB is BSL
+    # (source-available, not OSS). Graphiti's Neo4jDriver speaks Bolt
+    # over the bolt:// URI scheme.
+    neo4j_uri: str = "bolt://localhost:7687"
+    neo4j_user: str = "neo4j"
+    neo4j_password: str = "neo4j_dev_password"
+    neo4j_database: str = "neo4j"
 
     # --- Anthropic (Librarian agent) ---
     anthropic_api_key: str = ""
@@ -55,12 +60,11 @@ class Settings(BaseSettings):
     # than ingested as garbage.
     lighthouse_docling_url: str = "http://localhost:5001"
 
-    # --- Firecrawl (whole-site crawl backend) ---
-    # The CrawlConnector uses Firecrawl's cloud API to crawl an
-    # entire domain or subtree. Handles SPA rendering, robots.txt,
-    # and rate limits for us. Empty string disables the crawl path.
-    firecrawl_api_key: str = ""
-    firecrawl_base_url: str = "https://api.firecrawl.dev"
+    # --- OpenRouter (multi-provider gateway) ---
+    # Lets the OpenAI-compatible bench hit Anthropic / Google / DeepSeek
+    # etc. through a single endpoint. Empty disables OpenRouter routing.
+    openrouter_api_key: str = ""
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
 
     # --- Relevance gate (cheap LLM filter before ingest) ---
     # Before paying for entity extraction + embeddings on every

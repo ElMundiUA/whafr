@@ -53,8 +53,8 @@ def main(argv: list[str] | None = None) -> int:
         "--max-concurrent",
         type=int,
         default=5,
-        help="Max parallel source ingests. Should match the crawl-backend "
-        "concurrent-browser cap (Firecrawl Hobby: 5).",
+        help="Max parallel source ingests. Sitemap connector is polite "
+        "by default (per-source rate_limit_per_sec=1.0).",
     )
 
     mcp_cmd = sub.add_parser("mcp", help="Run the MCP server (for AI clients)")

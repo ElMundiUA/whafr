@@ -18,24 +18,36 @@ a Postgres or graph store.
 
 ```
 src/lighthouse/
-  api/            FastAPI app: /search, /fetch, /propose
-  core/           Config + Graphiti+FalkorDB wrapper
-  connectors/     Source connectors (markdown today, LlamaIndex-hub backed)
+  api/            FastAPI app: /search, /fetch_entity, /fetch_source, /propose
+  core/           Config + Graphiti+Neo4j wrapper
+  connectors/     Source connectors (markdown, web, github, sitemap)
   librarian/      Curator agent (Anthropic SDK + prompt caching)
-infra/            docker-compose for local dev (FalkorDB + lighthouse-api)
+infra/            docker-compose + k8s manifests (Neo4j 5.26 CE + lighthouse-api)
 tests/            Smoke tests
 ```
+
+## Self-host: graph backend
+
+Lighthouse v0.2+ runs on **Neo4j 5.26 Community Edition** (GPLv3, free for
+self-hosters). Earlier versions used FalkorDB; we moved off it because its
+BSL ("Business Source License") is source-available, not OSS — a problem for
+an opensource project. The Neo4j swap is a one-line config change for
+existing deployments; data does not migrate automatically (re-ingest from
+sources).
 
 ## Quickstart
 
 ```bash
 cp .env.example .env
-# Fill in ANTHROPIC_API_KEY and LIGHTHOUSE_PROPOSAL_API_KEY
+# Fill in ANTHROPIC_API_KEY, OPENAI_API_KEY, LIGHTHOUSE_PROPOSAL_API_KEY
 
-docker compose -f infra/docker-compose.yml up -d   # FalkorDB on localhost:6379
+docker compose -f infra/docker-compose.yml up -d   # Neo4j on bolt://localhost:7687
 pip install -e ".[dev]"
 uvicorn lighthouse.api.main:app --reload
 ```
+
+Neo4j browser is on http://localhost:7474 — default creds `neo4j` /
+`neo4j_dev_password` (change in compose + `.env` before exposing anywhere).
 
 Then:
 

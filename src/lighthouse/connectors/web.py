@@ -17,9 +17,9 @@ backend that would poison entity extraction with garbage.
 What this *still doesn't* handle:
 
 - **JavaScript-rendered HTML pages.** Trafilatura parses static HTML;
-  SPAs need a real browser (Playwright/Firecrawl). Add when needed.
+  SPAs need a real browser (Playwright). Add when needed.
 - **Crawling.** This connector ingests the exact URLs you pass it.
-  Spider a whole docs site? Separate ``CrawlConnector`` job.
+  Spider a whole docs site? Use the ``SitemapCrawlConnector``.
 """
 
 from __future__ import annotations

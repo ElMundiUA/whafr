@@ -23,7 +23,7 @@ from lighthouse.proposals.store import GitProposalStore
 def get_graph() -> KnowledgeGraph:
     """Process-singleton :class:`KnowledgeGraph`.
 
-    Cached so every request reuses the same FalkorDB connection. The
+    Cached so every request reuses the same Neo4j connection. The
     cache is cleared between test runs via ``get_graph.cache_clear()``
     when a fake graph is injected; production never clears it.
     """

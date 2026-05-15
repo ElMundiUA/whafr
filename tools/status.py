@@ -1,7 +1,7 @@
 """Lighthouse ingest dashboard.
 
 One-shot status snapshot — reads the runner log, the unparseable
-JSONL, and the FalkorDB graph, and prints a compact human-readable
+JSONL, and the Neo4j graph, and prints a compact human-readable
 summary of where we are.
 
 Usage:
@@ -84,52 +84,41 @@ def parse_log(path: Path) -> dict:
 
 
 def graph_counts() -> dict[str, int]:
-    """Pull node/edge counts from FalkorDB via redis-cli."""
+    """Pull node/edge counts from Neo4j via cypher-shell."""
+
+    def _run(cypher: str) -> int:
+        try:
+            res = subprocess.run(
+                [
+                    "docker",
+                    "exec",
+                    "lighthouse-neo4j",
+                    "cypher-shell",
+                    "-u",
+                    "neo4j",
+                    "-p",
+                    "neo4j_dev_password",
+                    "--format",
+                    "plain",
+                    cypher,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+        except Exception:
+            return -1
+        for ln in res.stdout.splitlines():
+            ln = ln.strip().strip('"')
+            if ln.isdigit():
+                return int(ln)
+        return -1
+
     out: dict[str, int] = {}
     for label in ("Episodic", "Entity"):
-        try:
-            res = subprocess.run(
-                [
-                    "docker",
-                    "exec",
-                    "lighthouse-falkordb",
-                    "redis-cli",
-                    "GRAPH.QUERY",
-                    "lighthouse",
-                    f'MATCH (n:{label}) RETURN count(n)',
-                ],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            for ln in res.stdout.splitlines():
-                if ln.strip().isdigit():
-                    out[label] = int(ln.strip())
-                    break
-        except Exception:
-            out[label] = -1
+        out[label] = _run(f"MATCH (n:{label}) RETURN count(n)")
     for rel in ("RELATES_TO", "MENTIONS"):
-        try:
-            res = subprocess.run(
-                [
-                    "docker",
-                    "exec",
-                    "lighthouse-falkordb",
-                    "redis-cli",
-                    "GRAPH.QUERY",
-                    "lighthouse",
-                    f'MATCH ()-[r:{rel}]->() RETURN count(r)',
-                ],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            for ln in res.stdout.splitlines():
-                if ln.strip().isdigit():
-                    out[rel] = int(ln.strip())
-                    break
-        except Exception:
-            out[rel] = -1
+        out[rel] = _run(f"MATCH ()-[r:{rel}]->() RETURN count(r)")
     return out
 
 

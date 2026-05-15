@@ -1,10 +1,10 @@
-"""End-to-end ingest → search smoke against real FalkorDB + OpenAI.
+"""End-to-end ingest → search smoke against real Neo4j + OpenAI.
 
 This is the most expensive test in the suite: it spins up a real
 Graphiti client (OpenAI calls for entity extraction + embeddings) and
-writes to a live FalkorDB. Run it with all three coordinates in place:
+writes to a live Neo4j 5.26. Run it with all three coordinates in place:
 
-    docker compose -f infra/docker-compose.yml up -d falkordb
+    docker compose -f infra/docker-compose.yml up -d neo4j
     export OPENAI_API_KEY=sk-...
     LIGHTHOUSE_INTEGRATION=1 pytest tests/integration/test_ingest_cycle.py
 
@@ -40,12 +40,12 @@ async def test_ingest_then_search_returns_the_fact() -> None:
     from lighthouse.core.graph import KnowledgeGraph
 
     # Use a fresh nonce in the body so we can't pass via cached state
-    # from a prior test run sharing the same FalkorDB database.
+    # from a prior test run sharing the same Neo4j database.
     nonce = uuid.uuid4().hex[:8]
     body = (
-        f"In test-run {nonce}, the Lighthouse project chose FalkorDB "
-        f"as its default graph backend because it ships as a Redis "
-        f"module and has a friendlier license than Neo4j community."
+        f"In test-run {nonce}, the Lighthouse project uses Neo4j 5.26 "
+        f"Community Edition as its default graph backend, chosen for "
+        f"its GPLv3 license and mature Cypher tooling."
     )
 
     graph = KnowledgeGraph()
@@ -58,6 +58,13 @@ async def test_ingest_then_search_returns_the_fact() -> None:
             reference_time=datetime.now(UTC),
         )
         assert episode_uuid, "expected upsert_episode to return an episode uuid"
+
+        # Neo4j's fulltext + vector indexes sync asynchronously after a
+        # write — without a brief wait we race the index and search
+        # returns empty on the just-ingested edge.
+        import asyncio
+
+        await asyncio.sleep(2.0)
 
         hits = await graph.search(
             f"What graph backend does Lighthouse use in run {nonce}?",

@@ -1,6 +1,6 @@
 """Smoke tests — boot the API in-process via TestClient against a fake
 graph. The real graph backend is exercised in
-``tests/integration/test_falkordb.py`` (gated behind
+``tests/integration/test_neo4j.py`` (gated behind
 ``LIGHTHOUSE_INTEGRATION=1``)."""
 
 from __future__ import annotations
