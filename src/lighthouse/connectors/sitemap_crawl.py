@@ -166,14 +166,21 @@ class SitemapCrawlConnector(Connector):
         sitemap_url: str,
         *,
         depth: int = 0,
+        budget: int | None = None,
     ) -> list[str]:
         """Fetch and parse one sitemap URL into page URLs.
 
-        Recurses one level when the body is a ``sitemapindex``. Two
-        levels of nesting is exotic enough that we cap recursion at
-        depth=2 to avoid hostile loops.
+        Sitemap-index files are recursed up to two levels deep. When
+        ``budget`` is set the walker short-circuits as soon as enough
+        URLs are collected — critical for mega-indexes like
+        ``docs.aws.amazon.com`` (thousands of per-guide sitemaps) and
+        ``hexdocs.pm`` (one sitemap per Hex package) that otherwise
+        spend hours enumerating leaves we'll discard.
         """
         import xml.etree.ElementTree as ET
+
+        if budget is None:
+            budget = self._max_pages
 
         xml = await self._fetch_xml(client, sitemap_url)
         if xml is None:
@@ -202,6 +209,8 @@ class SitemapCrawlConnector(Connector):
                     loc_el = url_el.find("loc")
                 if loc_el is not None and loc_el.text:
                     out.append(loc_el.text.strip())
+                    if len(out) >= budget:
+                        return out
         elif tag == "sitemapindex" and depth < 2:
             sm_els = root.findall(f"{_SM_NS}sitemap")
             if not sm_els:
@@ -211,11 +220,19 @@ class SitemapCrawlConnector(Connector):
                 if loc_el is None:
                     loc_el = sm_el.find("loc")
                 if loc_el is not None and loc_el.text:
+                    remaining = budget - len(out)
+                    if remaining <= 0:
+                        return out
                     out.extend(
                         await self._walk_sitemap(
-                            client, loc_el.text.strip(), depth=depth + 1
+                            client,
+                            loc_el.text.strip(),
+                            depth=depth + 1,
+                            budget=remaining,
                         )
                     )
+                    if len(out) >= budget:
+                        return out
         return out
 
     async def _fetch_xml(self, client, url: str) -> str | None:
