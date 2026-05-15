@@ -1,0 +1,245 @@
+# Phase 4 recovery — sources surfaced by wave-4 persona audits.
+# (build systems, ML infra, browser internals, email engineering,
+# DDD / architecture). Combined with phases 1-3, this closes another
+# 60+ canonical sources across previously-100%-gap surfaces.
+sources:
+
+  # ── Build systems / bundlers (90% gap) ────────────────────────────
+  - name: build-bazel
+    connector: sitemap
+    args:
+      root: https://bazel.build
+      max_pages: 200
+    schedule:
+      every: 60d
+  - name: build-turbo
+    connector: sitemap
+    args:
+      root: https://turborepo.com
+      max_pages: 150
+    schedule:
+      every: 30d
+  - name: build-nx
+    connector: sitemap
+    args:
+      root: https://nx.dev
+      max_pages: 200
+    schedule:
+      every: 30d
+  - name: build-vite
+    connector: sitemap
+    args:
+      root: https://vite.dev
+      max_pages: 150
+    schedule:
+      every: 30d
+  - name: build-esbuild
+    connector: sitemap
+    args:
+      root: https://esbuild.github.io
+      max_pages: 100
+    schedule:
+      every: 60d
+  - name: build-docker-buildkit
+    connector: sitemap
+    args:
+      root: https://docs.docker.com
+      max_pages: 250
+      include_paths: ["/build/"]
+    schedule:
+      every: 30d
+  - name: build-renovate
+    connector: sitemap
+    args:
+      root: https://docs.renovatebot.com
+      max_pages: 150
+    schedule:
+      every: 60d
+  - name: build-changesets
+    connector: web
+    args:
+      urls:
+        - https://github.com/changesets/changesets
+    schedule:
+      every: 90d
+
+  # ── ML/AI infrastructure (100% gap) ───────────────────────────────
+  - name: ml-pytorch-distributed
+    connector: sitemap
+    args:
+      root: https://pytorch.org
+      max_pages: 250
+      include_paths: ["/docs/stable/distributed", "/docs/stable/fsdp", "/tutorials/intermediate/", "/tutorials/distributed/"]
+    schedule:
+      every: 60d
+  - name: ml-deepspeed
+    connector: sitemap
+    args:
+      root: https://www.deepspeed.ai
+      max_pages: 100
+    schedule:
+      every: 60d
+  - name: ml-hf-transformers
+    connector: sitemap
+    args:
+      root: https://huggingface.co
+      max_pages: 250
+      include_paths: ["/docs/transformers", "/docs/peft", "/docs/accelerate"]
+    schedule:
+      every: 30d
+  - name: ml-vllm
+    connector: sitemap
+    args:
+      root: https://docs.vllm.ai
+      max_pages: 100
+    schedule:
+      every: 60d
+  - name: ml-mlflow
+    connector: sitemap
+    args:
+      root: https://mlflow.org
+      max_pages: 150
+    schedule:
+      every: 60d
+  - name: ml-wandb
+    connector: sitemap
+    args:
+      root: https://docs.wandb.ai
+      max_pages: 150
+    schedule:
+      every: 60d
+  - name: ml-eval-harness
+    connector: web
+    args:
+      urls:
+        - https://github.com/EleutherAI/lm-evaluation-harness
+        - https://github.com/artidoro/qlora
+    schedule:
+      every: 90d
+
+  # ── Browser internals / web standards (100% gap) ──────────────────
+  - name: web-mdn-api
+    connector: sitemap
+    args:
+      root: https://developer.mozilla.org
+      max_pages: 400
+      include_paths: ["/en-US/docs/Web/API"]
+    schedule:
+      every: 30d
+  - name: web-chrome-developer
+    connector: sitemap
+    args:
+      root: https://developer.chrome.com
+      max_pages: 300
+    schedule:
+      every: 30d
+  - name: web-w3c-tr
+    connector: sitemap
+    args:
+      root: https://www.w3.org
+      max_pages: 200
+      include_paths: ["/TR/"]
+    schedule:
+      every: 90d
+  - name: web-wasm-component-model
+    connector: sitemap
+    args:
+      root: https://component-model.bytecodealliance.org
+      max_pages: 80
+    schedule:
+      every: 90d
+
+  # ── Email engineering (100% gap) ──────────────────────────────────
+  - name: email-rfc
+    connector: web
+    args:
+      urls:
+        - https://datatracker.ietf.org/doc/html/rfc7489
+        - https://datatracker.ietf.org/doc/html/rfc8058
+        - https://datatracker.ietf.org/doc/html/rfc8460
+        - https://datatracker.ietf.org/doc/html/rfc8617
+        - https://datatracker.ietf.org/doc/html/rfc7208
+        - https://datatracker.ietf.org/doc/html/rfc6376
+    schedule:
+      every: 365d
+  - name: email-gmail-bulk
+    connector: web
+    args:
+      urls:
+        - https://support.google.com/mail/answer/81126
+        - https://support.google.com/mail/answer/6227174
+    schedule:
+      every: 90d
+  - name: email-bimi
+    connector: sitemap
+    args:
+      root: https://bimigroup.org
+      max_pages: 80
+    schedule:
+      every: 90d
+  - name: email-sendgrid
+    connector: sitemap
+    args:
+      root: https://docs.sendgrid.com
+      max_pages: 150
+    schedule:
+      every: 60d
+  - name: email-postmark
+    connector: sitemap
+    args:
+      root: https://postmarkapp.com
+      max_pages: 150
+      include_paths: ["/developer", "/blog"]
+    schedule:
+      every: 60d
+  - name: email-mjml
+    connector: sitemap
+    args:
+      root: https://mjml.io
+      max_pages: 80
+    schedule:
+      every: 90d
+
+  # ── DDD + solutions architecture (82% gap) ────────────────────────
+  - name: arch-domain-language
+    connector: sitemap
+    args:
+      root: https://www.domainlanguage.com
+      max_pages: 100
+    schedule:
+      every: 90d
+  - name: arch-c4-model
+    connector: sitemap
+    args:
+      root: https://c4model.com
+      max_pages: 60
+    schedule:
+      every: 90d
+  - name: arch-arc42
+    connector: sitemap
+    args:
+      root: https://arc42.org
+      max_pages: 80
+    schedule:
+      every: 90d
+  - name: arch-adr-org
+    connector: sitemap
+    args:
+      root: https://adr.github.io
+      max_pages: 60
+    schedule:
+      every: 90d
+  - name: arch-cockburn-hex
+    connector: sitemap
+    args:
+      root: https://alistair.cockburn.us
+      max_pages: 80
+    schedule:
+      every: 90d
+  - name: arch-domain-storytelling
+    connector: sitemap
+    args:
+      root: https://domainstorytelling.org
+      max_pages: 50
+    schedule:
+      every: 90d
