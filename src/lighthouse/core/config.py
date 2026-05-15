@@ -55,6 +55,22 @@ class Settings(BaseSettings):
     # than ingested as garbage.
     lighthouse_docling_url: str = "http://localhost:5001"
 
+    # --- Firecrawl (whole-site crawl backend) ---
+    # The CrawlConnector uses Firecrawl's cloud API to crawl an
+    # entire domain or subtree. Handles SPA rendering, robots.txt,
+    # and rate limits for us. Empty string disables the crawl path.
+    firecrawl_api_key: str = ""
+    firecrawl_base_url: str = "https://api.firecrawl.dev"
+
+    # --- Relevance gate (cheap LLM filter before ingest) ---
+    # Before paying for entity extraction + embeddings on every
+    # crawled page, run a cheap classifier to decide if the page is
+    # actually relevant to a role's knowledge surface. Set to "" to
+    # disable; in that case every doc that passes the connector
+    # makes it to add_episode.
+    relevance_gate_model: str = "gpt-4o-mini"
+    relevance_gate_enabled: bool = False
+
     # --- Proposal store ---
     # Local directory where the git-backed proposal store lives. One
     # markdown file per proposal; the directory is git-init'd on first

@@ -71,7 +71,7 @@ class SourceSpec(BaseModel):
     """
 
     name: str = Field(min_length=1, description="Stable id; used as source_prefix")
-    connector: Literal["markdown", "web", "github"]
+    connector: Literal["markdown", "web", "github", "crawl"]
     args: dict[str, Any] = Field(default_factory=dict)
     schedule: Schedule
 
@@ -132,10 +132,23 @@ def _github_factory(args: dict[str, Any]) -> Connector:
     )
 
 
+def _crawl_factory(args: dict[str, Any]) -> Connector:
+    from lighthouse.connectors.crawl import CrawlConnector
+
+    return CrawlConnector(
+        root=args["root"],
+        include_paths=args.get("include_paths"),
+        max_pages=int(args.get("max_pages", 500)),
+        only_main_content=bool(args.get("only_main_content", True)),
+        wait_for_dynamic=int(args.get("wait_for_dynamic", 0)),
+    )
+
+
 _FACTORIES: dict[str, ConnectorFactory] = {
     "markdown": _markdown_factory,
     "web": _web_factory,
     "github": _github_factory,
+    "crawl": _crawl_factory,
 }
 
 
