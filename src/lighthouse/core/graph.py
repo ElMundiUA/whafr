@@ -208,12 +208,18 @@ class KnowledgeGraph:
         body: str,
         source: str,
         reference_time: datetime | None = None,
+        group_id: str = "lighthouse",
     ) -> str:
         """Feed one episode (a chunk of source text) into the graph.
 
         Graphiti handles entity extraction, dedup against prior episodes,
         and temporal bookkeeping under the hood. Returns the episode's
         UUID so the caller can correlate ingest provenance later.
+
+        ``group_id`` partitions the graph. Default is ``"lighthouse"`` —
+        Graphiti requires a non-empty alphanumeric/dash/underscore id
+        and rejects empty or special-character defaults. Callers wanting
+        per-tenant or per-deployment isolation pass their own id.
         """
         client = await self._client_lazy()
         result = await client.add_episode(
@@ -221,6 +227,7 @@ class KnowledgeGraph:
             episode_body=body,
             source_description=source,
             reference_time=reference_time or datetime.now(UTC),
+            group_id=group_id,
         )
         return str(getattr(result, "episode_uuid", "") or getattr(result, "uuid", ""))
 
