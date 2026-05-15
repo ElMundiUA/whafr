@@ -194,10 +194,19 @@ class KnowledgeGraph:
 
         MIN_SUMMARY_CHARS = 40
         MIN_OVERSAMPLE = 3
+        # Cross-encoder relevance floor — surfaced as a UX hazard in
+        # the wave-6 audit (the retriever happily returned "SAFe
+        # framework" for "Gnosis Safe", "Risc management" for
+        # "RISC Zero" etc. when the corpus was thin on the topic).
+        # Measured score distribution: real hits score 0.1-1.0,
+        # pure-noise false positives score < 1e-06. 0.001 cleanly
+        # separates them and tolerates weak-but-real matches.
+        RERANKER_MIN_SCORE = 0.001
 
         client = await self._client_lazy()
         cfg = deepcopy(EDGE_HYBRID_SEARCH_CROSS_ENCODER)
         cfg.limit = max(top_k * MIN_OVERSAMPLE, 20)
+        cfg.reranker_min_score = RERANKER_MIN_SCORE
         # Strip BFS — it issues O(n²) Cypher that times out on FalkorDB
         # once the graph gets past a few thousand edges. BM25 + cosine
         # + cross-encoder rerank covers the same recall surface for our
@@ -249,11 +258,13 @@ class KnowledgeGraph:
             if len(out) >= top_k:
                 break
 
-        # Fallback: if the filter wiped everything (e.g. all candidates
-        # were one-liners), return up to top_k of the raw reranked list
-        # rather than an empty array. Empty results are worse than
-        # noisy ones — the agent loses retrieval *and* has no chance
-        # to evaluate relevance itself.
+        # Fallback: if the filter wiped everything because all
+        # candidates were too short (< MIN_SUMMARY_CHARS) but the
+        # rerank scores were good, return the best of them anyway —
+        # honest "short fact" > empty. We do NOT fall back when the
+        # cross-encoder already dropped everything via min_score,
+        # because that means the topic isn't in the corpus and
+        # "confidently wrong" was the original UX bug.
         if not out and edges:
             for e in edges[:top_k]:
                 hit = _project(e)
