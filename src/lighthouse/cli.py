@@ -28,6 +28,28 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("serve", help="Run the FastAPI app under uvicorn")
 
+    runner_cmd = sub.add_parser(
+        "runner",
+        help="Run the scheduled source-runner (drains configured sources on a schedule)",
+    )
+    runner_cmd.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="Path to sources.yaml; defaults to LIGHTHOUSE_RUNNER_CONFIG",
+    )
+    runner_cmd.add_argument(
+        "--once",
+        action="store_true",
+        help="Drain every configured source once and exit (ignores schedule)",
+    )
+    runner_cmd.add_argument(
+        "--heartbeat",
+        type=float,
+        default=30.0,
+        help="Seconds between schedule checks (default: 30)",
+    )
+
     mcp_cmd = sub.add_parser("mcp", help="Run the MCP server (for AI clients)")
     mcp_cmd.add_argument(
         "--transport",
@@ -70,6 +92,8 @@ def main(argv: list[str] | None = None) -> int:
         return _serve()
     if args.cmd == "mcp":
         return _mcp(args.transport, args.host, args.port)
+    if args.cmd == "runner":
+        return asyncio.run(_runner(args.config, once=args.once, heartbeat=args.heartbeat))
     if args.cmd == "ingest":
         if args.source == "markdown":
             return asyncio.run(_ingest_markdown(args.path))
@@ -119,28 +143,33 @@ def _mcp(transport: str, host: str, port: int) -> int:
     return 0
 
 
-async def _drain(connector, *, source_prefix: str) -> int:
-    """Shared drain loop: pull SourceDocuments from a connector and
-    upsert each as an episode. Reused by every ingest subcommand so the
-    error/log behavior is consistent across sources.
-    """
+async def _runner(config_path: Path | None, *, once: bool, heartbeat: float) -> int:
+    from lighthouse.core.config import get_settings
     from lighthouse.core.graph import KnowledgeGraph
+    from lighthouse.runner import SourceScheduler, StateStore, load_config
 
-    graph = KnowledgeGraph()
-    await graph.initialize()
+    settings = get_settings()
+    cfg_path = config_path or Path(settings.lighthouse_runner_config)
+    config = load_config(cfg_path)
+    if not config.sources:
+        logger.warning("no sources configured in %s — nothing to do", cfg_path)
+        return 0
 
-    n = 0
+    state = StateStore(Path(settings.lighthouse_runner_state))
+    graph = KnowledgeGraph(settings)
+    scheduler = SourceScheduler(
+        config,
+        state,
+        graph,
+        heartbeat_seconds=heartbeat,
+    )
     try:
-        async for doc in connector.ingest():
-            await graph.upsert_episode(
-                name=doc.title,
-                body=doc.body,
-                source=f"{source_prefix}:{doc.source_id}",
-                reference_time=doc.reference_time,
-            )
-            n += 1
-            logger.info("ingested: %s", doc.title)
-        logger.info("done — %d documents ingested from %s", n, source_prefix)
+        if once:
+            results = await scheduler.run_once()
+            for name, n in results.items():
+                logger.info("source %s: %d documents", name, n)
+        else:
+            await scheduler.run()
     finally:
         await graph.close()
     return 0
@@ -148,18 +177,23 @@ async def _drain(connector, *, source_prefix: str) -> int:
 
 async def _ingest_markdown(path: Path) -> int:
     from lighthouse.connectors.markdown import MarkdownConnector
+    from lighthouse.ingest import drain
 
-    return await _drain(MarkdownConnector(path), source_prefix="markdown")
+    await drain(MarkdownConnector(path), source_prefix="markdown")
+    return 0
 
 
 async def _ingest_web(urls: list[str]) -> int:
     from lighthouse.connectors.web import WebConnector
+    from lighthouse.ingest import drain
 
-    return await _drain(WebConnector(urls), source_prefix="web")
+    await drain(WebConnector(urls), source_prefix="web")
+    return 0
 
 
 async def _ingest_github(slug: str, *, branch: str, ext: list[str] | None) -> int:
     from lighthouse.connectors.github import GitHubConnector
+    from lighthouse.ingest import drain
 
     if "/" not in slug:
         raise SystemExit(f"github slug must be OWNER/REPO, got {slug!r}")
@@ -170,7 +204,8 @@ async def _ingest_github(slug: str, *, branch: str, ext: list[str] | None) -> in
         branch=branch,
         file_extensions=ext if ext else None,
     )
-    return await _drain(connector, source_prefix=f"github:{slug}@{branch}")
+    await drain(connector, source_prefix=f"github:{slug}@{branch}")
+    return 0
 
 
 if __name__ == "__main__":

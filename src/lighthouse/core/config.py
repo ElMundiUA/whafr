@@ -54,6 +54,17 @@ class Settings(BaseSettings):
     # use so every state change becomes a commit.
     lighthouse_proposals_dir: str = "./data/proposals"
 
+    # --- Source runner ---
+    # YAML file listing sources to keep up to date (connector + args +
+    # schedule). See README for the schema; default location keeps
+    # ``lighthouse runner`` zero-arg if the file is at the conventional
+    # path.
+    lighthouse_runner_config: str = "./sources.yaml"
+    # JSON file where the runner records each source's last run state
+    # (timestamp, ok/err, doc count). Atomic-rename writes survive a
+    # crash mid-flush.
+    lighthouse_runner_state: str = "./data/runner-state.json"
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

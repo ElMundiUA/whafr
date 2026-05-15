@@ -1,0 +1,31 @@
+# Source-runner config — drives `lighthouse runner`.
+#
+# Each entry lists a connector + its args + a schedule. Schedule
+# format is the literal "Ns / Nm / Nh / Nd" duration string.
+# Source names must be unique; they're used as the source_prefix on
+# every episode the connector emits so you can trace facts back to
+# their origin.
+
+sources:
+  - name: fastapi-docs
+    connector: github
+    args:
+      slug: fastapi/fastapi
+      branch: master
+    schedule:
+      every: 6h
+
+  - name: anthropic-news
+    connector: web
+    args:
+      urls:
+        - https://www.anthropic.com/news
+    schedule:
+      every: 1d
+
+  - name: local-tech-notes
+    connector: markdown
+    args:
+      path: ./data/sources/tech-notes
+    schedule:
+      every: 1h
