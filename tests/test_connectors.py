@@ -20,40 +20,60 @@ import pytest
 
 
 async def test_web_connector_projects_metadata_and_url(monkeypatch) -> None:
-    from lighthouse.connectors import web as web_module
-    from lighthouse.connectors.web import WebConnector
-
-    class FakeReader:
-        def load_data(self, urls):
-            # Mimic BeautifulSoupWebReader: returns Documents whose
-            # metadata has ``URL`` (uppercase) and a ``title`` if the
-            # page provided one.
-            return [
-                SimpleNamespace(
-                    id_=f"doc-{i}",
-                    text=f"body of {url}",
-                    metadata={"URL": url, "title": f"Page {i}"},
-                )
-                for i, url in enumerate(urls)
-            ]
-
-    monkeypatch.setattr(
-        web_module, "BeautifulSoupWebReader", FakeReader, raising=False
-    )
-    # Monkey-patch the lazy-imported symbol too.
+    """Trafilatura returns a real article body; the connector projects
+    that into ``SourceDocument`` with ``title``/``author``/``date``
+    metadata. We mock the trafilatura functions at module level so
+    tests don't make HTTP calls."""
     import sys
 
-    fake_mod = SimpleNamespace(BeautifulSoupWebReader=FakeReader)
-    monkeypatch.setitem(sys.modules, "llama_index.readers.web", fake_mod)
+    body_text = (
+        "Given When Then\n21 August 2013\n"
+        + "Given-When-Then is a style of representing tests. " * 20
+    )
+
+    class FakeMeta:
+        title = "Given When Then"
+        author = "Martin Fowler"
+        date = "2013-08-21"
+
+    fake_trafilatura = SimpleNamespace(
+        fetch_url=lambda url: f"<html><body>{url}</body></html>",
+        extract=lambda raw, **kwargs: body_text,
+        extract_metadata=lambda raw: FakeMeta,
+    )
+    monkeypatch.setitem(sys.modules, "trafilatura", fake_trafilatura)
+
+    from lighthouse.connectors.web import WebConnector
 
     urls = ["https://example.com/a", "https://example.com/b"]
     docs = [d async for d in WebConnector(urls).ingest()]
     assert len(docs) == 2
     assert docs[0].source_id == urls[0]
     assert docs[0].url == urls[0]
-    assert docs[0].title == "Page 0"
-    assert "body of" in docs[0].body
-    assert docs[0].metadata["URL"] == urls[0]
+    assert docs[0].title == "Given When Then"
+    assert "Given-When-Then" in docs[0].body
+    assert docs[0].metadata["author"] == "Martin Fowler"
+    assert docs[0].metadata["date"] == "2013-08-21"
+
+
+async def test_web_connector_skips_short_extractions(monkeypatch) -> None:
+    """Pages where trafilatura extracts <100 chars (likely paywall /
+    cookie wall / login redirect) are dropped, not ingested as
+    garbage. Regression fence: the previous BSWR version silently
+    ingested page chrome and poisoned entity extraction."""
+    import sys
+
+    fake_trafilatura = SimpleNamespace(
+        fetch_url=lambda url: "<html><body>tiny</body></html>",
+        extract=lambda raw, **kwargs: "too short",
+        extract_metadata=lambda raw: SimpleNamespace(title=None, author=None, date=None),
+    )
+    monkeypatch.setitem(sys.modules, "trafilatura", fake_trafilatura)
+
+    from lighthouse.connectors.web import WebConnector
+
+    docs = [d async for d in WebConnector(["https://x.example/short"]).ingest()]
+    assert docs == []
 
 
 async def test_web_connector_empty_url_list_yields_nothing() -> None:
