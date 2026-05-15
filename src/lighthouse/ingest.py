@@ -46,25 +46,43 @@ async def drain(
 
     n = 0
     skipped = 0
+    failed = 0
     try:
         async for doc in connector.ingest():
             if not await relevance.accept(title=doc.title, body=doc.body):
                 skipped += 1
                 logger.info("relevance gate rejected: %s", doc.title)
                 continue
-            await g.upsert_episode(
-                name=doc.title,
-                body=doc.body,
-                source=f"{source_prefix}:{doc.source_id}",
-                reference_time=doc.reference_time,
-            )
+            try:
+                await g.upsert_episode(
+                    name=doc.title,
+                    body=doc.body,
+                    source=f"{source_prefix}:{doc.source_id}",
+                    reference_time=doc.reference_time,
+                )
+            except Exception:
+                # Graphiti can raise Pydantic ValidationError on the
+                # entity nodes it extracts (e.g. a numeric "name" that
+                # fails ``string_type``), an LLM rate limit, or a
+                # transient Neo4j error. Pre-fix, that killed the whole
+                # source — a single bad page would silently truncate
+                # ingest at the second URL of a 200-URL sitemap. Keep
+                # the loop alive and log the failure instead.
+                failed += 1
+                logger.exception(
+                    "upsert_episode failed for %s (skipping doc)",
+                    doc.source_id,
+                )
+                continue
             n += 1
             logger.info("ingested: %s", doc.title)
         logger.info(
-            "done — %d documents ingested from %s (gate skipped %d)",
+            "done — %d documents ingested from %s "
+            "(gate skipped %d, failed %d)",
             n,
             source_prefix,
             skipped,
+            failed,
         )
         return n
     finally:
