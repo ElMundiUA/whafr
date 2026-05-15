@@ -12,6 +12,26 @@ services:
       timeout: 3s
       retries: 10
 
+  # Docling: PDF / DOCX / PPTX / image-of-document extraction.
+  # Trafilatura handles HTML; this fills the gap for paginated formats
+  # where layout-aware parsing materially beats naive text extraction.
+  # WebConnector routes URLs that look like PDFs to this service.
+  docling:
+    image: quay.io/docling-project/docling-serve:latest
+    container_name: lighthouse-docling
+    ports:
+      - "5001:5001"
+    # Models are downloaded on first conversion request — keep them
+    # persisted across container restarts so re-ingest passes don't
+    # re-pull gigabytes of weights.
+    volumes:
+      - docling-cache:/root/.cache/docling
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
   api:
     build:
       context: ..
@@ -32,3 +52,4 @@ services:
 
 volumes:
   falkordb-data:
+  docling-cache:

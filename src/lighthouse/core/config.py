@@ -48,6 +48,13 @@ class Settings(BaseSettings):
     # --- Sources ---
     lighthouse_markdown_source: str = "./data/sources/markdown"
 
+    # --- Docling (PDF / DOCX extraction sidecar) ---
+    # When the WebConnector encounters a PDF URL it routes through
+    # this service instead of trafilatura. Empty string disables
+    # the PDF path — those URLs get skipped with a warning rather
+    # than ingested as garbage.
+    lighthouse_docling_url: str = "http://localhost:5001"
+
     # --- Proposal store ---
     # Local directory where the git-backed proposal store lives. One
     # markdown file per proposal; the directory is git-init'd on first

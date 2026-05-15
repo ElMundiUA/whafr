@@ -76,6 +76,87 @@ async def test_web_connector_skips_short_extractions(monkeypatch) -> None:
     assert docs == []
 
 
+async def test_web_connector_routes_pdf_to_docling(monkeypatch, respx_mock=None) -> None:
+    """PDF URLs go through docling-serve (not trafilatura). We mock
+    the HTTP POST and assert the body is what we expect, plus the
+    returned markdown lands on the SourceDocument."""
+    from lighthouse.core import config
+
+    config.get_settings.cache_clear()
+    monkeypatch.setenv("LIGHTHOUSE_DOCLING_URL", "http://docling.test")
+
+    captured_request: dict[str, Any] = {}
+
+    class FakeResponse:
+        def __init__(self, json_body: dict[str, Any]) -> None:
+            self._body = json_body
+
+        def raise_for_status(self) -> None:
+            pass
+
+        def json(self) -> dict[str, Any]:
+            return self._body
+
+    class FakeClient:
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            pass
+
+        async def __aenter__(self) -> "FakeClient":
+            return self
+
+        async def __aexit__(self, *args: Any) -> None:
+            return None
+
+        async def post(self, url: str, *, json: dict[str, Any]) -> FakeResponse:
+            captured_request["url"] = url
+            captured_request["body"] = json
+            return FakeResponse(
+                {
+                    "document": {
+                        "md_content": (
+                            "# Shape Up\n\n" + "Some really long content. " * 30
+                        ),
+                    }
+                }
+            )
+
+    import sys
+    fake_httpx = SimpleNamespace(
+        AsyncClient=FakeClient,
+        HTTPError=Exception,
+    )
+    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
+
+    from lighthouse.connectors.web import WebConnector
+
+    docs = [d async for d in WebConnector(["https://basecamp.com/shapeup/shape-up.pdf"]).ingest()]
+    config.get_settings.cache_clear()
+
+    assert captured_request["url"] == "http://docling.test/v1/convert/source"
+    assert captured_request["body"]["sources"][0]["kind"] == "http"
+    assert captured_request["body"]["sources"][0]["url"].endswith(".pdf")
+    assert len(docs) == 1
+    assert docs[0].url.endswith(".pdf")
+    assert "Shape Up" in docs[0].body
+    assert docs[0].metadata["extractor"] == "docling"
+
+
+async def test_web_connector_skips_pdf_when_docling_disabled(monkeypatch) -> None:
+    """Empty LIGHTHOUSE_DOCLING_URL means we have no PDF backend —
+    drop the URL with a warning rather than try trafilatura, which
+    would produce garbage on a PDF."""
+    from lighthouse.core import config
+
+    config.get_settings.cache_clear()
+    monkeypatch.setenv("LIGHTHOUSE_DOCLING_URL", "")
+
+    from lighthouse.connectors.web import WebConnector
+
+    docs = [d async for d in WebConnector(["https://example.com/whitepaper.pdf"]).ingest()]
+    config.get_settings.cache_clear()
+    assert docs == []
+
+
 async def test_web_connector_empty_url_list_yields_nothing() -> None:
     from lighthouse.connectors.web import WebConnector
 
