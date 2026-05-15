@@ -246,6 +246,14 @@ class KnowledgeGraph:
 
         out: list[GraphSearchHit] = []
         seen_keys: set[str] = set()
+        # Reserve half the top_k slots for episode-body hits so
+        # procedural queries (e.g. "OWASP CSP directives", "k8s probe
+        # syntax") surface document chunks alongside one-liner facts.
+        # Graphiti's edge-only search misses everything where the
+        # value is "the prose of the source" rather than a relationship
+        # triple — wave-1..9 re-probes showed this is the dominant
+        # failure mode after ingest.
+        edge_quota = max(1, top_k // 2)
         for e in edges:
             hit = _project(e)
             if len(hit.summary) < MIN_SUMMARY_CHARS:
@@ -255,8 +263,17 @@ class KnowledgeGraph:
                 continue
             seen_keys.add(key)
             out.append(hit)
-            if len(out) >= top_k:
+            if len(out) >= edge_quota:
                 break
+
+        # Second pass — fulltext search over Episodic.content.
+        remaining = top_k - len(out)
+        if remaining > 0:
+            episode_hits = await self._search_episodes(
+                query, limit=remaining * 2, seen_keys=seen_keys
+            )
+            for hit in episode_hits[:remaining]:
+                out.append(hit)
 
         # Fallback: if the filter wiped everything because all
         # candidates were too short (< MIN_SUMMARY_CHARS) but the
@@ -271,6 +288,87 @@ class KnowledgeGraph:
                 if hit.summary:
                     out.append(hit)
         return out
+
+    async def _search_episodes(
+        self,
+        query: str,
+        *,
+        limit: int,
+        seen_keys: set[str],
+    ) -> list[GraphSearchHit]:
+        """Fulltext search over Episodic.content via Neo4j's
+        ``episode_content`` index (created by Graphiti's
+        ``build_indices_and_constraints``). Returns each matched
+        episode projected into the same hit shape as edge results,
+        with ``summary`` set to a snippet of the body so procedural
+        queries get back actual prose, not just one-line facts.
+        """
+        from neo4j import AsyncGraphDatabase
+        from neo4j.time import DateTime as Neo4jDateTime
+
+        SNIPPET_CHARS = 280
+        driver = AsyncGraphDatabase.driver(
+            self._settings.neo4j_uri,
+            auth=(self._settings.neo4j_user, self._settings.neo4j_password),
+        )
+        try:
+            async with driver.session(database=self._settings.neo4j_database) as session:
+                # Lucene query escaping — keep only word chars + space.
+                # Neo4j fulltext uses Lucene syntax; raw user input
+                # with ``:``, ``+``, etc. crashes the parser.
+                safe_q = "".join(c if c.isalnum() or c in " -_" else " " for c in query).strip()
+                if not safe_q:
+                    return []
+                result = await session.run(
+                    "CALL db.index.fulltext.queryNodes($idx, $q) "
+                    "YIELD node, score "
+                    "WHERE node:Episodic "
+                    "RETURN node.uuid AS uuid, node.name AS name, "
+                    "node.source_description AS source, node.content AS content, "
+                    "node.valid_at AS valid_at, score "
+                    "ORDER BY score DESC LIMIT $limit",
+                    idx="episode_content",
+                    q=safe_q,
+                    limit=int(limit),
+                )
+                rows = [r async for r in result]
+        except Exception:
+            logger.warning("episode fulltext search failed", exc_info=True)
+            return []
+        finally:
+            await driver.close()
+
+        hits: list[GraphSearchHit] = []
+        for row in rows:
+            uuid = str(row["uuid"] or "")
+            content = str(row["content"] or "").strip()
+            if not (uuid and content):
+                continue
+            snippet = content[:SNIPPET_CHARS]
+            if len(content) > SNIPPET_CHARS:
+                snippet = snippet.rsplit(" ", 1)[0] + "…"
+            key = " ".join(snippet.lower().split())[:80]
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            valid_at = row["valid_at"]
+            if isinstance(valid_at, Neo4jDateTime):
+                valid_at = valid_at.to_native()
+            elif not isinstance(valid_at, datetime):
+                valid_at = None
+            hits.append(
+                GraphSearchHit(
+                    node_id=uuid,
+                    summary=snippet,
+                    source_node_uuid="",
+                    target_node_uuid="",
+                    valid_from=valid_at,
+                    valid_until=None,
+                    attributes={"source": str(row["source"] or "")},
+                    episode_ids=[uuid],
+                )
+            )
+        return hits
 
     async def fetch(self, node_id: str) -> GraphNode | None:
         """Look up one entity node by uuid.
