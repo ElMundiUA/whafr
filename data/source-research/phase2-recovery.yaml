@@ -1,0 +1,355 @@
+# Phase 2 recovery — sources surfaced by the wave-3 persona audits.
+# Combined with phase-1 (already ingesting), this fills the worst
+# remaining 100%-gap domains.
+#
+# Conservative ``max_pages`` per source so a 50-source pass still
+# finishes overnight. Idempotent — Graphiti dedups across runs.
+sources:
+
+  # ── Mobile (iOS / Android / RN / Flutter) ─────────────────────────
+  - name: mobile-apple-developer
+    connector: sitemap
+    args:
+      root: https://developer.apple.com
+      max_pages: 300
+      include_paths: ["/documentation/"]
+    schedule:
+      every: 60d
+  - name: mobile-android-developer
+    connector: sitemap
+    args:
+      root: https://developer.android.com
+      max_pages: 300
+      include_paths: ["/develop/", "/jetpack/compose"]
+    schedule:
+      every: 60d
+  - name: mobile-react-native
+    connector: sitemap
+    args:
+      root: https://reactnative.dev
+      max_pages: 150
+    schedule:
+      every: 60d
+  - name: mobile-expo
+    connector: sitemap
+    args:
+      root: https://docs.expo.dev
+      max_pages: 200
+    schedule:
+      every: 60d
+  - name: mobile-flutter
+    connector: sitemap
+    args:
+      root: https://docs.flutter.dev
+      max_pages: 200
+    schedule:
+      every: 60d
+  - name: mobile-appstore-review
+    connector: web
+    args:
+      urls:
+        - https://developer.apple.com/app-store/review/guidelines/
+        - https://developer.apple.com/app-store/user-privacy-and-data-use/
+    schedule:
+      every: 30d
+
+  # ── Network & protocols ───────────────────────────────────────────
+  - name: net-rfc-http
+    connector: web
+    args:
+      urls:
+        - https://www.rfc-editor.org/rfc/rfc9110.html
+        - https://www.rfc-editor.org/rfc/rfc9111.html
+        - https://www.rfc-editor.org/rfc/rfc9112.html
+        - https://www.rfc-editor.org/rfc/rfc9113.html
+        - https://www.rfc-editor.org/rfc/rfc9114.html
+    schedule:
+      every: 365d
+  - name: net-rfc-tls-quic
+    connector: web
+    args:
+      urls:
+        - https://www.rfc-editor.org/rfc/rfc8446.html
+        - https://www.rfc-editor.org/rfc/rfc9000.html
+        - https://www.rfc-editor.org/rfc/rfc8555.html
+        - https://www.rfc-editor.org/rfc/rfc8445.html
+    schedule:
+      every: 365d
+  - name: net-grpc
+    connector: sitemap
+    args:
+      root: https://grpc.io
+      max_pages: 150
+    schedule:
+      every: 60d
+  - name: net-envoy
+    connector: sitemap
+    args:
+      root: https://www.envoyproxy.io
+      max_pages: 200
+    schedule:
+      every: 60d
+  - name: net-cloudflare
+    connector: sitemap
+    args:
+      root: https://developers.cloudflare.com
+      max_pages: 300
+    schedule:
+      every: 30d
+  - name: net-webrtc-for-curious
+    connector: web
+    args:
+      urls:
+        - https://webrtcforthecurious.com/
+    schedule:
+      every: 90d
+
+  # ── Search & retrieval ────────────────────────────────────────────
+  - name: search-elastic
+    connector: sitemap
+    args:
+      root: https://www.elastic.co
+      max_pages: 250
+      include_paths: ["/guide/en/elasticsearch/"]
+    schedule:
+      every: 30d
+  - name: search-opensearch
+    connector: sitemap
+    args:
+      root: https://opensearch.org
+      max_pages: 200
+      include_paths: ["/docs/"]
+    schedule:
+      every: 30d
+  - name: search-lucene-mccandless
+    connector: sitemap
+    args:
+      root: https://blog.mikemccandless.com
+      max_pages: 100
+    schedule:
+      every: 90d
+  - name: search-clickhouse-mergetree
+    connector: sitemap
+    args:
+      root: https://clickhouse.com
+      max_pages: 200
+      include_paths: ["/docs/en/engines/", "/docs/en/sql-reference/"]
+    schedule:
+      every: 30d
+  - name: search-loki-logql
+    connector: sitemap
+    args:
+      root: https://grafana.com
+      max_pages: 150
+      include_paths: ["/docs/loki/"]
+    schedule:
+      every: 30d
+
+  # ── Real-time / sync ──────────────────────────────────────────────
+  - name: sync-yjs
+    connector: sitemap
+    args:
+      root: https://docs.yjs.dev
+      max_pages: 100
+    schedule:
+      every: 60d
+  - name: sync-automerge
+    connector: sitemap
+    args:
+      root: https://automerge.org
+      max_pages: 100
+    schedule:
+      every: 60d
+  - name: sync-inkandswitch
+    connector: sitemap
+    args:
+      root: https://www.inkandswitch.com
+      max_pages: 100
+    schedule:
+      every: 90d
+  - name: sync-replicache
+    connector: sitemap
+    args:
+      root: https://doc.replicache.dev
+      max_pages: 100
+    schedule:
+      every: 60d
+  - name: sync-electricsql
+    connector: sitemap
+    args:
+      root: https://electric-sql.com
+      max_pages: 100
+      include_paths: ["/docs"]
+    schedule:
+      every: 60d
+  - name: sync-linear-engineering
+    connector: web
+    args:
+      urls:
+        - https://linear.app/blog/scaling-the-linear-sync-engine
+        - https://www.figma.com/blog/how-figmas-multiplayer-technology-works/
+    schedule:
+      every: 90d
+
+  # ── Performance engineering ───────────────────────────────────────
+  - name: perf-brendangregg
+    connector: sitemap
+    args:
+      root: https://www.brendangregg.com
+      max_pages: 200
+    schedule:
+      every: 60d
+  - name: perf-k6-scenarios
+    connector: sitemap
+    args:
+      root: https://grafana.com
+      max_pages: 200
+      include_paths: ["/docs/k6/"]
+    schedule:
+      every: 30d
+  - name: perf-postgres-explain
+    connector: web
+    args:
+      urls:
+        - https://www.postgresql.org/docs/current/using-explain.html
+        - https://use-the-index-luke.com/
+    schedule:
+      every: 60d
+  - name: perf-jvm-gc
+    connector: sitemap
+    args:
+      root: https://docs.oracle.com
+      max_pages: 150
+      include_paths: ["/en/java/javase/21/gctuning/"]
+    schedule:
+      every: 60d
+  - name: perf-shipilev
+    connector: sitemap
+    args:
+      root: https://shipilev.net
+      max_pages: 100
+    schedule:
+      every: 90d
+  - name: perf-webdev-vitals-inp
+    connector: web
+    args:
+      urls:
+        - https://web.dev/articles/vitals
+        - https://web.dev/articles/inp
+        - https://web.dev/articles/lcp
+        - https://web.dev/articles/cls
+        - https://web.dev/articles/preload-critical-assets
+    schedule:
+      every: 60d
+
+  # ── Language depth ────────────────────────────────────────────────
+  - name: lang-rust-book
+    connector: sitemap
+    args:
+      root: https://doc.rust-lang.org
+      max_pages: 300
+      include_paths: ["/book/", "/std/", "/reference/"]
+    schedule:
+      every: 60d
+  - name: lang-rust-async-book
+    connector: sitemap
+    args:
+      root: https://rust-lang.github.io
+      max_pages: 100
+      include_paths: ["/async-book/"]
+    schedule:
+      every: 90d
+  - name: lang-tokio
+    connector: sitemap
+    args:
+      root: https://tokio.rs
+      max_pages: 150
+    schedule:
+      every: 60d
+  - name: lang-go-spec
+    connector: web
+    args:
+      urls:
+        - https://go.dev/ref/spec
+        - https://go.dev/ref/mem
+        - https://go.dev/doc/effective_go
+    schedule:
+      every: 90d
+  - name: lang-go-blog
+    connector: sitemap
+    args:
+      root: https://go.dev
+      max_pages: 200
+      include_paths: ["/blog/"]
+    schedule:
+      every: 30d
+  - name: lang-typescript-handbook
+    connector: sitemap
+    args:
+      root: https://www.typescriptlang.org
+      max_pages: 200
+      include_paths: ["/docs/handbook/"]
+    schedule:
+      every: 60d
+  - name: lang-python-asyncio
+    connector: sitemap
+    args:
+      root: https://docs.python.org
+      max_pages: 250
+      include_paths: ["/3/library/asyncio", "/3/library/typing", "/3/library/concurrent"]
+    schedule:
+      every: 60d
+  - name: lang-anyio
+    connector: sitemap
+    args:
+      root: https://anyio.readthedocs.io
+      max_pages: 100
+    schedule:
+      every: 60d
+  - name: lang-pyright
+    connector: sitemap
+    args:
+      root: https://microsoft.github.io
+      max_pages: 80
+      include_paths: ["/pyright/"]
+    schedule:
+      every: 60d
+  - name: lang-openjdk-jeps
+    connector: sitemap
+    args:
+      root: https://openjdk.org
+      max_pages: 250
+      include_paths: ["/jeps/"]
+    schedule:
+      every: 90d
+
+  # ── Payments + compliance ────────────────────────────────────────
+  - name: payments-stripe-docs
+    connector: sitemap
+    args:
+      root: https://docs.stripe.com
+      max_pages: 300
+    schedule:
+      every: 30d
+  - name: payments-pci-dss
+    connector: web
+    args:
+      urls:
+        - https://www.pcisecuritystandards.org/document_library
+        - https://www.pcisecuritystandards.org/lp/sa-questionnaire-merchants-service-providers/
+    schedule:
+      every: 90d
+  - name: compliance-gdpr-info
+    connector: sitemap
+    args:
+      root: https://gdpr-info.eu
+      max_pages: 200
+    schedule:
+      every: 90d
+  - name: compliance-aicpa-soc2
+    connector: web
+    args:
+      urls:
+        - https://www.aicpa-cima.com/topic/audit-assurance/audit-and-assurance-greater-than-soc-2
+    schedule:
+      every: 90d

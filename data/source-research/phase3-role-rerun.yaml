@@ -1,0 +1,2037 @@
+sources:
+- name: clarification-agilealliance-glossary
+  connector: sitemap
+  args:
+    root: https://www.agilealliance.org
+    max_pages: 150
+  schedule:
+    every: 30d
+- name: clarification-mountaingoat
+  connector: sitemap
+  args:
+    root: https://www.mountaingoatsoftware.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: clarification-fowler-bliki
+  connector: sitemap
+  args:
+    root: https://martinfowler.com
+    max_pages: 300
+  schedule:
+    every: 14d
+- name: clarification-romanpichler
+  connector: sitemap
+  args:
+    root: https://www.romanpichler.com
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: clarification-jpatton
+  connector: sitemap
+  args:
+    root: https://www.jpattonassociates.com
+    max_pages: 50
+  schedule:
+    every: 90d
+- name: clarification-domainlanguage
+  connector: sitemap
+  args:
+    root: https://www.domainlanguage.com
+    max_pages: 30
+  schedule:
+    every: 90d
+- name: clarification-atlassian-agile
+  connector: sitemap
+  args:
+    root: https://www.atlassian.com
+    max_pages: 150
+  schedule:
+    every: 30d
+- name: clarification-scrumguides
+  connector: sitemap
+  args:
+    root: https://scrumguides.org
+    max_pages: 20
+  schedule:
+    every: 90d
+- name: clarification-cucumber-docs
+  connector: sitemap
+  args:
+    root: https://cucumber.io
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: clarification-shape-up
+  connector: sitemap
+  args:
+    root: https://basecamp.com
+    max_pages: 50
+  schedule:
+    every: 90d
+- name: clarification-scrum-org
+  connector: sitemap
+  args:
+    root: https://www.scrum.org
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: clarification-linear-docs
+  connector: sitemap
+  args:
+    root: https://linear.app
+    include_paths:
+    - /docs/
+    max_pages: 100
+    wait_for_dynamic: 2000
+  schedule:
+    every: 30d
+- name: clarification-agile-manifesto
+  connector: web
+  args:
+    urls:
+    - https://agilemanifesto.org/principles.html
+    - https://agilemanifesto.org/
+  schedule:
+    every: 90d
+- name: clarification-ddd-crew-eventstorming
+  connector: github
+  args:
+    slug: ddd-crew/eventstorming-glossary-cheat-sheet
+    branch: main
+  schedule:
+    every: 90d
+- name: decomposition-mountaingoat
+  connector: sitemap
+  args:
+    root: https://www.mountaingoatsoftware.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: decomposition-humanizingwork
+  connector: sitemap
+  args:
+    root: https://www.humanizingwork.com
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: decomposition-agileforall
+  connector: sitemap
+  args:
+    root: https://agileforall.com
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: decomposition-romanpichler
+  connector: sitemap
+  args:
+    root: https://www.romanpichler.com
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: decomposition-jpatton
+  connector: sitemap
+  args:
+    root: https://www.jpattonassociates.com
+    max_pages: 50
+  schedule:
+    every: 90d
+- name: decomposition-safe
+  connector: sitemap
+  args:
+    root: https://scaledagileframework.com
+    max_pages: 100
+  schedule:
+    every: 90d
+- name: decomposition-scrumguides
+  connector: sitemap
+  args:
+    root: https://scrumguides.org
+    max_pages: 20
+  schedule:
+    every: 90d
+- name: decomposition-scrum-org
+  connector: sitemap
+  args:
+    root: https://www.scrum.org
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: decomposition-agilealliance-glossary
+  connector: sitemap
+  args:
+    root: https://www.agilealliance.org
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: decomposition-atlassian-agile
+  connector: sitemap
+  args:
+    root: https://www.atlassian.com
+    max_pages: 150
+  schedule:
+    every: 30d
+- name: decomposition-shape-up
+  connector: sitemap
+  args:
+    root: https://basecamp.com
+    max_pages: 50
+  schedule:
+    every: 90d
+- name: decomposition-fowler-bliki
+  connector: sitemap
+  args:
+    root: https://martinfowler.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: decomposition-bill-wake-xp123
+  connector: sitemap
+  args:
+    root: https://xp123.com
+    max_pages: 100
+  schedule:
+    every: 90d
+- name: decomposition-extreme-programming
+  connector: sitemap
+  args:
+    root: http://www.extremeprogramming.org
+    max_pages: 50
+  schedule:
+    every: 90d
+- name: decomposition-impact-mapping
+  connector: web
+  args:
+    urls:
+    - https://www.impactmapping.org/about.html
+    - https://www.impactmapping.org/drawing.html
+  schedule:
+    every: 90d
+- name: decomposition-thoughtbot-guides
+  connector: github
+  args:
+    slug: thoughtbot/guides
+    branch: main
+  schedule:
+    every: 30d
+- name: designer-material-design-3
+  connector: sitemap
+  args:
+    root: https://m3.material.io
+    max_pages: 300
+  schedule:
+    every: 7d
+- name: designer-apple-hig
+  connector: sitemap
+  args:
+    root: https://developer.apple.com
+    max_pages: 300
+  schedule:
+    every: 7d
+- name: designer-microsoft-fluent
+  connector: sitemap
+  args:
+    root: https://fluent2.microsoft.design
+    max_pages: 200
+  schedule:
+    every: 7d
+- name: designer-ibm-carbon
+  connector: sitemap
+  args:
+    root: https://carbondesignsystem.com
+    max_pages: 300
+  schedule:
+    every: 7d
+- name: designer-atlassian-design
+  connector: sitemap
+  args:
+    root: https://atlassian.design
+    max_pages: 200
+  schedule:
+    every: 7d
+- name: designer-shopify-polaris
+  connector: sitemap
+  args:
+    root: https://polaris.shopify.com
+    max_pages: 200
+  schedule:
+    every: 7d
+- name: designer-primer
+  connector: sitemap
+  args:
+    root: https://primer.style
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: designer-ant-design
+  connector: sitemap
+  args:
+    root: https://ant.design
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: designer-tailwind-docs
+  connector: sitemap
+  args:
+    root: https://tailwindcss.com
+    max_pages: 200
+  schedule:
+    every: 7d
+- name: designer-shadcn-ui-docs
+  connector: sitemap
+  args:
+    root: https://ui.shadcn.com
+    max_pages: 100
+  schedule:
+    every: 7d
+- name: designer-radix-ui-docs
+  connector: sitemap
+  args:
+    root: https://www.radix-ui.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: designer-wcag-22
+  connector: sitemap
+  args:
+    root: https://www.w3.org
+    max_pages: 200
+  schedule:
+    every: 90d
+- name: designer-mdn-css
+  connector: sitemap
+  args:
+    root: https://developer.mozilla.org
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: designer-every-layout
+  connector: sitemap
+  args:
+    root: https://every-layout.dev
+    max_pages: 30
+  schedule:
+    every: 90d
+- name: designer-webdev-patterns
+  connector: sitemap
+  args:
+    root: https://web.dev
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: designer-nng-articles
+  connector: sitemap
+  args:
+    root: https://www.nngroup.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: designer-design-tokens-w3c
+  connector: web
+  args:
+    urls:
+    - https://design-tokens.github.io/community-group/format/
+    - https://tr.designtokens.org/format/
+  schedule:
+    every: 30d
+- name: designer-shadcn-ui-repo
+  connector: github
+  args:
+    slug: shadcn-ui/ui
+    branch: main
+  schedule:
+    every: 7d
+- name: designer-radix-ui-repo
+  connector: github
+  args:
+    slug: radix-ui/primitives
+    branch: main
+  schedule:
+    every: 30d
+- name: developer-python-docs
+  connector: sitemap
+  args:
+    root: https://docs.python.org
+    max_pages: 500
+  schedule:
+    every: 30d
+- name: developer-python-peps
+  connector: sitemap
+  args:
+    root: https://peps.python.org
+    max_pages: 300
+  schedule:
+    every: 90d
+- name: developer-mypy-docs
+  connector: sitemap
+  args:
+    root: https://mypy.readthedocs.io
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: developer-uv-ruff-docs
+  connector: sitemap
+  args:
+    root: https://docs.astral.sh
+    max_pages: 200
+  schedule:
+    every: 7d
+- name: developer-pydantic-docs
+  connector: sitemap
+  args:
+    root: https://docs.pydantic.dev
+    max_pages: 200
+  schedule:
+    every: 7d
+- name: developer-fastapi-docs
+  connector: sitemap
+  args:
+    root: https://fastapi.tiangolo.com
+    max_pages: 200
+  schedule:
+    every: 7d
+- name: developer-django-docs
+  connector: sitemap
+  args:
+    root: https://docs.djangoproject.com
+    max_pages: 400
+  schedule:
+    every: 30d
+- name: developer-flask-docs
+  connector: sitemap
+  args:
+    root: https://flask.palletsprojects.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: developer-sqlalchemy-docs
+  connector: sitemap
+  args:
+    root: https://docs.sqlalchemy.org
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: developer-alembic-docs
+  connector: sitemap
+  args:
+    root: https://alembic.sqlalchemy.org
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: developer-httpx-docs
+  connector: sitemap
+  args:
+    root: https://www.python-httpx.org
+    max_pages: 50
+  schedule:
+    every: 30d
+- name: developer-celery-docs
+  connector: sitemap
+  args:
+    root: https://docs.celeryq.dev
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: developer-typescript-handbook
+  connector: sitemap
+  args:
+    root: https://www.typescriptlang.org
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: developer-nodejs-docs
+  connector: sitemap
+  args:
+    root: https://nodejs.org
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: developer-bun-docs
+  connector: sitemap
+  args:
+    root: https://bun.sh
+    max_pages: 150
+  schedule:
+    every: 7d
+- name: developer-deno-docs
+  connector: sitemap
+  args:
+    root: https://docs.deno.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: developer-go-docs
+  connector: sitemap
+  args:
+    root: https://go.dev
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: developer-rust-book
+  connector: sitemap
+  args:
+    root: https://doc.rust-lang.org
+    max_pages: 400
+  schedule:
+    every: 30d
+- name: developer-rust-api-guidelines
+  connector: sitemap
+  args:
+    root: https://rust-lang.github.io
+    max_pages: 50
+  schedule:
+    every: 90d
+- name: developer-kotlin-docs
+  connector: sitemap
+  args:
+    root: https://kotlinlang.org
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: developer-rails-guides
+  connector: sitemap
+  args:
+    root: https://guides.rubyonrails.org
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: developer-dotnet-docs
+  connector: sitemap
+  args:
+    root: https://learn.microsoft.com
+    max_pages: 400
+  schedule:
+    every: 30d
+- name: developer-elixir-docs
+  connector: sitemap
+  args:
+    root: https://hexdocs.pm
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: developer-nextjs-docs
+  connector: sitemap
+  args:
+    root: https://nextjs.org
+    max_pages: 400
+  schedule:
+    every: 7d
+- name: developer-react-docs
+  connector: sitemap
+  args:
+    root: https://react.dev
+    max_pages: 300
+  schedule:
+    every: 7d
+- name: developer-remix-docs
+  connector: sitemap
+  args:
+    root: https://remix.run
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: developer-vue-docs
+  connector: sitemap
+  args:
+    root: https://vuejs.org
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: developer-nuxt-docs
+  connector: sitemap
+  args:
+    root: https://nuxt.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: developer-svelte-docs
+  connector: sitemap
+  args:
+    root: https://svelte.dev
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: developer-solid-docs
+  connector: sitemap
+  args:
+    root: https://docs.solidjs.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: developer-astro-docs
+  connector: sitemap
+  args:
+    root: https://docs.astro.build
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: developer-angular-docs
+  connector: sitemap
+  args:
+    root: https://angular.dev
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: developer-tanstack-query-docs
+  connector: sitemap
+  args:
+    root: https://tanstack.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: developer-tanstack-router-docs
+  connector: sitemap
+  args:
+    root: https://tanstack.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: developer-zustand-docs
+  connector: github
+  args:
+    slug: pmndrs/zustand
+    branch: main
+  schedule:
+    every: 30d
+- name: developer-redux-toolkit-docs
+  connector: sitemap
+  args:
+    root: https://redux-toolkit.js.org
+    max_pages: 150
+  schedule:
+    every: 30d
+- name: developer-prisma-docs
+  connector: sitemap
+  args:
+    root: https://www.prisma.io
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: developer-drizzle-docs
+  connector: sitemap
+  args:
+    root: https://orm.drizzle.team
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: developer-pytest-docs
+  connector: sitemap
+  args:
+    root: https://docs.pytest.org
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: developer-jest-docs
+  connector: sitemap
+  args:
+    root: https://jestjs.io
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: developer-vitest-docs
+  connector: sitemap
+  args:
+    root: https://vitest.dev
+    max_pages: 100
+  schedule:
+    every: 7d
+- name: developer-playwright-docs
+  connector: sitemap
+  args:
+    root: https://playwright.dev
+    max_pages: 200
+  schedule:
+    every: 7d
+- name: developer-storybook-docs
+  connector: sitemap
+  args:
+    root: https://storybook.js.org
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: developer-postgres-docs
+  connector: sitemap
+  args:
+    root: https://www.postgresql.org
+    max_pages: 500
+  schedule:
+    every: 30d
+- name: developer-redis-docs
+  connector: sitemap
+  args:
+    root: https://redis.io
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: developer-sqlite-docs
+  connector: sitemap
+  args:
+    root: https://www.sqlite.org
+    max_pages: 200
+  schedule:
+    every: 90d
+- name: developer-mongodb-docs
+  connector: sitemap
+  args:
+    root: https://www.mongodb.com
+    max_pages: 400
+  schedule:
+    every: 30d
+- name: developer-clickhouse-docs
+  connector: sitemap
+  args:
+    root: https://clickhouse.com
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: developer-duckdb-docs
+  connector: sitemap
+  args:
+    root: https://duckdb.org
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: developer-openapi-spec
+  connector: sitemap
+  args:
+    root: https://spec.openapis.org
+    max_pages: 50
+  schedule:
+    every: 90d
+- name: developer-swagger-docs
+  connector: sitemap
+  args:
+    root: https://swagger.io
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: developer-graphql-docs
+  connector: sitemap
+  args:
+    root: https://graphql.org
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: developer-grpc-docs
+  connector: sitemap
+  args:
+    root: https://grpc.io
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: developer-asyncapi-docs
+  connector: sitemap
+  args:
+    root: https://www.asyncapi.com
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: developer-anthropic-docs
+  connector: sitemap
+  args:
+    root: https://docs.anthropic.com
+    max_pages: 200
+  schedule:
+    every: 7d
+- name: developer-openai-docs
+  connector: sitemap
+  args:
+    root: https://platform.openai.com
+    max_pages: 200
+  schedule:
+    every: 7d
+- name: developer-mcp-docs
+  connector: sitemap
+  args:
+    root: https://modelcontextprotocol.io
+    max_pages: 200
+  schedule:
+    every: 7d
+- name: developer-mcp-spec-repo
+  connector: github
+  args:
+    slug: modelcontextprotocol/specification
+    branch: main
+  schedule:
+    every: 7d
+- name: developer-langchain-docs
+  connector: sitemap
+  args:
+    root: https://python.langchain.com
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: developer-llamaindex-docs
+  connector: sitemap
+  args:
+    root: https://docs.llamaindex.ai
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: developer-cohere-docs
+  connector: sitemap
+  args:
+    root: https://docs.cohere.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: developer-mistral-docs
+  connector: sitemap
+  args:
+    root: https://docs.mistral.ai
+    max_pages: 150
+  schedule:
+    every: 30d
+- name: developer-google-ai-docs
+  connector: sitemap
+  args:
+    root: https://ai.google.dev
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: developer-eslint-docs
+  connector: sitemap
+  args:
+    root: https://eslint.org
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: developer-prettier-docs
+  connector: sitemap
+  args:
+    root: https://prettier.io
+    max_pages: 50
+  schedule:
+    every: 30d
+- name: developer-vite-docs
+  connector: sitemap
+  args:
+    root: https://vitejs.dev
+    max_pages: 150
+  schedule:
+    every: 30d
+- name: developer-turbo-docs
+  connector: sitemap
+  args:
+    root: https://turbo.build
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: developer-nx-docs
+  connector: sitemap
+  args:
+    root: https://nx.dev
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: developer-docker-docs
+  connector: sitemap
+  args:
+    root: https://docs.docker.com
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: developer-aws-sdk-python-docs
+  connector: sitemap
+  args:
+    root: https://boto3.amazonaws.com
+    max_pages: 400
+  schedule:
+    every: 30d
+- name: developer-cloudflare-workers-docs
+  connector: sitemap
+  args:
+    root: https://developers.cloudflare.com
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: developer-vercel-docs
+  connector: sitemap
+  args:
+    root: https://vercel.com
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: developer-fowler-articles
+  connector: sitemap
+  args:
+    root: https://martinfowler.com
+    max_pages: 400
+  schedule:
+    every: 30d
+- name: developer-refactoring-guru
+  connector: sitemap
+  args:
+    root: https://refactoring.guru
+    max_pages: 200
+  schedule:
+    every: 90d
+- name: developer-sourcemaking
+  connector: sitemap
+  args:
+    root: https://sourcemaking.com
+    max_pages: 200
+  schedule:
+    every: 90d
+- name: developer-12factor
+  connector: sitemap
+  args:
+    root: https://12factor.net
+    max_pages: 20
+  schedule:
+    every: 90d
+- name: developer-joel-on-software
+  connector: sitemap
+  args:
+    root: https://www.joelonsoftware.com
+    max_pages: 200
+  schedule:
+    every: 90d
+- name: developer-kleppmann-blog
+  connector: sitemap
+  args:
+    root: https://martin.kleppmann.com
+    max_pages: 100
+  schedule:
+    every: 90d
+- name: developer-sandi-metz
+  connector: sitemap
+  args:
+    root: https://sandimetz.com
+    max_pages: 100
+  schedule:
+    every: 90d
+- name: developer-opentelemetry-docs
+  connector: sitemap
+  args:
+    root: https://opentelemetry.io
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: developer-stripe-eng-blog
+  connector: sitemap
+  args:
+    root: https://stripe.com
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: developer-cloudflare-blog
+  connector: sitemap
+  args:
+    root: https://blog.cloudflare.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: developer-github-eng-blog
+  connector: sitemap
+  args:
+    root: https://github.blog
+    max_pages: 150
+  schedule:
+    every: 30d
+- name: developer-anthropic-research
+  connector: sitemap
+  args:
+    root: https://www.anthropic.com
+    max_pages: 150
+  schedule:
+    every: 30d
+- name: developer-pro-git
+  connector: sitemap
+  args:
+    root: https://git-scm.com
+    max_pages: 300
+  schedule:
+    every: 90d
+- name: developer-atlassian-git
+  connector: sitemap
+  args:
+    root: https://www.atlassian.com
+    max_pages: 100
+  schedule:
+    every: 90d
+- name: developer-fastapi-repo
+  connector: github
+  args:
+    slug: fastapi/fastapi
+    branch: master
+  schedule:
+    every: 7d
+- name: developer-typescript-repo
+  connector: github
+  args:
+    slug: microsoft/TypeScript
+    branch: main
+  schedule:
+    every: 30d
+- name: developer-anthropic-sdk-python
+  connector: github
+  args:
+    slug: anthropic/anthropic-sdk-python
+    branch: main
+  schedule:
+    every: 7d
+- name: developer-anthropic-sdk-typescript
+  connector: github
+  args:
+    slug: anthropic/anthropic-sdk-typescript
+    branch: main
+  schedule:
+    every: 7d
+- name: developer-microsoft-api-guidelines
+  connector: github
+  args:
+    slug: microsoft/api-guidelines
+    branch: master
+  schedule:
+    every: 90d
+- name: developer-zalando-api-guidelines
+  connector: github
+  args:
+    slug: zalando/restful-api-guidelines
+    branch: main
+  schedule:
+    every: 90d
+- name: devops-kubernetes-docs
+  connector: sitemap
+  args:
+    root: https://kubernetes.io
+    max_pages: 500
+  schedule:
+    every: 14d
+- name: devops-helm-docs
+  connector: sitemap
+  args:
+    root: https://helm.sh
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: devops-kustomize-repo
+  connector: github
+  args:
+    slug: kubernetes-sigs/kustomize
+    branch: master
+  schedule:
+    every: 30d
+- name: devops-cert-manager-docs
+  connector: sitemap
+  args:
+    root: https://cert-manager.io
+    max_pages: 150
+  schedule:
+    every: 30d
+- name: devops-docker-docs
+  connector: sitemap
+  args:
+    root: https://docs.docker.com
+    max_pages: 400
+  schedule:
+    every: 30d
+- name: devops-buildkit-repo
+  connector: github
+  args:
+    slug: moby/buildkit
+    branch: master
+  schedule:
+    every: 30d
+- name: devops-terraform-docs
+  connector: sitemap
+  args:
+    root: https://developer.hashicorp.com
+    max_pages: 400
+  schedule:
+    every: 30d
+- name: devops-vault-docs
+  connector: sitemap
+  args:
+    root: https://developer.hashicorp.com
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: devops-pulumi-docs
+  connector: sitemap
+  args:
+    root: https://www.pulumi.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: devops-aws-cdk-docs
+  connector: sitemap
+  args:
+    root: https://docs.aws.amazon.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: devops-github-actions-docs
+  connector: sitemap
+  args:
+    root: https://docs.github.com
+    max_pages: 400
+  schedule:
+    every: 14d
+- name: devops-gitlab-ci-docs
+  connector: sitemap
+  args:
+    root: https://docs.gitlab.com
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: devops-argo-cd-docs
+  connector: sitemap
+  args:
+    root: https://argo-cd.readthedocs.io
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: devops-flux-docs
+  connector: sitemap
+  args:
+    root: https://fluxcd.io
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: devops-prometheus-docs
+  connector: sitemap
+  args:
+    root: https://prometheus.io
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: devops-grafana-docs
+  connector: sitemap
+  args:
+    root: https://grafana.com
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: devops-opentelemetry-docs
+  connector: sitemap
+  args:
+    root: https://opentelemetry.io
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: devops-sentry-docs
+  connector: sitemap
+  args:
+    root: https://docs.sentry.io
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: devops-datadog-docs
+  connector: sitemap
+  args:
+    root: https://docs.datadoghq.com
+    max_pages: 400
+  schedule:
+    every: 30d
+- name: devops-honeycomb-docs
+  connector: sitemap
+  args:
+    root: https://docs.honeycomb.io
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: devops-istio-docs
+  connector: sitemap
+  args:
+    root: https://istio.io
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: devops-envoy-docs
+  connector: sitemap
+  args:
+    root: https://www.envoyproxy.io
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: devops-nginx-docs
+  connector: sitemap
+  args:
+    root: https://nginx.org
+    max_pages: 200
+  schedule:
+    every: 90d
+- name: devops-aws-well-architected
+  connector: sitemap
+  args:
+    root: https://docs.aws.amazon.com
+    max_pages: 200
+  schedule:
+    every: 90d
+- name: devops-gcp-architecture
+  connector: sitemap
+  args:
+    root: https://cloud.google.com
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: devops-google-sre
+  connector: sitemap
+  args:
+    root: https://sre.google
+    max_pages: 200
+  schedule:
+    every: 90d
+- name: devops-pagerduty-response
+  connector: sitemap
+  args:
+    root: https://response.pagerduty.com
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: devops-pagerduty-postmortems
+  connector: sitemap
+  args:
+    root: https://postmortems.pagerduty.com
+    max_pages: 50
+  schedule:
+    every: 30d
+- name: devops-owasp-cheat-sheets
+  connector: sitemap
+  args:
+    root: https://cheatsheetseries.owasp.org
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: devops-cncf-tag-security
+  connector: github
+  args:
+    slug: cncf/tag-security
+    branch: main
+  schedule:
+    every: 30d
+- name: devops-opa-docs
+  connector: sitemap
+  args:
+    root: https://www.openpolicyagent.org
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: devops-12factor
+  connector: sitemap
+  args:
+    root: https://12factor.net
+    max_pages: 20
+  schedule:
+    every: 90d
+- name: planning-scrumguides
+  connector: sitemap
+  args:
+    root: https://scrumguides.org
+    max_pages: 20
+  schedule:
+    every: 90d
+- name: planning-scrum-org
+  connector: sitemap
+  args:
+    root: https://www.scrum.org
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: planning-safe
+  connector: sitemap
+  args:
+    root: https://scaledagileframework.com
+    max_pages: 400
+  schedule:
+    every: 90d
+- name: planning-less
+  connector: sitemap
+  args:
+    root: https://less.works
+    max_pages: 300
+  schedule:
+    every: 90d
+- name: planning-kanban-university
+  connector: sitemap
+  args:
+    root: https://kanban.university
+    max_pages: 100
+  schedule:
+    every: 90d
+- name: planning-mountaingoat
+  connector: sitemap
+  args:
+    root: https://www.mountaingoatsoftware.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: planning-atlassian-agile
+  connector: sitemap
+  args:
+    root: https://www.atlassian.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: planning-romanpichler
+  connector: sitemap
+  args:
+    root: https://www.romanpichler.com
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: planning-shape-up
+  connector: sitemap
+  args:
+    root: https://basecamp.com
+    max_pages: 50
+  schedule:
+    every: 90d
+- name: planning-agilealliance
+  connector: sitemap
+  args:
+    root: https://www.agilealliance.org
+    max_pages: 150
+  schedule:
+    every: 30d
+- name: planning-fowler-bliki
+  connector: sitemap
+  args:
+    root: https://martinfowler.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: planning-humanizingwork
+  connector: sitemap
+  args:
+    root: https://www.humanizingwork.com
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: planning-whatmatters-okr
+  connector: sitemap
+  args:
+    root: https://www.whatmatters.com
+    max_pages: 100
+  schedule:
+    every: 90d
+- name: planning-eleganthack-wodtke
+  connector: sitemap
+  args:
+    root: https://eleganthack.com
+    max_pages: 100
+  schedule:
+    every: 90d
+- name: planning-ron-jeffries
+  connector: sitemap
+  args:
+    root: https://ronjeffries.com
+    max_pages: 200
+  schedule:
+    every: 90d
+- name: planning-cucumber-docs
+  connector: sitemap
+  args:
+    root: https://cucumber.io
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: planning-adr-guide
+  connector: web
+  args:
+    urls:
+    - https://adr.github.io/
+  schedule:
+    every: 90d
+- name: planning-adr-templates
+  connector: github
+  args:
+    slug: joelparkerhenderson/architecture-decision-record
+    branch: main
+  schedule:
+    every: 90d
+- name: planning-conventional-comments
+  connector: web
+  args:
+    urls:
+    - https://conventionalcomments.org/
+  schedule:
+    every: 90d
+- name: planning-agile-manifesto
+  connector: web
+  args:
+    urls:
+    - https://agilemanifesto.org/principles.html
+    - https://agilemanifesto.org/
+  schedule:
+    every: 90d
+- name: planning-thoughtbot-guides
+  connector: github
+  args:
+    slug: thoughtbot/guides
+    branch: main
+  schedule:
+    every: 30d
+- name: product-manager-svpg-cagan
+  connector: sitemap
+  args:
+    root: https://www.svpg.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: product-manager-producttalk-torres
+  connector: sitemap
+  args:
+    root: https://www.producttalk.org
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: product-manager-romanpichler
+  connector: sitemap
+  args:
+    root: https://www.romanpichler.com
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: product-manager-mindtheproduct
+  connector: sitemap
+  args:
+    root: https://www.mindtheproduct.com
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: product-manager-productplan-learn
+  connector: sitemap
+  args:
+    root: https://www.productplan.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: product-manager-productboard-blog
+  connector: sitemap
+  args:
+    root: https://www.productboard.com
+    max_pages: 150
+  schedule:
+    every: 30d
+- name: product-manager-aha-roadmapping
+  connector: sitemap
+  args:
+    root: https://www.aha.io
+    max_pages: 150
+  schedule:
+    every: 30d
+- name: product-manager-intercom-blog
+  connector: sitemap
+  args:
+    root: https://www.intercom.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: product-manager-amplitude-blog
+  connector: sitemap
+  args:
+    root: https://amplitude.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: product-manager-mixpanel-blog
+  connector: sitemap
+  args:
+    root: https://mixpanel.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: product-manager-whatmatters-okrs
+  connector: sitemap
+  args:
+    root: https://www.whatmatters.com
+    max_pages: 100
+  schedule:
+    every: 90d
+- name: product-manager-shape-up
+  connector: sitemap
+  args:
+    root: https://basecamp.com
+    max_pages: 50
+  schedule:
+    every: 90d
+- name: product-manager-strategyn-jtbd
+  connector: sitemap
+  args:
+    root: https://strategyn.com
+    max_pages: 100
+  schedule:
+    every: 90d
+- name: product-manager-jpatton
+  connector: sitemap
+  args:
+    root: https://www.jpattonassociates.com
+    max_pages: 50
+  schedule:
+    every: 90d
+- name: product-manager-department-of-product
+  connector: sitemap
+  args:
+    root: https://www.departmentofproduct.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: product-manager-foldingburritos-kano
+  connector: sitemap
+  args:
+    root: https://foldingburritos.com
+    max_pages: 100
+  schedule:
+    every: 90d
+- name: product-manager-google-heart
+  connector: web
+  args:
+    urls:
+    - https://research.google/pubs/pub36299/
+  schedule:
+    every: 90d
+- name: product-manager-mcclure-aarrr
+  connector: web
+  args:
+    urls:
+    - https://500hats.typepad.com/500blogs/2007/09/startup-metrics.html
+  schedule:
+    every: 90d
+- name: product-manager-thoughtbot-guides
+  connector: github
+  args:
+    slug: thoughtbot/guides
+    branch: main
+  schedule:
+    every: 30d
+- name: reviewer-google-eng-practices-repo
+  connector: github
+  args:
+    slug: google/eng-practices
+    branch: master
+  schedule:
+    every: 90d
+- name: reviewer-google-eng-practices-web
+  connector: sitemap
+  args:
+    root: https://google.github.io
+    max_pages: 50
+  schedule:
+    every: 90d
+- name: reviewer-airbnb-javascript
+  connector: github
+  args:
+    slug: airbnb/javascript
+    branch: master
+  schedule:
+    every: 30d
+- name: reviewer-google-styleguide
+  connector: github
+  args:
+    slug: google/styleguide
+    branch: gh-pages
+  schedule:
+    every: 90d
+- name: reviewer-microsoft-api-guidelines
+  connector: github
+  args:
+    slug: microsoft/api-guidelines
+    branch: master
+  schedule:
+    every: 90d
+- name: reviewer-zalando-api-guidelines
+  connector: github
+  args:
+    slug: zalando/restful-api-guidelines
+    branch: main
+  schedule:
+    every: 90d
+- name: reviewer-rust-api-guidelines
+  connector: sitemap
+  args:
+    root: https://rust-lang.github.io
+    max_pages: 50
+  schedule:
+    every: 90d
+- name: reviewer-effective-go
+  connector: web
+  args:
+    urls:
+    - https://go.dev/doc/effective_go
+  schedule:
+    every: 90d
+- name: reviewer-conventional-comments
+  connector: web
+  args:
+    urls:
+    - https://conventionalcomments.org/
+  schedule:
+    every: 90d
+- name: reviewer-conventional-commits
+  connector: web
+  args:
+    urls:
+    - https://www.conventionalcommits.org/en/v1.0.0/
+  schedule:
+    every: 90d
+- name: reviewer-keep-a-changelog
+  connector: web
+  args:
+    urls:
+    - https://keepachangelog.com/en/1.1.0/
+  schedule:
+    every: 90d
+- name: reviewer-semver
+  connector: web
+  args:
+    urls:
+    - https://semver.org/
+  schedule:
+    every: 90d
+- name: reviewer-12factor
+  connector: web
+  args:
+    urls:
+    - https://12factor.net/
+  schedule:
+    every: 90d
+- name: reviewer-owasp-cheat-sheets
+  connector: sitemap
+  args:
+    root: https://cheatsheetseries.owasp.org
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: reviewer-owasp-top10
+  connector: sitemap
+  args:
+    root: https://owasp.org
+    max_pages: 50
+  schedule:
+    every: 30d
+- name: reviewer-cwe-top25
+  connector: web
+  args:
+    urls:
+    - https://cwe.mitre.org/top25/
+  schedule:
+    every: 30d
+- name: reviewer-snyk-learn
+  connector: sitemap
+  args:
+    root: https://snyk.io
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: reviewer-refactoring-guru
+  connector: sitemap
+  args:
+    root: https://refactoring.guru
+    max_pages: 200
+  schedule:
+    every: 90d
+- name: reviewer-sourcemaking
+  connector: sitemap
+  args:
+    root: https://sourcemaking.com
+    max_pages: 200
+  schedule:
+    every: 90d
+- name: reviewer-fowler-bliki
+  connector: sitemap
+  args:
+    root: https://martinfowler.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: reviewer-peps-style
+  connector: web
+  args:
+    urls:
+    - https://peps.python.org/pep-0008/
+    - https://peps.python.org/pep-0020/
+    - https://peps.python.org/pep-0257/
+  schedule:
+    every: 90d
+- name: reviewer-mypy-cheat-sheet
+  connector: sitemap
+  args:
+    root: https://mypy.readthedocs.io
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: reviewer-atlassian-code-review
+  connector: sitemap
+  args:
+    root: https://www.atlassian.com
+    max_pages: 50
+  schedule:
+    every: 30d
+- name: reviewer-github-pr-docs
+  connector: sitemap
+  args:
+    root: https://docs.github.com
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: reviewer-gitlab-code-review-docs
+  connector: web
+  args:
+    urls:
+    - https://docs.gitlab.com/ee/development/code_review.html
+  schedule:
+    every: 30d
+- name: self-heal-google-sre
+  connector: sitemap
+  args:
+    root: https://sre.google
+    max_pages: 300
+  schedule:
+    every: 90d
+- name: self-heal-pagerduty-response
+  connector: sitemap
+  args:
+    root: https://response.pagerduty.com
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: self-heal-pagerduty-postmortems
+  connector: sitemap
+  args:
+    root: https://postmortems.pagerduty.com
+    max_pages: 50
+  schedule:
+    every: 30d
+- name: self-heal-atlassian-incident
+  connector: sitemap
+  args:
+    root: https://www.atlassian.com
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: self-heal-honeycomb-blog
+  connector: sitemap
+  args:
+    root: https://www.honeycomb.io
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: self-heal-honeycomb-docs
+  connector: sitemap
+  args:
+    root: https://docs.honeycomb.io
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: self-heal-sentry-docs
+  connector: sitemap
+  args:
+    root: https://docs.sentry.io
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: self-heal-datadog-logging-docs
+  connector: sitemap
+  args:
+    root: https://docs.datadoghq.com
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: self-heal-opentelemetry-docs
+  connector: sitemap
+  args:
+    root: https://opentelemetry.io
+    max_pages: 300
+  schedule:
+    every: 30d
+- name: self-heal-jaeger-docs
+  connector: sitemap
+  args:
+    root: https://www.jaegertracing.io
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: self-heal-python-errors
+  connector: sitemap
+  args:
+    root: https://docs.python.org
+    max_pages: 50
+  schedule:
+    every: 30d
+- name: self-heal-nodejs-errors
+  connector: sitemap
+  args:
+    root: https://nodejs.org
+    max_pages: 30
+  schedule:
+    every: 30d
+- name: self-heal-git-debug
+  connector: sitemap
+  args:
+    root: https://git-scm.com
+    max_pages: 20
+  schedule:
+    every: 90d
+- name: self-heal-google-testing-blog
+  connector: sitemap
+  args:
+    root: https://testing.googleblog.com
+    max_pages: 200
+  schedule:
+    every: 90d
+- name: self-heal-jvns-debugging
+  connector: sitemap
+  args:
+    root: https://jvns.ca
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: self-heal-fowler-bliki
+  connector: sitemap
+  args:
+    root: https://martinfowler.com
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: self-heal-debugging-rules
+  connector: sitemap
+  args:
+    root: https://debuggingrules.com
+    max_pages: 20
+  schedule:
+    every: 90d
+- name: self-heal-12factor-logs
+  connector: web
+  args:
+    urls:
+    - https://12factor.net/logs
+    - https://12factor.net/
+  schedule:
+    every: 90d
+- name: self-heal-mindtools-5-whys
+  connector: web
+  args:
+    urls:
+    - https://www.mindtools.com/a3mi00v/5-whys
+    - https://www.atlassian.com/team-playbook/plays/5-whys
+  schedule:
+    every: 90d
+- name: self-heal-asq-rca
+  connector: sitemap
+  args:
+    root: https://asq.org
+    max_pages: 100
+  schedule:
+    every: 90d
+- name: self-heal-grafana-loki-docs
+  connector: sitemap
+  args:
+    root: https://grafana.com
+    max_pages: 150
+  schedule:
+    every: 30d
+- name: self-heal-aws-resilience
+  connector: sitemap
+  args:
+    root: https://docs.aws.amazon.com
+    max_pages: 100
+  schedule:
+    every: 90d
+- name: validation-pytest-docs
+  connector: sitemap
+  args:
+    root: https://docs.pytest.org
+    include_paths:
+    - /en/stable/
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: validation-jest-docs
+  connector: sitemap
+  args:
+    root: https://jestjs.io
+    include_paths:
+    - /docs/
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: validation-vitest-docs
+  connector: sitemap
+  args:
+    root: https://vitest.dev
+    max_pages: 100
+  schedule:
+    every: 7d
+- name: validation-playwright-docs
+  connector: sitemap
+  args:
+    root: https://playwright.dev
+    include_paths:
+    - /docs/
+    max_pages: 300
+  schedule:
+    every: 7d
+- name: validation-cypress-docs
+  connector: sitemap
+  args:
+    root: https://docs.cypress.io
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: validation-testing-library
+  connector: sitemap
+  args:
+    root: https://testing-library.com
+    include_paths:
+    - /docs/
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: validation-hypothesis-docs
+  connector: sitemap
+  args:
+    root: https://hypothesis.readthedocs.io
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: validation-msw-docs
+  connector: sitemap
+  args:
+    root: https://mswjs.io
+    include_paths:
+    - /docs/
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: validation-cucumber-docs
+  connector: sitemap
+  args:
+    root: https://cucumber.io
+    include_paths:
+    - /docs/
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: validation-postman-learning
+  connector: sitemap
+  args:
+    root: https://learning.postman.com
+    include_paths:
+    - /docs/
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: validation-k6-docs
+  connector: sitemap
+  args:
+    root: https://grafana.com
+    include_paths:
+    - /docs/k6/
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: validation-locust-docs
+  connector: sitemap
+  args:
+    root: https://docs.locust.io
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: validation-storybook-test
+  connector: sitemap
+  args:
+    root: https://storybook.js.org
+    include_paths:
+    - /docs/writing-tests/
+    max_pages: 50
+  schedule:
+    every: 30d
+- name: validation-pact-docs
+  connector: sitemap
+  args:
+    root: https://docs.pact.io
+    max_pages: 100
+  schedule:
+    every: 30d
+- name: validation-coverage-py-docs
+  connector: sitemap
+  args:
+    root: https://coverage.readthedocs.io
+    max_pages: 50
+  schedule:
+    every: 30d
+- name: validation-fowler-testing
+  connector: sitemap
+  args:
+    root: https://martinfowler.com
+    include_paths:
+    - /bliki/
+    - /articles/
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: validation-kent-dodds-blog
+  connector: sitemap
+  args:
+    root: https://kentcdodds.com
+    include_paths:
+    - /blog/
+    max_pages: 200
+  schedule:
+    every: 30d
+- name: validation-gojko-blog
+  connector: sitemap
+  args:
+    root: https://gojko.net
+    max_pages: 100
+  schedule:
+    every: 90d
+- name: validation-xunit-patterns
+  connector: sitemap
+  args:
+    root: http://xunitpatterns.com
+    max_pages: 200
+  schedule:
+    every: 90d
+- name: validation-google-testing-blog
+  connector: sitemap
+  args:
+    root: https://testing.googleblog.com
+    max_pages: 200
+  schedule:
+    every: 90d
+- name: validation-owasp-testing-guide
+  connector: sitemap
+  args:
+    root: https://owasp.org
+    include_paths:
+    - /www-project-web-security-testing-guide/
+    max_pages: 100
+  schedule:
+    every: 90d
+- name: validation-owasp-zap-docs
+  connector: sitemap
+  args:
+    root: https://www.zaproxy.org
+    include_paths:
+    - /docs/
+    max_pages: 100
+  schedule:
+    every: 90d
+- name: validation-wcag-quickref
+  connector: sitemap
+  args:
+    root: https://www.w3.org
+    include_paths:
+    - /WAI/WCAG22/
+    - /WAI/test-evaluate/
+    max_pages: 100
+  schedule:
+    every: 90d
+- name: validation-axe-core-repo
+  connector: github
+  args:
+    slug: dequelabs/axe-core
+    branch: develop
+  schedule:
+    every: 30d
+- name: validation-pytest-asyncio-repo
+  connector: github
+  args:
+    slug: pytest-dev/pytest-asyncio
+    branch: main
+  schedule:
+    every: 30d
