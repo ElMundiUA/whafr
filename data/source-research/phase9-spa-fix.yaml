@@ -1,0 +1,116 @@
+# Phase 9 — SPA-doc workaround via GitHub markdown sources.
+#
+# Wave-10 re-probes after the episode-body retrieval lands showed
+# many JS-rendered doc sites still don't surface (MDN Web/API, web.dev,
+# react.dev, Chrome dev, developer.apple.com, kubernetes.io/docs).
+# Trafilatura can't extract from these SPAs. Their markdown sources
+# live in GitHub repos — switch to ``connector: github`` for them.
+sources:
+
+  # ── MDN Web/API (browser internals) ───────────────────────────────
+  - name: web-mdn-content
+    connector: github
+    args:
+      slug: mdn/content
+      branch: main
+      file_extensions: [.md]
+    schedule: { every: 30d }
+
+  # ── web.dev (Core Web Vitals, performance) ────────────────────────
+  - name: web-googlechromelabs-webdev
+    connector: github
+    args:
+      slug: GoogleChromeLabs/web.dev
+      branch: main
+      file_extensions: [.md, .mdx]
+    schedule: { every: 30d }
+
+  # ── react.dev (hooks, Suspense, RSC) ──────────────────────────────
+  - name: fe-reactjs-react-dev
+    connector: github
+    args:
+      slug: reactjs/react.dev
+      branch: main
+      file_extensions: [.md, .mdx]
+    schedule: { every: 30d }
+
+  # ── kubernetes.io (probes, HPA, PDB, RBAC) ────────────────────────
+  - name: devops-k8s-website
+    connector: github
+    args:
+      slug: kubernetes/website
+      branch: main
+      file_extensions: [.md]
+    schedule: { every: 30d }
+
+  # ── developer.apple.com (SwiftUI, App Intents) — partial: WWDC docs
+  # are not on github but Apple has swift docs at github.com/apple/swift
+  - name: lang-apple-swift
+    connector: github
+    args:
+      slug: apple/swift
+      branch: main
+      file_extensions: [.md]
+    schedule: { every: 60d }
+  - name: mobile-swiftui-tutorials
+    connector: github
+    args:
+      slug: apple/sample-apps-swiftui
+      branch: main
+      file_extensions: [.md]
+    schedule: { every: 60d }
+
+  # ── developer.android.com (Compose, Hilt, Flow) — Android samples ─
+  - name: mobile-android-samples
+    connector: github
+    args:
+      slug: android/architecture-samples
+      branch: main
+      file_extensions: [.md]
+    schedule: { every: 60d }
+  - name: mobile-compose-samples
+    connector: github
+    args:
+      slug: android/compose-samples
+      branch: main
+      file_extensions: [.md]
+    schedule: { every: 60d }
+
+  # ── Argo Rollouts / external-secrets — their docs sites are GH md ─
+  - name: devops-argo-rollouts-md
+    connector: github
+    args:
+      slug: argoproj/argo-rollouts
+      branch: master
+      file_extensions: [.md]
+    schedule: { every: 60d }
+  - name: devops-external-secrets-md
+    connector: github
+    args:
+      slug: external-secrets/external-secrets
+      branch: main
+      file_extensions: [.md]
+    schedule: { every: 60d }
+
+  # ── ML/AI infra (pytorch, deepspeed, vllm) via GitHub ─────────────
+  - name: ml-pytorch-tutorials
+    connector: github
+    args:
+      slug: pytorch/tutorials
+      branch: main
+      file_extensions: [.md, .rst]
+    schedule: { every: 60d }
+  - name: ml-vllm-docs
+    connector: github
+    args:
+      slug: vllm-project/vllm
+      branch: main
+      file_extensions: [.md, .rst]
+    schedule: { every: 60d }
+  - name: ml-huggingface-transformers
+    connector: github
+    args:
+      slug: huggingface/transformers
+      branch: main
+      file_extensions: [.md]
+    schedule: { every: 60d }
