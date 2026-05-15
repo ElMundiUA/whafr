@@ -21,7 +21,12 @@ htmlcov/
 *.swo
 .idea/
 .vscode/
-data/
+# Ingested content + raw scratch (markdown, dumps). Source-research
+# YAMLs + the periodic coverage-audit markdown are *config*, not
+# ingested content — keep them tracked.
+data/*
+!data/source-research/
+data/source-research/unparseable.jsonl
 *.db
 *.dump
 

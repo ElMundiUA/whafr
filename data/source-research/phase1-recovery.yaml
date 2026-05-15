@@ -1,0 +1,265 @@
+# Phase 1 recovery — high-leverage sources to fill the gaps the
+# 2026-05-15 audit surfaced. Run with the fixed ``lighthouse.ingest``
+# (commit 8f13f32+) so a Pydantic validation on one extracted entity
+# doesn't kill the whole source any more.
+#
+# Strategy: one source per coverage hole identified across the 10
+# sub-agent probes. Each is large enough to be meaningful but bounded
+# (max_pages 100-250) so a 25-source pass finishes in a few hours, not
+# a few days. Re-ingest is idempotent — Graphiti dedups entities
+# across runs.
+sources:
+
+  # ── Architecture & patterns (93% gap) ─────────────────────────────
+  - name: arch-fowler-bliki
+    connector: sitemap
+    args:
+      root: https://martinfowler.com
+      max_pages: 250
+    schedule:
+      every: 60d
+  - name: arch-microservices-io
+    connector: sitemap
+    args:
+      root: https://microservices.io
+      max_pages: 100
+    schedule:
+      every: 60d
+  - name: arch-crdt-tech
+    connector: sitemap
+    args:
+      root: https://crdt.tech
+      max_pages: 50
+    schedule:
+      every: 90d
+  - name: arch-jepsen
+    connector: sitemap
+    args:
+      root: https://aphyr.com
+      max_pages: 100
+    schedule:
+      every: 90d
+
+  # ── DevOps & infra (87% gap) ──────────────────────────────────────
+  - name: devops-k8s-concepts
+    connector: sitemap
+    args:
+      root: https://kubernetes.io
+      max_pages: 300
+      include_paths: ["/docs/concepts/"]
+    schedule:
+      every: 30d
+  - name: devops-argo-rollouts
+    connector: sitemap
+    args:
+      root: https://argo-rollouts.readthedocs.io
+      max_pages: 80
+    schedule:
+      every: 60d
+  - name: devops-external-secrets
+    connector: sitemap
+    args:
+      root: https://external-secrets.io
+      max_pages: 80
+    schedule:
+      every: 60d
+  - name: devops-sre-google
+    connector: sitemap
+    args:
+      root: https://sre.google
+      max_pages: 200
+    schedule:
+      every: 60d
+  - name: devops-terraform
+    connector: sitemap
+    args:
+      root: https://developer.hashicorp.com
+      max_pages: 200
+      include_paths: ["/terraform/"]
+    schedule:
+      every: 30d
+
+  # ── Security (re-ingest OWASP + add coverage) ─────────────────────
+  - name: security-owasp-cheatsheets
+    connector: sitemap
+    args:
+      root: https://cheatsheetseries.owasp.org
+      max_pages: 200
+    schedule:
+      every: 30d
+  - name: security-oauth-rfcs
+    connector: web
+    args:
+      urls:
+        - https://oauth.net/2.1/
+        - https://datatracker.ietf.org/doc/html/rfc7636
+        - https://datatracker.ietf.org/doc/html/rfc9700
+    schedule:
+      every: 90d
+
+  # ── PM & planning (77% gap) ───────────────────────────────────────
+  - name: pm-producttalk
+    connector: sitemap
+    args:
+      root: https://www.producttalk.org
+      max_pages: 150
+    schedule:
+      every: 30d
+  - name: pm-svpg
+    connector: sitemap
+    args:
+      root: https://www.svpg.com
+      max_pages: 200
+    schedule:
+      every: 30d
+  - name: pm-itamargilad
+    connector: sitemap
+    args:
+      root: https://itamargilad.com
+      max_pages: 80
+    schedule:
+      every: 60d
+  - name: pm-wardley
+    connector: sitemap
+    args:
+      root: https://learnwardleymapping.com
+      max_pages: 50
+    schedule:
+      every: 60d
+
+  # ── Frontend + perf (75% gap) ─────────────────────────────────────
+  - name: frontend-webdev-vitals
+    connector: sitemap
+    args:
+      root: https://web.dev
+      max_pages: 200
+    schedule:
+      every: 30d
+  - name: frontend-react
+    connector: sitemap
+    args:
+      root: https://react.dev
+      max_pages: 150
+    schedule:
+      every: 30d
+  - name: frontend-shadcn
+    connector: sitemap
+    args:
+      root: https://ui.shadcn.com
+      max_pages: 100
+    schedule:
+      every: 30d
+
+  # ── E2E + automation (91% gap) ────────────────────────────────────
+  - name: validation-playwright
+    connector: sitemap
+    args:
+      root: https://playwright.dev
+      max_pages: 150
+    schedule:
+      every: 30d
+  - name: validation-cypress
+    connector: sitemap
+    args:
+      root: https://docs.cypress.io
+      max_pages: 150
+    schedule:
+      every: 30d
+
+  # ── Data engineering (94% gap) ────────────────────────────────────
+  - name: data-postgres-docs
+    connector: sitemap
+    args:
+      root: https://www.postgresql.org
+      max_pages: 200
+      include_paths: ["/docs/current/"]
+    schedule:
+      every: 60d
+  - name: data-dbt-docs
+    connector: sitemap
+    args:
+      root: https://docs.getdbt.com
+      max_pages: 150
+    schedule:
+      every: 30d
+  - name: data-clickhouse
+    connector: sitemap
+    args:
+      root: https://clickhouse.com
+      max_pages: 150
+      include_paths: ["/docs/"]
+    schedule:
+      every: 30d
+  - name: data-pgvector
+    connector: web
+    args:
+      urls:
+        - https://github.com/pgvector/pgvector
+    schedule:
+      every: 90d
+
+  # ── AI / LLM dev (86% gap) ────────────────────────────────────────
+  - name: ai-anthropic-docs
+    connector: sitemap
+    args:
+      root: https://docs.anthropic.com
+      max_pages: 200
+    schedule:
+      every: 30d
+  - name: ai-mcp-spec
+    connector: sitemap
+    args:
+      root: https://modelcontextprotocol.io
+      max_pages: 80
+    schedule:
+      every: 30d
+  - name: ai-langfuse-docs
+    connector: sitemap
+    args:
+      root: https://langfuse.com
+      max_pages: 100
+      include_paths: ["/docs/"]
+    schedule:
+      every: 60d
+
+  # ── Doc / format generation (100% gap) ────────────────────────────
+  - name: doc-pandoc
+    connector: web
+    args:
+      urls:
+        - https://pandoc.org/MANUAL.html
+    schedule:
+      every: 90d
+  - name: doc-matplotlib
+    connector: sitemap
+    args:
+      root: https://matplotlib.org
+      max_pages: 150
+      include_paths: ["/stable/"]
+    schedule:
+      every: 30d
+  - name: doc-docusaurus
+    connector: sitemap
+    args:
+      root: https://docusaurus.io
+      max_pages: 100
+      include_paths: ["/docs"]
+    schedule:
+      every: 30d
+
+  # ── Cloud providers (100% gap, light starter pass) ───────────────
+  - name: cloud-aws-well-arch
+    connector: sitemap
+    args:
+      root: https://docs.aws.amazon.com
+      max_pages: 250
+      include_paths: ["/wellarchitected/"]
+    schedule:
+      every: 60d
+  - name: cloud-do-docs
+    connector: sitemap
+    args:
+      root: https://docs.digitalocean.com
+      max_pages: 150
+    schedule:
+      every: 30d
