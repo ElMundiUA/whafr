@@ -41,11 +41,25 @@ def main(argv: list[str] | None = None) -> int:
 
     ingest = sub.add_parser("ingest", help="Drain a source into the graph")
     ingest_sub = ingest.add_subparsers(dest="source", required=True)
+
     md = ingest_sub.add_parser("markdown", help="Ingest a directory of .md files")
     md.add_argument(
         "path",
         type=Path,
         help="Directory to scan recursively for .md/.markdown files",
+    )
+
+    web = ingest_sub.add_parser("web", help="Ingest one or more web pages")
+    web.add_argument("urls", nargs="+", help="URLs to fetch")
+
+    gh = ingest_sub.add_parser("github", help="Ingest doc files from a GitHub repo")
+    gh.add_argument("slug", help="OWNER/REPO (e.g. fastapi/fastapi)")
+    gh.add_argument("--branch", default="main")
+    gh.add_argument(
+        "--ext",
+        nargs="+",
+        default=None,
+        help="File extensions to include (default: .md .rst .mdx .txt)",
     )
 
     args = parser.parse_args(argv)
@@ -56,8 +70,15 @@ def main(argv: list[str] | None = None) -> int:
         return _serve()
     if args.cmd == "mcp":
         return _mcp(args.transport, args.host, args.port)
-    if args.cmd == "ingest" and args.source == "markdown":
-        return asyncio.run(_ingest_markdown(args.path))
+    if args.cmd == "ingest":
+        if args.source == "markdown":
+            return asyncio.run(_ingest_markdown(args.path))
+        if args.source == "web":
+            return asyncio.run(_ingest_web(args.urls))
+        if args.source == "github":
+            return asyncio.run(
+                _ingest_github(args.slug, branch=args.branch, ext=args.ext)
+            )
 
     parser.error(f"unknown command: {args.cmd}")
     return 2
@@ -80,28 +101,58 @@ def _mcp(transport: str, host: str, port: int) -> int:
     return 0
 
 
-async def _ingest_markdown(path: Path) -> int:
-    from lighthouse.connectors.markdown import MarkdownConnector
+async def _drain(connector, *, source_prefix: str) -> int:
+    """Shared drain loop: pull SourceDocuments from a connector and
+    upsert each as an episode. Reused by every ingest subcommand so the
+    error/log behavior is consistent across sources.
+    """
     from lighthouse.core.graph import KnowledgeGraph
 
     graph = KnowledgeGraph()
     await graph.initialize()
 
-    connector = MarkdownConnector(path)
     n = 0
-    async for doc in connector.ingest():
-        await graph.upsert_episode(
-            name=doc.title,
-            body=doc.body,
-            source=f"markdown:{doc.source_id}",
-            reference_time=doc.reference_time,
-        )
-        n += 1
-        logger.info("ingested: %s", doc.title)
-
-    logger.info("done — %d documents ingested from %s", n, path)
-    await graph.close()
+    try:
+        async for doc in connector.ingest():
+            await graph.upsert_episode(
+                name=doc.title,
+                body=doc.body,
+                source=f"{source_prefix}:{doc.source_id}",
+                reference_time=doc.reference_time,
+            )
+            n += 1
+            logger.info("ingested: %s", doc.title)
+        logger.info("done — %d documents ingested from %s", n, source_prefix)
+    finally:
+        await graph.close()
     return 0
+
+
+async def _ingest_markdown(path: Path) -> int:
+    from lighthouse.connectors.markdown import MarkdownConnector
+
+    return await _drain(MarkdownConnector(path), source_prefix="markdown")
+
+
+async def _ingest_web(urls: list[str]) -> int:
+    from lighthouse.connectors.web import WebConnector
+
+    return await _drain(WebConnector(urls), source_prefix="web")
+
+
+async def _ingest_github(slug: str, *, branch: str, ext: list[str] | None) -> int:
+    from lighthouse.connectors.github import GitHubConnector
+
+    if "/" not in slug:
+        raise SystemExit(f"github slug must be OWNER/REPO, got {slug!r}")
+    owner, repo = slug.split("/", 1)
+    connector = GitHubConnector(
+        owner=owner,
+        repo=repo,
+        branch=branch,
+        file_extensions=ext if ext else None,
+    )
+    return await _drain(connector, source_prefix=f"github:{slug}@{branch}")
 
 
 if __name__ == "__main__":

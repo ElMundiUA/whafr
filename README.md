@@ -44,6 +44,32 @@ curl http://localhost:8000/health
 curl 'http://localhost:8000/search?q=hello&top_k=5'
 ```
 
+## Ingesting content
+
+```bash
+# A local directory of markdown files
+lighthouse ingest markdown ./docs
+
+# One or more web pages (BeautifulSoup-parsed; no JS rendering)
+lighthouse ingest web https://example.com/post1 https://example.com/post2
+
+# Doc files from a GitHub repo (.md / .rst / .mdx / .txt by default)
+GITHUB_TOKEN=ghp_... lighthouse ingest github fastapi/fastapi --branch master
+
+# Restrict file types explicitly
+lighthouse ingest github encode/starlette --ext .md .rst
+```
+
+## MCP server (for AI clients)
+
+```bash
+# Desktop clients (Claude Desktop, Cursor) spawn this over stdio
+lighthouse mcp
+
+# Remote agents use HTTP transports
+lighthouse mcp --transport http --port 8765
+```
+
 ## License
 
 Apache 2.0 — see [LICENSE](./LICENSE).
