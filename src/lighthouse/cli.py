@@ -49,6 +49,13 @@ def main(argv: list[str] | None = None) -> int:
         default=30.0,
         help="Seconds between schedule checks (default: 30)",
     )
+    runner_cmd.add_argument(
+        "--max-concurrent",
+        type=int,
+        default=5,
+        help="Max parallel source ingests. Should match the crawl-backend "
+        "concurrent-browser cap (Firecrawl Hobby: 5).",
+    )
 
     mcp_cmd = sub.add_parser("mcp", help="Run the MCP server (for AI clients)")
     mcp_cmd.add_argument(
@@ -93,7 +100,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "mcp":
         return _mcp(args.transport, args.host, args.port)
     if args.cmd == "runner":
-        return asyncio.run(_runner(args.config, once=args.once, heartbeat=args.heartbeat))
+        return asyncio.run(
+            _runner(
+                args.config,
+                once=args.once,
+                heartbeat=args.heartbeat,
+                max_concurrent=args.max_concurrent,
+            )
+        )
     if args.cmd == "ingest":
         if args.source == "markdown":
             return asyncio.run(_ingest_markdown(args.path))
@@ -143,7 +157,13 @@ def _mcp(transport: str, host: str, port: int) -> int:
     return 0
 
 
-async def _runner(config_path: Path | None, *, once: bool, heartbeat: float) -> int:
+async def _runner(
+    config_path: Path | None,
+    *,
+    once: bool,
+    heartbeat: float,
+    max_concurrent: int,
+) -> int:
     from lighthouse.core.config import get_settings
     from lighthouse.core.graph import KnowledgeGraph
     from lighthouse.runner import SourceScheduler, StateStore, load_config
@@ -162,6 +182,7 @@ async def _runner(config_path: Path | None, *, once: bool, heartbeat: float) -> 
         state,
         graph,
         heartbeat_seconds=heartbeat,
+        max_concurrent=max_concurrent,
     )
     try:
         if once:

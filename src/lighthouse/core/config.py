@@ -71,6 +71,12 @@ class Settings(BaseSettings):
     relevance_gate_model: str = "gpt-4o-mini"
     relevance_gate_enabled: bool = False
 
+    # --- Sitemap-crawl failure log ---
+    # Where SitemapCrawlConnector appends one JSONL row per URL it
+    # couldn't extract (404, paywall, SPA shell, …). Operator reads
+    # this offline to decide which sites need a JS-rendered backend.
+    lighthouse_failed_urls_log: str = "./data/source-research/unparseable.jsonl"
+
     # --- Proposal store ---
     # Local directory where the git-backed proposal store lives. One
     # markdown file per proposal; the directory is git-init'd on first
