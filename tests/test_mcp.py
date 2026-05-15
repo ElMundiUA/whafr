@@ -30,11 +30,11 @@ def server_with_fake(proposal_store, fake_librarian):
     return server, fake
 
 
-async def test_mcp_lists_all_three_tools(server_with_fake) -> None:
+async def test_mcp_lists_all_four_tools(server_with_fake) -> None:
     server, _ = server_with_fake
     tools = await server.list_tools()
     names = {t.name for t in tools}
-    assert names == {"search", "fetch", "propose"}
+    assert names == {"search", "fetch_entity", "fetch_source", "propose"}
 
 
 async def test_mcp_search_marshals_graph_hits(server_with_fake) -> None:
@@ -67,26 +67,26 @@ async def test_mcp_fetch_returns_node(server_with_fake) -> None:
     server, fake = server_with_fake
     fake.nodes["n-1"] = GraphNode(
         node_id="n-1",
-        name="FalkorDB",
-        summary="A Redis-module graph database used as Lighthouse's default backend.",
+        name="Neo4j",
+        summary="A property graph database used as Lighthouse's default backend.",
         labels=["Entity", "Database"],
-        attributes={"license": "BSL"},
+        attributes={"license": "GPLv3"},
     )
 
-    result = await server.call_tool("fetch", {"node_id": "n-1"})
+    result = await server.call_tool("fetch_entity", {"node_id": "n-1"})
     _, structured = result
     # FastMCP wraps single-object returns under "result" for parity
     # with list returns. Unwrap before asserting.
     node = structured["result"]
     assert node["node_id"] == "n-1"
-    assert node["name"] == "FalkorDB"
+    assert node["name"] == "Neo4j"
     assert "Database" in node["labels"]
-    assert node["attributes"]["license"] == "BSL"
+    assert node["attributes"]["license"] == "GPLv3"
 
 
-async def test_mcp_fetch_returns_null_when_missing(server_with_fake) -> None:
+async def test_mcp_fetch_entity_returns_null_when_missing(server_with_fake) -> None:
     server, _ = server_with_fake
-    result = await server.call_tool("fetch", {"node_id": "missing"})
+    result = await server.call_tool("fetch_entity", {"node_id": "missing"})
     _, structured = result
     # FastMCP wraps a None return into {"result": None} when the
     # function's declared return type is Optional.

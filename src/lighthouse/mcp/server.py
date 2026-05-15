@@ -30,6 +30,7 @@ import logging
 from typing import Literal
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel, Field
 
 from lighthouse.core.graph import KnowledgeGraph
@@ -53,6 +54,11 @@ class McpSearchHit(BaseModel):
     and HTTP clients see the same shape. Kept as a distinct class so
     the MCP wire format can evolve independently if a client needs
     different framing.
+
+    Each hit is a *fact* (a graph edge) — a one-line natural-language
+    statement extracted from a source document. ``episode_ids`` are
+    the uuids of the source chunks the fact was extracted from; feed
+    one into ``fetch_source`` to read the original paragraphs.
     """
 
     node_id: str
@@ -61,14 +67,41 @@ class McpSearchHit(BaseModel):
     target_node_id: str | None = None
     valid_from: str | None = None
     valid_until: str | None = None
+    episode_ids: list[str] = Field(default_factory=list)
 
 
-class McpNode(BaseModel):
+class McpEntity(BaseModel):
+    """One entity returned by ``fetch_fact``.
+
+    A graph entity is the *thing* a fact talks about — a person, a
+    framework, a concept. Search returns facts whose summaries
+    reference entities by uuid; this tool resolves one of those uuids
+    to the entity's full record (name, summary, labels, attributes).
+    """
+
     node_id: str
     name: str
     summary: str
     labels: list[str] = Field(default_factory=list)
     attributes: dict[str, str] = Field(default_factory=dict)
+
+
+class McpSource(BaseModel):
+    """One source chunk returned by ``fetch_source``.
+
+    A source is the raw ingested text the graph extracted facts and
+    entities from — typically a paragraph or short section of the
+    original article. Use this when a fact's one-line summary isn't
+    enough and you want the surrounding context in one shot rather
+    than chasing entities through multiple ``fetch_fact`` calls.
+    """
+
+    episode_id: str
+    name: str
+    source: str
+    content: str
+    created_at: str | None = None
+    valid_at: str | None = None
 
 
 class McpProposalReceipt(BaseModel):
@@ -104,22 +137,55 @@ def build_server(
     mcp = FastMCP(
         name="lighthouse",
         instructions=(
-            "Knowledge base for AI agents. Use `search` for natural-"
-            "language lookups across indexed facts (returns ranked "
-            "edges with temporal windows). Use `fetch` with a node uuid "
-            "to retrieve a specific entity's full record. Use `propose` "
-            "to submit a new fact, correction, or deprecation — it goes "
-            "through the librarian's review pipeline; you can poll its "
-            "status via the HTTP API."
+            "Knowledge base for AI agents — a graph of facts extracted "
+            "from public SDLC reference material.\n\n"
+            "Tools:\n"
+            "• `search(query, top_k)` — find facts. Returns ranked "
+            "one-line statements + each fact's source_node_id / "
+            "target_node_id (the entities it relates) and episode_ids "
+            "(the source chunks it came from).\n"
+            "• `fetch_entity(node_id)` — drill into ONE entity (person, "
+            "concept, framework) referenced by a fact. Cheap but only "
+            "returns name + summary + labels + attributes; usually you "
+            "don't need this unless the fact's summary is ambiguous.\n"
+            "• `fetch_source(episode_id)` — pull the ORIGINAL ingested "
+            "paragraph the fact was extracted from (a few KB). Prefer "
+            "this over multiple `fetch_entity` calls when the fact's "
+            "one-line summary isn't enough — one round-trip vs N.\n"
+            "• `propose(content, type, ...)` — submit a knowledge "
+            "proposal for the librarian's review queue. Poll status "
+            "via GET /v1/proposals/{id} on the HTTP API.\n\n"
+            "Typical flow: one `search` → scan summaries → if the fact "
+            "summary suffices, use it. If you need more, `fetch_source` "
+            "on the best hit's episode_ids[0] — one call gets you the "
+            "full context. Use `fetch_entity` only when you specifically "
+            "need an entity's other attributes."
+        ),
+        # We sit behind a TLS-terminating ingress that already validates
+        # the Host header. FastMCP's auto-enabled DNS rebinding protection
+        # rejects any non-localhost host, which would block every cluster
+        # request. Disable it explicitly here.
+        transport_security=TransportSecuritySettings(
+            enable_dns_rebinding_protection=False,
         ),
     )
 
     @mcp.tool(
         name="search",
         description=(
-            "Hybrid search (vector + BM25 + graph BFS) over the knowledge "
-            "base. Returns up to `top_k` ranked facts, each with a uuid, "
-            "a natural-language summary, and validity window."
+            "Find facts in the knowledge base by natural-language query. "
+            "Hybrid retrieval: BM25 + vector similarity + cross-encoder "
+            "rerank. Each hit is one *fact* (a graph edge) — a single "
+            "natural-language statement extracted from a source. Fields:\n"
+            "• `node_id` — the fact's uuid\n"
+            "• `summary` — the one-line statement (e.g. 'X wrote Y')\n"
+            "• `source_node_id` / `target_node_id` — the entities the "
+            "fact relates; feed either into `fetch_entity`\n"
+            "• `episode_ids` — uuids of source chunks this fact came "
+            "from; feed one into `fetch_source` to read the original "
+            "paragraph.\n\n"
+            "Use 3-7 word natural queries. Lower `top_k` (default 10) "
+            "if you only need the strongest match."
         ),
     )
     async def search(query: str, top_k: int = 10) -> list[McpSearchHit]:
@@ -132,28 +198,62 @@ def build_server(
                 target_node_id=h.target_node_uuid or None,
                 valid_from=h.valid_from.isoformat() if h.valid_from else None,
                 valid_until=h.valid_until.isoformat() if h.valid_until else None,
+                episode_ids=list(h.episode_ids),
             )
             for h in hits
         ]
 
     @mcp.tool(
-        name="fetch",
+        name="fetch_entity",
         description=(
-            "Fetch one entity node by its uuid. Use the `node_id` from "
-            "a previous `search` hit's `source_node_id` or "
-            "`target_node_id` to drill into the underlying entities."
+            "Resolve one entity (person, concept, framework, tool) by "
+            "uuid. Use the `source_node_id` or `target_node_id` from a "
+            "prior `search` hit when the fact's one-line summary "
+            "references an entity you want more detail on (e.g. fact "
+            "'X wrote Y' → fetch_entity(uuid of Y) to see Y's other "
+            "attributes and labels).\n\n"
+            "Returns lightweight metadata (name, summary, labels, "
+            "attributes), NOT the source paragraph. For source text use "
+            "`fetch_source` — it's usually one call instead of several."
         ),
     )
-    async def fetch(node_id: str) -> McpNode | None:
+    async def fetch_entity(node_id: str) -> McpEntity | None:
         node = await g.fetch(node_id)
         if node is None:
             return None
-        return McpNode(
+        return McpEntity(
             node_id=node.node_id,
             name=node.name,
             summary=node.summary,
             labels=list(node.labels),
             attributes={k: str(v) for k, v in node.attributes.items()},
+        )
+
+    @mcp.tool(
+        name="fetch_source",
+        description=(
+            "Pull the original ingested paragraph a fact was extracted "
+            "from. Pass any uuid from a search hit's `episode_ids`. "
+            "Returns name, source URL, and full content (typically a "
+            "few KB).\n\n"
+            "Prefer this over multiple `fetch_entity` calls when a "
+            "fact's one-line summary is ambiguous or you need the "
+            "surrounding context. One round-trip vs N. Cost is the "
+            "extra tokens in your context (2-5 KB per source vs "
+            "0.5 KB per entity)."
+        ),
+    )
+    async def fetch_source(episode_id: str) -> McpSource | None:
+        src = await g.fetch_source(episode_id)
+        if src is None:
+            return None
+        return McpSource(
+            episode_id=src.episode_id,
+            name=src.name,
+            source=src.source,
+            content=src.content,
+            created_at=src.created_at.isoformat() if src.created_at else None,
+            valid_at=src.valid_at.isoformat() if src.valid_at else None,
         )
 
     @mcp.tool(
@@ -165,7 +265,8 @@ def build_server(
             "(return reason), or escalate (human review). Poll status "
             "via GET /v1/proposals/{id} on the HTTP API. `type` is one "
             "of 'add', 'correct', 'deprecate'. Pass `target_node_id` "
-            "from a prior `search`/`fetch` when correcting or deprecating."
+            "from a prior `search` / `fetch_entity` when correcting "
+            "or deprecating an existing entity."
         ),
     )
     async def propose(
