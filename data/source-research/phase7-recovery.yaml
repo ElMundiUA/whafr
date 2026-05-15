@@ -1,0 +1,133 @@
+# Phase 7 — sources surfaced by wave-7 (game dev, analytics/BI, API gateway).
+sources:
+
+  # ── Game dev (100% gap) ───────────────────────────────────────────
+  - name: gd-unity
+    connector: sitemap
+    args:
+      root: https://docs.unity3d.com
+      max_pages: 300
+      include_paths: ["/Manual/"]
+    schedule: { every: 60d }
+  - name: gd-unreal
+    connector: sitemap
+    args:
+      root: https://dev.epicgames.com
+      max_pages: 250
+      include_paths: ["/documentation/"]
+    schedule: { every: 60d }
+  - name: gd-godot
+    connector: sitemap
+    args:
+      root: https://docs.godotengine.org
+      max_pages: 200
+    schedule: { every: 60d }
+  - name: gd-learnopengl
+    connector: sitemap
+    args:
+      root: https://learnopengl.com
+      max_pages: 100
+    schedule: { every: 90d }
+  - name: gd-gafferongames
+    connector: sitemap
+    args:
+      root: https://gafferongames.com
+      max_pages: 80
+    schedule: { every: 90d }
+
+  # ── Analytics / BI / modern data stack (96% gap) ──────────────────
+  - name: ae-dbt
+    connector: sitemap
+    args:
+      root: https://docs.getdbt.com
+      max_pages: 300
+    schedule: { every: 30d }
+  - name: ae-snowflake
+    connector: sitemap
+    args:
+      root: https://docs.snowflake.com
+      max_pages: 250
+    schedule: { every: 30d }
+  - name: ae-bigquery
+    connector: sitemap
+    args:
+      root: https://cloud.google.com
+      max_pages: 250
+      include_paths: ["/bigquery/docs/"]
+    schedule: { every: 30d }
+  - name: ae-databricks
+    connector: sitemap
+    args:
+      root: https://docs.databricks.com
+      max_pages: 250
+    schedule: { every: 30d }
+  - name: ae-iceberg
+    connector: sitemap
+    args:
+      root: https://iceberg.apache.org
+      max_pages: 100
+    schedule: { every: 60d }
+  - name: ae-delta-lake
+    connector: sitemap
+    args:
+      root: https://docs.delta.io
+      max_pages: 100
+    schedule: { every: 60d }
+  - name: ae-looker
+    connector: sitemap
+    args:
+      root: https://cloud.google.com
+      max_pages: 150
+      include_paths: ["/looker/docs/"]
+    schedule: { every: 60d }
+  - name: ae-cube
+    connector: sitemap
+    args:
+      root: https://cube.dev
+      max_pages: 150
+      include_paths: ["/docs/"]
+    schedule: { every: 60d }
+  - name: ae-posthog
+    connector: sitemap
+    args:
+      root: https://posthog.com
+      max_pages: 200
+      include_paths: ["/docs"]
+    schedule: { every: 30d }
+
+  # ── API gateway / management (100% gap) ───────────────────────────
+  - name: apigw-kong
+    connector: sitemap
+    args:
+      root: https://docs.konghq.com
+      max_pages: 200
+    schedule: { every: 30d }
+  - name: apigw-aws
+    connector: sitemap
+    args:
+      root: https://docs.aws.amazon.com
+      max_pages: 200
+      include_paths: ["/apigateway/"]
+    schedule: { every: 30d }
+  - name: apigw-azure
+    connector: sitemap
+    args:
+      root: https://learn.microsoft.com
+      max_pages: 200
+      include_paths: ["/en-us/azure/api-management/"]
+    schedule: { every: 30d }
+  - name: apigw-apigee
+    connector: sitemap
+    args:
+      root: https://cloud.google.com
+      max_pages: 200
+      include_paths: ["/apigee/docs/"]
+    schedule: { every: 60d }
+  - name: apigw-openapi-asyncapi
+    connector: web
+    args:
+      urls:
+        - https://spec.openapis.org/oas/v3.1.0
+        - https://www.asyncapi.com/docs/reference/specification/v3.0.0
+        - https://datatracker.ietf.org/doc/html/rfc8594
+    schedule: { every: 180d }
