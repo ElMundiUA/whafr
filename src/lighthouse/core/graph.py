@@ -28,6 +28,53 @@ from lighthouse.core.config import Settings, get_settings
 logger = logging.getLogger(__name__)
 
 
+# Per-episode body cap fed to Graphiti's entity extractor. Anything
+# longer is split before upsert because the LLM call inside
+# ``add_episode`` sends the whole body in a single prompt — Phase 10
+# RFCs (50-100 KB) consistently blew the model's context window and
+# every URL failed silently. 12 K chars ≈ 3 K tokens which leaves
+# plenty of headroom for the extractor's system prompt + structured
+# output schema (~5 K tokens) even on 16 K models. The actual ceiling
+# is set by ``LIGHTHOUSE_MAX_EPISODE_CHARS`` if set, with this default.
+MAX_EPISODE_CHARS = 12000
+
+
+def _split_episode_body(body: str, *, cap: int = MAX_EPISODE_CHARS) -> list[str]:
+    """Split a long body into <=``cap``-char chunks at paragraph
+    boundaries. Falls back to a hard split when no paragraph break is
+    available inside the window — never returns an empty list.
+
+    Why paragraph-aware rather than sentence-aware: Graphiti's entity
+    extractor produces better facts when chunks preserve narrative
+    units. RFC sections are paragraph-separated; the same is true of
+    OWASP, NIST SP-800s, blog posts. Sentence-level splits would
+    fragment "X did Y because Z" across chunks.
+    """
+    if len(body) <= cap:
+        return [body]
+    out: list[str] = []
+    remaining = body
+    while len(remaining) > cap:
+        # Look for the last paragraph break inside the cap window.
+        split_at = remaining.rfind("\n\n", 0, cap)
+        if split_at < cap // 2:
+            # No good paragraph break — try a sentence break instead.
+            for sep in (". ", "\n", " "):
+                idx = remaining.rfind(sep, cap // 2, cap)
+                if idx > 0:
+                    split_at = idx + len(sep)
+                    break
+            else:
+                split_at = cap
+        chunk = remaining[:split_at].strip()
+        if chunk:
+            out.append(chunk)
+        remaining = remaining[split_at:].lstrip()
+    if remaining.strip():
+        out.append(remaining.strip())
+    return out
+
+
 @dataclass(slots=True)
 class GraphSearchHit:
     """One result from :meth:`KnowledgeGraph.search`.
@@ -467,7 +514,12 @@ class KnowledgeGraph:
 
         Graphiti handles entity extraction, dedup against prior episodes,
         and temporal bookkeeping under the hood. Returns the episode's
-        UUID so the caller can correlate ingest provenance later.
+        UUID so the caller can correlate ingest provenance later. For
+        bodies that exceed the extractor's context budget we split the
+        body into ~``MAX_EPISODE_CHARS`` segments at paragraph
+        boundaries and upsert each separately — Phase 10 RFCs (50-100 KB
+        of prose each) consistently blew the model context otherwise,
+        causing every URL to be silently dropped.
 
         ``group_id`` partitions the graph. Default is ``"lighthouse"`` —
         Graphiti requires a non-empty alphanumeric/dash/underscore id
@@ -475,21 +527,30 @@ class KnowledgeGraph:
         per-tenant or per-deployment isolation pass their own id.
         """
         client = await self._client_lazy()
-        result = await client.add_episode(
-            name=name,
-            episode_body=body,
-            source_description=source,
-            reference_time=reference_time or datetime.now(UTC),
-            group_id=group_id,
-        )
-        # Graphiti's AddEpisodeResults shape — episode is nested.
-        # Fall back to legacy fields for older versions.
-        episode = getattr(result, "episode", None)
-        uuid = getattr(episode, "uuid", None) if episode is not None else None
+        ref = reference_time or datetime.now(UTC)
+        chunks = _split_episode_body(body)
+        last_uuid = ""
+        for i, chunk in enumerate(chunks):
+            chunk_name = name if len(chunks) == 1 else f"{name} (part {i + 1}/{len(chunks)})"
+            result = await client.add_episode(
+                name=chunk_name,
+                episode_body=chunk,
+                source_description=source,
+                reference_time=ref,
+                group_id=group_id,
+            )
+            episode = getattr(result, "episode", None)
+            uuid = getattr(episode, "uuid", None) if episode is not None else None
+            if uuid:
+                last_uuid = str(uuid)
+        # Legacy-shape fallbacks for older Graphiti versions that
+        # returned the uuid at the top level of AddEpisodeResults.
+        if last_uuid:
+            return last_uuid
         return str(
-            uuid
-            or getattr(result, "episode_uuid", "")
+            getattr(result, "episode_uuid", "")
             or getattr(result, "uuid", "")
+            or ""
         )
 
     async def close(self) -> None:
