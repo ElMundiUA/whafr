@@ -501,6 +501,49 @@ class KnowledgeGraph:
             valid_at=_to_dt(row["valid_at"]),
         )
 
+    async def has_unchanged_episode(
+        self, source: str, body_sha256: str
+    ) -> bool:
+        """True if any Episodic node already stores body whose
+        SHA-256 equals ``body_sha256`` AND whose ``source_description``
+        starts with ``source``. Used by the ingest delta-skip so we
+        don't pay for LLM extraction on unchanged sources.
+
+        ``source_description`` is allowed a prefix match because the
+        chunking path stores per-chunk descriptions like
+        ``"<source>#chunk-0/N"``; we want to treat the doc as unchanged
+        if *any* chunk's body hash matches. False positives are not
+        a concern here — they just mean we skip a small re-ingest;
+        worst case we miss a hot-fix on one chunk of a 7-chunk RFC,
+        which the next scheduled run picks up anyway.
+        """
+        from neo4j import AsyncGraphDatabase
+
+        s = self._settings
+        driver = AsyncGraphDatabase.driver(
+            s.neo4j_uri, auth=(s.neo4j_user, s.neo4j_password)
+        )
+        try:
+            async with driver.session(database=s.neo4j_database) as session:
+                result = await session.run(
+                    "MATCH (e:Episodic) "
+                    "WHERE e.source_description STARTS WITH $src "
+                    "RETURN e.content AS content LIMIT 50",
+                    src=source,
+                )
+                import hashlib
+
+                async for row in result:
+                    content = row["content"] or ""
+                    if (
+                        hashlib.sha256(content.encode("utf-8")).hexdigest()
+                        == body_sha256
+                    ):
+                        return True
+        finally:
+            await driver.close()
+        return False
+
     async def upsert_episode(
         self,
         *,

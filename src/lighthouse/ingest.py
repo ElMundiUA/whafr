@@ -9,6 +9,7 @@ is identical regardless of how ingestion got kicked off.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 
 from lighthouse.connectors.base import Connector
@@ -37,6 +38,12 @@ async def drain(
     entity extraction — useful for whole-site crawls where 20-40% of
     pages are nav/marketing/error noise. Disabled gate is a no-op,
     so curated URL lists pay nothing.
+
+    Delta-ingest: before paying for Graphiti's LLM extraction, we hash
+    the new body and ask the graph layer whether the same source URL
+    already has an episode with that exact content hash. If yes, skip
+    the upsert entirely — recurrent ingest of unchanged sources costs
+    ~one Neo4j read instead of N OpenAI calls.
     """
     owns_graph = graph is None
     g = graph or KnowledgeGraph()
@@ -47,17 +54,35 @@ async def drain(
     n = 0
     skipped = 0
     failed = 0
+    unchanged = 0
     try:
         async for doc in connector.ingest():
             if not await relevance.accept(title=doc.title, body=doc.body):
                 skipped += 1
                 logger.info("relevance gate rejected: %s", doc.title)
                 continue
+            source_full = f"{source_prefix}:{doc.source_id}"
+            body_hash = hashlib.sha256(doc.body.encode("utf-8")).hexdigest()
+            try:
+                if await g.has_unchanged_episode(source_full, body_hash):
+                    unchanged += 1
+                    logger.debug(
+                        "delta-ingest skip (unchanged): %s", doc.source_id
+                    )
+                    continue
+            except Exception:
+                # Don't let the delta-check kill the run; fall back to
+                # always-upsert when the lookup errors (e.g. transient
+                # Neo4j blip).
+                logger.warning(
+                    "delta-ingest check failed for %s — upserting anyway",
+                    doc.source_id,
+                )
             try:
                 await g.upsert_episode(
                     name=doc.title,
                     body=doc.body,
-                    source=f"{source_prefix}:{doc.source_id}",
+                    source=source_full,
                     reference_time=doc.reference_time,
                 )
             except Exception:
@@ -78,10 +103,11 @@ async def drain(
             logger.info("ingested: %s", doc.title)
         logger.info(
             "done — %d documents ingested from %s "
-            "(gate skipped %d, failed %d)",
+            "(gate skipped %d, unchanged %d, failed %d)",
             n,
             source_prefix,
             skipped,
+            unchanged,
             failed,
         )
         return n
