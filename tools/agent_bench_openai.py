@@ -43,11 +43,13 @@ if _here not in _sys.path:
 from agent_bench_v2 import (  # type: ignore
     LIGHTHOUSE_INSTRUCTIONS,
     LIBRARY_SEARCH_TOOL,
+    FETCH_SOURCE_TOOL,
     TASKS,
     CallTelemetry,
     RunTelemetry,
     load_role_prompt,
     render_report,
+    _dispatch_tool,
 )
 
 logger = logging.getLogger(__name__)
@@ -91,7 +93,15 @@ def _openai_tools() -> list[dict[str, Any]]:
                 "description": LIBRARY_SEARCH_TOOL["description"],
                 "parameters": LIBRARY_SEARCH_TOOL["input_schema"],
             },
-        }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": FETCH_SOURCE_TOOL["name"],
+                "description": FETCH_SOURCE_TOOL["description"],
+                "parameters": FETCH_SOURCE_TOOL["input_schema"],
+            },
+        },
     ]
 
 
@@ -175,6 +185,15 @@ async def _call_openai(
 
     usage = resp.usage
     cached = 0
+    # OpenRouter occasionally returns usage=None on tool-use rounds; treat
+    # it as zero rather than crashing the whole bench. The same fallback
+    # covers OpenAI's empty-usage edge case during streamed completions.
+    if usage is None:
+        class _Empty:
+            prompt_tokens = 0
+            completion_tokens = 0
+            prompt_tokens_details = None
+        usage = _Empty()
     # OpenAI usage shape: usage.prompt_tokens_details may carry cached_tokens
     if hasattr(usage, "prompt_tokens_details"):
         cached = (
@@ -251,7 +270,13 @@ async def openai_agentic_run(
         + "\n\n## Your plan\n"
         + tel.plan
         + "\n\n---\n\nNow execute the plan. Produce your full draft answer."
-        + (" Use library_search where useful." if mode == "B" else "")
+        + (
+            " Use library_search to find facts; when a hit looks "
+            "relevant but its one-line summary is too thin, fetch_source "
+            "on its ep id to read the full article."
+            if mode == "B"
+            else ""
+        )
     )
     messages: list[dict[str, Any]] = [{"role": "user", "content": execute_user}]
     accumulated_text: list[str] = []
@@ -299,18 +324,9 @@ async def openai_agentic_run(
                 args = json.loads(tc.function.arguments or "{}")
             except json.JSONDecodeError:
                 args = {}
-            query = args.get("query", "")
-            top_k = int(args.get("top_k", 5))
-            tel.tool_queries.append(query)
-            try:
-                hits = await graph.search(query, top_k=top_k)
-                tel.tool_hits_per_query.append(len(hits))
-                payload = (
-                    "\n".join(f"- {h.summary}" for h in hits[:top_k]) or "(no hits)"
-                )
-            except Exception as exc:  # noqa: BLE001
-                tel.tool_hits_per_query.append(0)
-                payload = f"(library_search errored: {exc})"
+            payload = await _dispatch_tool(
+                graph=graph, name=tc.function.name, input_=args, tel=tel
+            )
             messages.append(
                 {
                     "role": "tool",

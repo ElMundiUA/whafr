@@ -183,11 +183,12 @@ TASKS: list[dict[str, Any]] = [
 LIBRARY_SEARCH_TOOL: dict[str, Any] = {
     "name": "library_search",
     "description": (
-        "Search the Lighthouse knowledge base for canonical facts about a "
-        "topic. Returns up to top_k facts with summaries. Use this BEFORE "
-        "answering when the question references a specific framework, "
-        "pattern, methodology, or industry standard. Call this tool with "
-        "focused queries (3-8 words) rather than the user's full question."
+        "Search the Lighthouse knowledge base. Returns up to top_k ranked "
+        "hits, each a one-line fact + an `[ep:<id>]` source handle. Hits "
+        "now include prose snippets from the ingested article body, not "
+        "just entity-relation triples. Use focused queries (3-8 words). "
+        "If a hit's one-liner isn't enough, call `fetch_source` with its "
+        "ep id to read the full original paragraph (a few KB)."
     ),
     "input_schema": {
         "type": "object",
@@ -199,14 +200,45 @@ LIBRARY_SEARCH_TOOL: dict[str, Any] = {
     },
 }
 
+FETCH_SOURCE_TOOL: dict[str, Any] = {
+    "name": "fetch_source",
+    "description": (
+        "Pull the ORIGINAL ingested paragraph behind a search hit. Pass "
+        "the `ep` id from a `library_search` result (e.g. ep:9f3a2c). "
+        "Returns the article title, source URL, and the full body text "
+        "(a few KB). Prefer this over re-searching when you already have "
+        "a relevant hit but its one-line summary isn't detailed enough — "
+        "one round-trip gets you the canonical prose instead of N more "
+        "searches."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "episode_id": {"type": "string"},
+        },
+        "required": ["episode_id"],
+    },
+}
+
 LIGHTHOUSE_INSTRUCTIONS = """\
 
 ## Using Lighthouse (knowledge base)
 
-You have access to a `library_search` tool. Use it to ground claims
-in canonical sources rather than memory. Issue focused queries (3-8
-words). Cite findings inline with `(per Lighthouse: ...)` so the
-reader can see what the grounding was. If a query returns nothing
+You have two tools:
+
+- `library_search(query, top_k)` — find facts. Returns ranked hits
+  with one-line summaries plus an `[ep:<id>]` source handle each.
+  Use focused queries (3-8 words), not the user's full prompt.
+- `fetch_source(episode_id)` — pull the FULL original article
+  paragraph behind a hit. Use when the one-line summary isn't
+  enough — e.g. you need step-by-step instructions, code, exact
+  config values, or RFC wording. One `fetch_source` call returns a
+  few KB of canonical prose; that's almost always cheaper than 5
+  more searches.
+
+Typical flow: one `library_search` → scan summaries → if a hit is
+close but thin, call `fetch_source` on its ep id. Cite findings
+inline with `(per Lighthouse: ...)`. If the corpus has nothing
 useful, say so and continue from memory rather than fabricating.
 """
 
@@ -349,6 +381,128 @@ def _extract_text(resp) -> str:
     ).strip()
 
 
+def _format_search_payload(hits, top_k: int) -> str:
+    """Render search hits with their ep handles so the agent can call
+    `fetch_source` afterwards. Truncates UUID to 8 chars in the wire
+    payload to save tokens; the graph lookup is by prefix match below."""
+    if not hits:
+        return "(no hits)"
+    lines = []
+    for h in hits[:top_k]:
+        ep = (h.episode_ids[0] if h.episode_ids else "").replace("-", "")[:8]
+        tag = f" [ep:{ep}]" if ep else ""
+        lines.append(f"- {h.summary}{tag}")
+    return "\n".join(lines)
+
+
+FETCH_SOURCE_PER_TASK_CAP = 8  # soft cap; over this we return a hint
+                                # instead of body content. 14.3 avg on
+                                # Sonnet was wasteful — most lift comes
+                                # from the first 5-6 fetches.
+
+
+async def _dispatch_tool(
+    *,
+    graph,
+    name: str,
+    input_: dict[str, Any],
+    tel: "RunTelemetry",
+) -> str:
+    """Run one Lighthouse tool call. Returns the wire payload string.
+    Tracks the call into RunTelemetry's tool_queries/tool_hits_per_query
+    so the report counts every tool round (search OR fetch_source)."""
+    if name == "library_search":
+        query = input_.get("query", "")
+        top_k = int(input_.get("top_k", 5))
+        tel.tool_queries.append(query)
+        try:
+            hits = await graph.search(query, top_k=top_k)
+            tel.tool_hits_per_query.append(len(hits))
+            return _format_search_payload(hits, top_k)
+        except Exception as exc:  # noqa: BLE001
+            tel.tool_hits_per_query.append(0)
+            return f"(library_search errored: {exc})"
+    if name == "fetch_source":
+        ep_in = str(input_.get("episode_id", "")).strip()
+        tel.tool_queries.append(f"fetch_source({ep_in})")
+        # Soft cap per task — counts prior fetch_source calls in this
+        # RunTelemetry. Beyond the cap, return a hint instead of body
+        # so the agent stops calling and commits to a draft.
+        prior_fs = sum(
+            1 for q in tel.tool_queries[:-1]
+            if str(q).startswith("fetch_source(")
+        )
+        if prior_fs >= FETCH_SOURCE_PER_TASK_CAP:
+            tel.tool_hits_per_query.append(0)
+            return (
+                f"(fetch_source soft-capped at {FETCH_SOURCE_PER_TASK_CAP} "
+                "calls per task; you've gathered enough sources — commit "
+                "to a draft answer now)"
+            )
+        if not ep_in:
+            tel.tool_hits_per_query.append(0)
+            return "(fetch_source: missing episode_id)"
+        # Resolve short prefix (8-char wire form) to a full uuid via the
+        # Neo4j driver. ``KnowledgeGraph.fetch_source`` only matches an
+        # exact uuid, so a quick prefix lookup keeps the wire payload
+        # small without forcing the agent to repeat full UUIDs.
+        try:
+            ep_full = await _resolve_episode(graph, ep_in)
+            if ep_full is None:
+                tel.tool_hits_per_query.append(0)
+                return f"(fetch_source: no episode matches '{ep_in}')"
+            src = await graph.fetch_source(ep_full)
+            if src is None:
+                tel.tool_hits_per_query.append(0)
+                return f"(fetch_source: episode {ep_full[:8]} not found)"
+            tel.tool_hits_per_query.append(1)
+            # Cap body at ~6 KB so a single fetch doesn't blow the
+            # context budget. Pages are typically 1-4 KB anyway; this
+            # only trims the very long ones.
+            body = src.content or ""
+            if len(body) > 6000:
+                body = body[:6000] + "\n... [truncated]"
+            return (
+                f"# {src.name}\n"
+                f"Source: {src.source}\n\n"
+                f"{body}"
+            )
+        except Exception as exc:  # noqa: BLE001
+            tel.tool_hits_per_query.append(0)
+            return f"(fetch_source errored: {exc})"
+    return f"(unknown tool: {name})"
+
+
+async def _resolve_episode(graph, ep_in: str) -> str | None:
+    """Resolve a short prefix (8-hex, no dashes) to a full Episodic uuid.
+    If the agent already passed a full uuid we just return it."""
+    # Full uuid: 32-hex with 4 dashes. Accept it as-is.
+    if len(ep_in) >= 32 and "-" in ep_in:
+        return ep_in
+    # Otherwise treat as hex prefix and look up via the Neo4j driver.
+    from neo4j import AsyncGraphDatabase
+
+    s = graph._settings  # noqa: SLF001 — bench is internal tooling
+    driver = AsyncGraphDatabase.driver(
+        s.neo4j_uri, auth=(s.neo4j_user, s.neo4j_password)
+    )
+    try:
+        async with driver.session(database=s.neo4j_database) as session:
+            # The wire form is the uuid with dashes stripped, truncated
+            # to 8 chars. Convert back by allowing a prefix match on
+            # ``replace(uuid, '-', '')``.
+            result = await session.run(
+                "MATCH (n:Episodic) "
+                "WHERE replace(n.uuid, '-', '') STARTS WITH $pfx "
+                "RETURN n.uuid AS uuid LIMIT 1",
+                pfx=ep_in.lower(),
+            )
+            row = await result.single()
+            return str(row["uuid"]) if row else None
+    finally:
+        await driver.close()
+
+
 # ============================================================
 # Agentic loop — plan → execute → review → finalize
 # ============================================================
@@ -368,7 +522,7 @@ async def agentic_run(
     tel = RunTelemetry(mode=mode)
     if mode == "B":
         system_text = role_prompt + LIGHTHOUSE_INSTRUCTIONS
-        tools = [LIBRARY_SEARCH_TOOL]
+        tools = [LIBRARY_SEARCH_TOOL, FETCH_SOURCE_TOOL]
     else:
         system_text = role_prompt
         tools = None
@@ -403,7 +557,13 @@ async def agentic_run(
         + plan_text
         + "\n\n---\n\n"
         + "Now execute the plan. Produce your full draft answer. "
-        + ("Use library_search where useful." if mode == "B" else "")
+        + (
+            "Use library_search to find facts; when a hit looks "
+            "relevant but its one-line summary is too thin, fetch_source "
+            "on its ep id to read the full article."
+            if mode == "B"
+            else ""
+        )
     )
     messages: list[dict[str, Any]] = [
         {"role": "user", "content": execute_user},
@@ -444,16 +604,9 @@ async def agentic_run(
         messages.append({"role": "assistant", "content": assistant_blocks})
         tool_results: list[dict[str, Any]] = []
         for b in tool_uses:
-            query = b.input.get("query", "")
-            top_k = int(b.input.get("top_k", 5))
-            tel.tool_queries.append(query)
-            try:
-                hits = await graph.search(query, top_k=top_k)
-                tel.tool_hits_per_query.append(len(hits))
-                payload = "\n".join(f"- {h.summary}" for h in hits[:top_k]) or "(no hits)"
-            except Exception as exc:  # noqa: BLE001
-                tel.tool_hits_per_query.append(0)
-                payload = f"(library_search errored: {exc})"
+            payload = await _dispatch_tool(
+                graph=graph, name=b.name, input_=b.input, tel=tel
+            )
             tool_results.append(
                 {"type": "tool_result", "tool_use_id": b.id, "content": payload}
             )
@@ -480,16 +633,9 @@ async def agentic_run(
             messages.append({"role": "assistant", "content": assistant_blocks})
             tool_results = []
             for b in tool_uses:
-                query = b.input.get("query", "")
-                top_k = int(b.input.get("top_k", 5))
-                tel.tool_queries.append(query)
-                try:
-                    hits = await graph.search(query, top_k=top_k)
-                    tel.tool_hits_per_query.append(len(hits))
-                    payload = "\n".join(f"- {h.summary}" for h in hits[:top_k]) or "(no hits)"
-                except Exception as exc:  # noqa: BLE001
-                    tel.tool_hits_per_query.append(0)
-                    payload = f"(library_search errored: {exc})"
+                payload = await _dispatch_tool(
+                    graph=graph, name=b.name, input_=b.input, tel=tel
+                )
                 tool_results.append(
                     {"type": "tool_result", "tool_use_id": b.id, "content": payload}
                 )
