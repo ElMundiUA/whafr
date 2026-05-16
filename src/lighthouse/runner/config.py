@@ -71,7 +71,14 @@ class SourceSpec(BaseModel):
     """
 
     name: str = Field(min_length=1, description="Stable id; used as source_prefix")
-    connector: Literal["markdown", "web", "github", "sitemap"]
+    connector: Literal[
+        "markdown",
+        "web",
+        "github",
+        "sitemap",
+        "rss",
+        "github_releases",
+    ]
     args: dict[str, Any] = Field(default_factory=dict)
     schedule: Schedule
 
@@ -144,11 +151,43 @@ def _sitemap_factory(args: dict[str, Any]) -> Connector:
     )
 
 
+def _rss_factory(args: dict[str, Any]) -> Connector:
+    from lighthouse.connectors.rss import RssConnector
+
+    feeds = args.get("feeds") or ([args["url"]] if "url" in args else [])
+    return RssConnector(
+        feeds=feeds,
+        max_entries=int(args.get("max_entries", 50)),
+        fetch_body_when_missing=bool(args.get("fetch_body_when_missing", True)),
+        min_body_chars=int(args.get("min_body_chars", 200)),
+    )
+
+
+def _github_releases_factory(args: dict[str, Any]) -> Connector:
+    from lighthouse.connectors.github_releases import GitHubReleasesConnector
+
+    slug = args.get("slug")
+    if slug and "/" in slug:
+        owner, repo = slug.split("/", 1)
+    else:
+        owner = args["owner"]
+        repo = args["repo"]
+    return GitHubReleasesConnector(
+        owner=owner,
+        repo=repo,
+        max_releases=int(args.get("max_releases", 30)),
+        include_prereleases=bool(args.get("include_prereleases", False)),
+        include_drafts=bool(args.get("include_drafts", False)),
+    )
+
+
 _FACTORIES: dict[str, ConnectorFactory] = {
     "markdown": _markdown_factory,
     "web": _web_factory,
     "github": _github_factory,
     "sitemap": _sitemap_factory,
+    "rss": _rss_factory,
+    "github_releases": _github_releases_factory,
 }
 
 

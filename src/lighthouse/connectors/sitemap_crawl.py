@@ -41,7 +41,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
-from lighthouse.connectors.base import Connector, SourceDocument
+from lighthouse.connectors.base import (
+    Connector,
+    SourceDocument,
+    parse_publish_date,
+)
 from lighthouse.core.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -88,6 +92,10 @@ class SitemapCrawlConnector(Connector):
         self._max_pages = max_pages
         self._rate_limit = max(0.1, rate_limit_per_sec)
         self._override_sitemap = sitemap_url
+        # Populated during sitemap discovery; keyed by URL → lastmod
+        # ISO date string. Lets ``_extract`` fall back to sitemap-level
+        # lastmod when the page itself doesn't carry a publish date.
+        self._lastmod: dict[str, str] = {}
 
     # ----- public ---------------------------------------------------
 
@@ -207,10 +215,20 @@ class SitemapCrawlConnector(Connector):
                 loc_el = url_el.find(f"{_SM_NS}loc")
                 if loc_el is None:
                     loc_el = url_el.find("loc")
-                if loc_el is not None and loc_el.text:
-                    out.append(loc_el.text.strip())
-                    if len(out) >= budget:
-                        return out
+                if loc_el is None or not loc_el.text:
+                    continue
+                page_url = loc_el.text.strip()
+                out.append(page_url)
+                # Capture sitemap-level <lastmod> for E22 publish-date
+                # tagging. Most sitemap-emitting sites populate it; we
+                # ignore it silently when missing.
+                lm_el = url_el.find(f"{_SM_NS}lastmod")
+                if lm_el is None:
+                    lm_el = url_el.find("lastmod")
+                if lm_el is not None and lm_el.text:
+                    self._lastmod[page_url] = lm_el.text.strip()
+                if len(out) >= budget:
+                    return out
         elif tag == "sitemapindex" and depth < 2:
             sm_els = root.findall(f"{_SM_NS}sitemap")
             if not sm_els:
@@ -301,17 +319,23 @@ class SitemapCrawlConnector(Connector):
             return None
         meta = trafilatura.extract_metadata(raw)
         title = meta.title if meta and meta.title else url
+        # Prefer trafilatura-extracted publish date; fall back to the
+        # sitemap's <lastmod> we cached during discovery if the page
+        # metadata didn't carry a date.
+        date_str = str(meta.date) if meta and meta.date else self._lastmod.get(url, "")
+        ref = parse_publish_date(date_str) if date_str else None
         return SourceDocument(
             source_id=url,
             title=str(title),
             body=text,
             url=url,
-            reference_time=None,
+            reference_time=ref,
             metadata={
                 "url": url,
                 "title": str(title),
                 "extractor": "trafilatura-sitemap",
                 "domain": self._domain,
+                "date": date_str,
             },
         )
 

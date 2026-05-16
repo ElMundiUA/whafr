@@ -28,7 +28,11 @@ import logging
 from collections.abc import AsyncIterator, Iterable
 from urllib.parse import urlparse
 
-from lighthouse.connectors.base import Connector, SourceDocument
+from lighthouse.connectors.base import (
+    Connector,
+    SourceDocument,
+    parse_publish_date,
+)
 from lighthouse.core.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -98,12 +102,13 @@ class WebConnector(Connector):
             return None
         meta = trafilatura.extract_metadata(raw)
         title = (meta.title if meta and meta.title else url)
+        ref = parse_publish_date(str(meta.date)) if meta and meta.date else None
         return SourceDocument(
             source_id=url,
             title=str(title),
             body=text,
             url=url,
-            reference_time=None,
+            reference_time=ref,
             metadata={
                 "url": url,
                 "title": str(title),
