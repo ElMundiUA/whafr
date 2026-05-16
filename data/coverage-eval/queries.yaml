@@ -1,0 +1,121 @@
+# Canonical-query coverage probes — one set per SDLC domain.
+#
+# These are the same probe-shape as the manual audit waves but
+# committed in repo so the weekly CronJob can re-run them without
+# hand-curation. Treat each as "if Lighthouse can't surface useful
+# canonical content for this query, that domain has a gap".
+#
+# Keep queries terse (3-8 words) — same shape models use. Add new
+# probes here as topics arise; the audit will re-include them on the
+# next run.
+
+clarification:
+  - acceptance criteria template gherkin
+  - INVEST story principles
+  - definition of ready checklist
+  - clarifying questions BA backlog
+  - given when then format
+
+decomposition:
+  - work breakdown structure technique
+  - epic to story decomposition
+  - MECE feature breakdown
+  - INVEST sliced stories vertical
+  - dependency mapping engineering tasks
+
+designer:
+  - shadcn ui color tokens
+  - WCAG contrast ratio body text
+  - ARIA labels icon button
+  - dark mode color palette tailwind
+  - design tokens semantic naming
+
+developer:
+  - FastAPI dependency injection session
+  - Anthropic prompt caching cache_control TTL
+  - SQLAlchemy async session pattern
+  - Pydantic v2 field validators
+  - asyncio TaskGroup error handling
+
+devops:
+  - Kubernetes readiness vs liveness probe
+  - GitHub Actions OIDC AWS
+  - Argo Rollouts canary strategy
+  - HPA autoscaling cpu memory
+  - external-secrets operator vault
+  - blameless postmortem template
+
+mobile:
+  - React Native Hermes engine
+  - EAS Build credentials
+  - Compose UI state hoisting
+  - SwiftUI App Intents
+  - React Native Fabric renderer
+
+ml:
+  - RAG chunking strategies
+  - vLLM continuous batching
+  - HuggingFace transformers AutoTokenizer
+  - PyTorch DataLoader workers
+  - prompt caching Anthropic Claude
+
+network:
+  - OAuth 2.0 PKCE code_challenge S256
+  - JWT header alg kid
+  - TLS 1.3 0-RTT replay
+  - HTTP/2 server push deprecated
+  - QUIC stream multiplexing
+  - DNS-over-HTTPS RFC 8484
+
+performance:
+  - Core Web Vitals LCP CLS INP
+  - flame graph CPU profile
+  - DB connection pool exhaustion
+  - p95 vs p99 latency
+
+planning:
+  - capacity planning sprint velocity
+  - story points vs NoEstimates
+  - risk register probability impact
+  - rollback strategy deployment
+  - Q3 launch plan engineering team
+
+product-manager:
+  - RICE prioritization framework
+  - Cagan product trio
+  - JTBD framework outcomes
+  - PRD template best practices
+  - HEART success metrics
+
+reviewer:
+  - conventional comments review
+  - OWASP top 10 auth review
+  - code review checklist Python
+  - secrets in PR pre-commit
+
+security:
+  - OWASP CSRF cheat sheet
+  - secret rotation github actions
+  - mTLS client certificate auth
+  - STRIDE threat modelling
+  - DPoP RFC 9449 token binding
+
+architecture:
+  - CRDT vs OT collaborative editing
+  - event sourcing CQRS pattern
+  - saga distributed transaction
+  - hexagonal architecture ports adapters
+  - eventual consistency anti-entropy
+
+self-heal:
+  - production 5xx spike diagnosis
+  - memory leak async Python worker
+  - slow Postgres query pg_stat_statements
+  - flaky Playwright test triage
+  - OOM-killed pod postmortem
+
+validation:
+  - Playwright page object model fixtures
+  - BDD scenario password reset
+  - testcontainers Postgres integration
+  - mutation testing python

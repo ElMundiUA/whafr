@@ -91,6 +91,35 @@ def main(argv: list[str] | None = None) -> int:
         help="File extensions to include (default: .md .rst .mdx .txt)",
     )
 
+    audit = sub.add_parser(
+        "coverage-audit",
+        help="Run canonical-query gap-rate audit and emit JSON metrics",
+    )
+    audit.add_argument(
+        "--queries",
+        type=Path,
+        default=Path("data/coverage-eval/queries.yaml"),
+        help="YAML of {domain: [query, ...]} canonical probes",
+    )
+    audit.add_argument(
+        "--top-k",
+        type=int,
+        default=5,
+        help="top_k per search (default 5)",
+    )
+    audit.add_argument(
+        "--out",
+        type=Path,
+        default=None,
+        help="Write JSON results to this path (default: stdout)",
+    )
+    audit.add_argument(
+        "--summary",
+        type=Path,
+        default=None,
+        help="Optional markdown summary alongside JSON",
+    )
+
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s | %(message)s")
@@ -117,6 +146,17 @@ def main(argv: list[str] | None = None) -> int:
             return asyncio.run(
                 _ingest_github(args.slug, branch=args.branch, ext=args.ext)
             )
+    if args.cmd == "coverage-audit":
+        from lighthouse.runner.coverage_audit import run_audit
+
+        return asyncio.run(
+            run_audit(
+                queries_path=args.queries,
+                top_k=args.top_k,
+                out_path=args.out,
+                summary_path=args.summary,
+            )
+        )
 
     parser.error(f"unknown command: {args.cmd}")
     return 2

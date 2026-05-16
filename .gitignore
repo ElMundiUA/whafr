@@ -26,6 +26,7 @@ htmlcov/
 # ingested content — keep them tracked.
 data/*
 !data/source-research/
+!data/coverage-eval/
 data/source-research/unparseable.jsonl
 *.db
 *.dump
