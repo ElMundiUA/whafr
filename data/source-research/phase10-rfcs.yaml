@@ -1,0 +1,175 @@
+# Phase 10 — canonical RFCs and standards dump.
+#
+# Goal: drop gap-rate on Security + Network domains below 15 %.
+# These are the exact specifications frontier models *know about* but
+# regularly hallucinate the byte-level details of (JWT header order,
+# PKCE code_challenge formula, QUIC frame types). fetch_source of the
+# RFC body grounds those details.
+#
+# Each source is one or two RFC URLs via the `web` connector — RFCs
+# are static HTML with a stable trafilatura extraction. Long shelf
+# life (~365d schedule).
+sources:
+
+  # ── TLS / transport ───────────────────────────────────────────────
+  - name: rfc-tls-1-3
+    connector: web
+    args:
+      urls:
+        - https://datatracker.ietf.org/doc/html/rfc8446
+        - https://datatracker.ietf.org/doc/html/rfc8447
+    schedule: { every: 365d }
+  - name: rfc-quic
+    connector: web
+    args:
+      urls:
+        - https://datatracker.ietf.org/doc/html/rfc9000
+        - https://datatracker.ietf.org/doc/html/rfc9001
+        - https://datatracker.ietf.org/doc/html/rfc9002
+    schedule: { every: 365d }
+  - name: rfc-http-3
+    connector: web
+    args:
+      urls:
+        - https://datatracker.ietf.org/doc/html/rfc9114
+        - https://datatracker.ietf.org/doc/html/rfc9204
+    schedule: { every: 365d }
+  - name: rfc-http-semantics
+    connector: web
+    args:
+      urls:
+        - https://datatracker.ietf.org/doc/html/rfc9110
+        - https://datatracker.ietf.org/doc/html/rfc9111
+        - https://datatracker.ietf.org/doc/html/rfc9112
+    schedule: { every: 365d }
+  - name: rfc-websocket
+    connector: web
+    args:
+      urls:
+        - https://datatracker.ietf.org/doc/html/rfc6455
+        - https://datatracker.ietf.org/doc/html/rfc8441
+    schedule: { every: 365d }
+
+  # ── Identity / auth ───────────────────────────────────────────────
+  - name: rfc-jwt-jose
+    connector: web
+    args:
+      urls:
+        - https://datatracker.ietf.org/doc/html/rfc7519  # JWT
+        - https://datatracker.ietf.org/doc/html/rfc7515  # JWS
+        - https://datatracker.ietf.org/doc/html/rfc7516  # JWE
+        - https://datatracker.ietf.org/doc/html/rfc7517  # JWK
+        - https://datatracker.ietf.org/doc/html/rfc7518  # JWA
+    schedule: { every: 365d }
+  - name: rfc-oauth-core
+    connector: web
+    args:
+      urls:
+        - https://datatracker.ietf.org/doc/html/rfc6749   # OAuth 2.0 framework
+        - https://datatracker.ietf.org/doc/html/rfc6750   # Bearer tokens
+        - https://datatracker.ietf.org/doc/html/rfc7009   # token revocation
+        - https://datatracker.ietf.org/doc/html/rfc7662   # token introspection
+    schedule: { every: 365d }
+  - name: rfc-oauth-pkce-dpop
+    connector: web
+    args:
+      urls:
+        - https://datatracker.ietf.org/doc/html/rfc7636   # PKCE
+        - https://datatracker.ietf.org/doc/html/rfc9449   # DPoP
+        - https://datatracker.ietf.org/doc/html/rfc8705   # mTLS client auth
+        - https://datatracker.ietf.org/doc/html/rfc9126   # PAR (Pushed Auth Requests)
+    schedule: { every: 365d }
+  - name: rfc-oidc-discovery
+    connector: web
+    args:
+      urls:
+        - https://openid.net/specs/openid-connect-core-1_0.html
+        - https://openid.net/specs/openid-connect-discovery-1_0.html
+    schedule: { every: 365d }
+  - name: rfc-saml-soap
+    connector: web
+    args:
+      urls:
+        - https://docs.oasis-open.org/security/saml/v2.0/saml-core-2.0-os.pdf
+        - https://datatracker.ietf.org/doc/html/rfc7522    # SAML profile for OAuth
+    schedule: { every: 365d }
+
+  # ── Crypto primitives ─────────────────────────────────────────────
+  - name: rfc-ed25519-chacha
+    connector: web
+    args:
+      urls:
+        - https://datatracker.ietf.org/doc/html/rfc8032   # EdDSA / Ed25519
+        - https://datatracker.ietf.org/doc/html/rfc8439   # ChaCha20-Poly1305
+        - https://datatracker.ietf.org/doc/html/rfc7693   # BLAKE2
+    schedule: { every: 365d }
+  - name: rfc-x509-ocsp
+    connector: web
+    args:
+      urls:
+        - https://datatracker.ietf.org/doc/html/rfc5280   # X.509
+        - https://datatracker.ietf.org/doc/html/rfc6960   # OCSP
+        - https://datatracker.ietf.org/doc/html/rfc8954   # OCSP nonce
+    schedule: { every: 365d }
+  - name: rfc-hmac-hkdf
+    connector: web
+    args:
+      urls:
+        - https://datatracker.ietf.org/doc/html/rfc2104   # HMAC
+        - https://datatracker.ietf.org/doc/html/rfc5869   # HKDF
+        - https://datatracker.ietf.org/doc/html/rfc8018   # PBKDF2 / PKCS#5
+    schedule: { every: 365d }
+
+  # ── Networking lower layers ───────────────────────────────────────
+  - name: rfc-tcp-modernization
+    connector: web
+    args:
+      urls:
+        - https://datatracker.ietf.org/doc/html/rfc9293   # TCP modernization
+        - https://datatracker.ietf.org/doc/html/rfc8085   # UDP usage guidelines
+        - https://datatracker.ietf.org/doc/html/rfc6298   # TCP RTO
+    schedule: { every: 365d }
+  - name: rfc-tls-extensions
+    connector: web
+    args:
+      urls:
+        - https://datatracker.ietf.org/doc/html/rfc7301   # ALPN
+        - https://datatracker.ietf.org/doc/html/rfc6066   # TLS extensions
+        - https://datatracker.ietf.org/doc/html/rfc8879   # TLS certificate compression
+    schedule: { every: 365d }
+
+  # ── Mail / DNS / misc protocols ──────────────────────────────────
+  - name: rfc-dns-modern
+    connector: web
+    args:
+      urls:
+        - https://datatracker.ietf.org/doc/html/rfc8484   # DNS over HTTPS
+        - https://datatracker.ietf.org/doc/html/rfc7858   # DNS over TLS
+        - https://datatracker.ietf.org/doc/html/rfc9460   # SVCB / HTTPS RR
+    schedule: { every: 365d }
+  - name: rfc-mail-dkim-spf-dmarc
+    connector: web
+    args:
+      urls:
+        - https://datatracker.ietf.org/doc/html/rfc7208   # SPF
+        - https://datatracker.ietf.org/doc/html/rfc6376   # DKIM
+        - https://datatracker.ietf.org/doc/html/rfc7489   # DMARC
+        - https://datatracker.ietf.org/doc/html/rfc8617   # ARC
+    schedule: { every: 365d }
+
+  # ── NIST / NIST-SP for compliance-leaning queries ─────────────────
+  - name: nist-sp-800-63
+    connector: web
+    args:
+      urls:
+        - https://pages.nist.gov/800-63-3/sp800-63-3.html
+        - https://pages.nist.gov/800-63-3/sp800-63a.html
+        - https://pages.nist.gov/800-63-3/sp800-63b.html
+        - https://pages.nist.gov/800-63-3/sp800-63c.html
+    schedule: { every: 180d }
+  - name: nist-sp-800-207-zerotrust
+    connector: web
+    args:
+      urls:
+        - https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-207.pdf
+    schedule: { every: 365d }
