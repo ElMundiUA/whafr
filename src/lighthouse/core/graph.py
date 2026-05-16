@@ -504,18 +504,16 @@ class KnowledgeGraph:
     async def has_unchanged_episode(
         self, source: str, body_sha256: str
     ) -> bool:
-        """True if any Episodic node already stores body whose
-        SHA-256 equals ``body_sha256`` AND whose ``source_description``
-        starts with ``source``. Used by the ingest delta-skip so we
-        don't pay for LLM extraction on unchanged sources.
+        """True if any Episodic for ``source`` already carries the
+        ``lighthouse_full_body_sha256`` property equal to
+        ``body_sha256``. Used by the ingest delta-skip to bypass
+        LLM extraction on unchanged sources.
 
-        ``source_description`` is allowed a prefix match because the
-        chunking path stores per-chunk descriptions like
-        ``"<source>#chunk-0/N"``; we want to treat the doc as unchanged
-        if *any* chunk's body hash matches. False positives are not
-        a concern here — they just mean we skip a small re-ingest;
-        worst case we miss a hot-fix on one chunk of a 7-chunk RFC,
-        which the next scheduled run picks up anyway.
+        The property is set by :meth:`upsert_episode` after a doc is
+        ingested — it stores the hash of the *full* body, not of an
+        individual chunk. That's necessary because long docs get split
+        into N Episodic nodes during ingest; without a doc-level hash
+        the per-chunk hashes never match the next run's full-body hash.
         """
         from neo4j import AsyncGraphDatabase
 
@@ -527,22 +525,16 @@ class KnowledgeGraph:
             async with driver.session(database=s.neo4j_database) as session:
                 result = await session.run(
                     "MATCH (e:Episodic) "
-                    "WHERE e.source_description STARTS WITH $src "
-                    "RETURN e.content AS content LIMIT 50",
+                    "WHERE e.source_description = $src "
+                    "AND e.lighthouse_full_body_sha256 = $hash "
+                    "RETURN 1 LIMIT 1",
                     src=source,
+                    hash=body_sha256,
                 )
-                import hashlib
-
-                async for row in result:
-                    content = row["content"] or ""
-                    if (
-                        hashlib.sha256(content.encode("utf-8")).hexdigest()
-                        == body_sha256
-                    ):
-                        return True
+                row = await result.single()
+                return row is not None
         finally:
             await driver.close()
-        return False
 
     async def upsert_episode(
         self,
@@ -586,6 +578,37 @@ class KnowledgeGraph:
             uuid = getattr(episode, "uuid", None) if episode is not None else None
             if uuid:
                 last_uuid = str(uuid)
+        # Tag every chunk of this doc with the FULL body's SHA-256
+        # so :meth:`has_unchanged_episode` can short-circuit on the
+        # next ingest pass. Done in a single Cypher pass after all
+        # chunks are upserted — cheap (one indexed lookup) and
+        # idempotent on re-ingest of the same body.
+        import hashlib
+
+        full_hash = hashlib.sha256(body.encode("utf-8")).hexdigest()
+        try:
+            from neo4j import AsyncGraphDatabase
+
+            s = self._settings
+            driver = AsyncGraphDatabase.driver(
+                s.neo4j_uri, auth=(s.neo4j_user, s.neo4j_password)
+            )
+            try:
+                async with driver.session(database=s.neo4j_database) as session:
+                    await session.run(
+                        "MATCH (e:Episodic) "
+                        "WHERE e.source_description = $src "
+                        "AND coalesce(e.lighthouse_full_body_sha256, '') <> $hash "
+                        "SET e.lighthouse_full_body_sha256 = $hash",
+                        src=source,
+                        hash=full_hash,
+                    )
+            finally:
+                await driver.close()
+        except Exception:
+            # Best-effort — the upsert already succeeded, so a tag
+            # failure just means the next run won't delta-skip.
+            logger.exception("failed to stamp full_body_sha256 on %s", source)
         # Legacy-shape fallbacks for older Graphiti versions that
         # returned the uuid at the top level of AddEpisodeResults.
         if last_uuid:
