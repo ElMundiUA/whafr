@@ -205,16 +205,25 @@ FETCH_SOURCE_TOOL: dict[str, Any] = {
     "description": (
         "Pull the ORIGINAL ingested paragraph behind a search hit. Pass "
         "the `ep` id from a `library_search` result (e.g. ep:9f3a2c). "
-        "Returns the article title, source URL, and the full body text "
-        "(a few KB). Prefer this over re-searching when you already have "
-        "a relevant hit but its one-line summary isn't detailed enough — "
-        "one round-trip gets you the canonical prose instead of N more "
+        "Returns the article title, source URL, and body text "
+        "(capped, default ~6 KB).\n\n"
+        "Pass `max_chars` to override the cap when you only need a "
+        "quick confirmation (e.g. 1500 to keep your context tight) "
+        "or need extra room (up to 20 KB). Prefer this over "
+        "re-searching when you already have a relevant hit but its "
+        "one-line summary isn't enough — one round-trip beats N more "
         "searches."
     ),
     "input_schema": {
         "type": "object",
         "properties": {
             "episode_id": {"type": "string"},
+            "max_chars": {
+                "type": "integer",
+                "default": 6000,
+                "minimum": 200,
+                "maximum": 20000,
+            },
         },
         "required": ["episode_id"],
     },
@@ -456,12 +465,20 @@ async def _dispatch_tool(
                 tel.tool_hits_per_query.append(0)
                 return f"(fetch_source: episode {ep_full[:8]} not found)"
             tel.tool_hits_per_query.append(1)
-            # Cap body at ~6 KB so a single fetch doesn't blow the
-            # context budget. Pages are typically 1-4 KB anyway; this
-            # only trims the very long ones.
+            # Cap body — bench-side guard matching the MCP server's
+            # default. Caller can override via the max_chars input to
+            # fetch_source. 6 KB is the sweet spot we landed on: gives
+            # full prose without bloating context.
+            cap_in = input_.get("max_chars")
+            cap = 6000
+            try:
+                if cap_in is not None:
+                    cap = max(200, min(int(cap_in), 20000))
+            except (TypeError, ValueError):
+                pass
             body = src.content or ""
-            if len(body) > 6000:
-                body = body[:6000] + "\n... [truncated]"
+            if len(body) > cap:
+                body = body[:cap] + "\n... [truncated]"
             return (
                 f"# {src.name}\n"
                 f"Source: {src.source}\n\n"
