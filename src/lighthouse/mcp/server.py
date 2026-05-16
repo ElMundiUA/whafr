@@ -70,6 +70,28 @@ class McpSearchHit(BaseModel):
     episode_ids: list[str] = Field(default_factory=list)
 
 
+class McpSearchResponse(BaseModel):
+    """Wrapper returned by ``search`` so callers see retrieval coverage,
+    not just raw hits. ``coverage`` is a coarse self-assessment:
+
+    - ``ok`` — retrieval returned a meaningful number of hits and at
+      least one looked confident. Treat as a normal grounded answer.
+    - ``thin`` — fewer hits than asked for OR none look strongly
+      relevant. Lean less on the corpus and flag uncertainty to the
+      user.
+    - ``empty`` — corpus has nothing useful for this query. Continue
+      from model memory rather than fabricating citations.
+
+    Agents that surface this to the user can say "low confidence — this
+    topic isn't well covered in Lighthouse yet" instead of pretending
+    the few hits are authoritative.
+    """
+
+    hits: list["McpSearchHit"] = Field(default_factory=list)
+    coverage: Literal["ok", "thin", "empty"] = "ok"
+    coverage_note: str = ""
+
+
 class McpEntity(BaseModel):
     """One entity returned by ``fetch_fact``.
 
@@ -100,6 +122,8 @@ class McpSource(BaseModel):
     name: str
     source: str
     content: str
+    truncated: bool = False
+    full_length: int = 0
     created_at: str | None = None
     valid_at: str | None = None
 
@@ -188,9 +212,9 @@ def build_server(
             "if you only need the strongest match."
         ),
     )
-    async def search(query: str, top_k: int = 10) -> list[McpSearchHit]:
+    async def search(query: str, top_k: int = 10) -> McpSearchResponse:
         hits = await g.search(query, top_k=top_k)
-        return [
+        wire_hits = [
             McpSearchHit(
                 node_id=h.node_id,
                 summary=h.summary,
@@ -202,6 +226,31 @@ def build_server(
             )
             for h in hits
         ]
+        # Coverage heuristic — we don't expose raw cross-encoder scores
+        # (Graphiti's reranker already dropped sub-threshold ones), so
+        # use hit-count vs request as a proxy. Backed by audit data:
+        # domains we know are well-covered (Mobile, Security) routinely
+        # return ≥70 % of top_k; thinly-covered domains (Browser,
+        # Performance pre-Phase-9) return <40 %.
+        if not wire_hits:
+            coverage: Literal["ok", "thin", "empty"] = "empty"
+            note = (
+                "Corpus returned no hits — this topic isn't covered "
+                "yet. Answer from memory and flag the gap to the user."
+            )
+        elif len(wire_hits) < max(2, int(top_k * 0.4)):
+            coverage = "thin"
+            note = (
+                f"Only {len(wire_hits)}/{top_k} hits — sparse coverage. "
+                "Use what's here but don't overweight it; flag "
+                "uncertainty in your answer."
+            )
+        else:
+            coverage = "ok"
+            note = ""
+        return McpSearchResponse(
+            hits=wire_hits, coverage=coverage, coverage_note=note
+        )
 
     @mcp.tool(
         name="fetch_entity",
@@ -233,25 +282,38 @@ def build_server(
         name="fetch_source",
         description=(
             "Pull the original ingested paragraph a fact was extracted "
-            "from. Pass any uuid from a search hit's `episode_ids`. "
-            "Returns name, source URL, and full content (typically a "
-            "few KB).\n\n"
+            "from. Pass any uuid from a search hit's `episode_ids`.\n\n"
+            "Returns name, source URL, and content. By default truncates "
+            "to ~6 KB to keep your context tight; pass `max_chars` to "
+            "request a shorter (e.g. 1500 for frontier models that "
+            "already know the topic well) or longer cap. A `truncated` "
+            "flag on the response tells you when the body was cut.\n\n"
             "Prefer this over multiple `fetch_entity` calls when a "
             "fact's one-line summary is ambiguous or you need the "
-            "surrounding context. One round-trip vs N. Cost is the "
-            "extra tokens in your context (2-5 KB per source vs "
-            "0.5 KB per entity)."
+            "surrounding context. One round-trip vs N."
         ),
     )
-    async def fetch_source(episode_id: str) -> McpSource | None:
+    async def fetch_source(
+        episode_id: str, max_chars: int = 6000
+    ) -> McpSource | None:
         src = await g.fetch_source(episode_id)
         if src is None:
             return None
+        # Clamp to sane range — 200 chars is a single sentence (still
+        # useful for confirming a fact); 20 KB is the upper bound to
+        # keep one fetch from blowing a 200 K context.
+        cap = max(200, min(int(max_chars), 20000))
+        body = src.content or ""
+        truncated = len(body) > cap
+        if truncated:
+            body = body[:cap]
         return McpSource(
             episode_id=src.episode_id,
             name=src.name,
             source=src.source,
-            content=src.content,
+            content=body,
+            truncated=truncated,
+            full_length=len(src.content or ""),
             created_at=src.created_at.isoformat() if src.created_at else None,
             valid_at=src.valid_at.isoformat() if src.valid_at else None,
         )
