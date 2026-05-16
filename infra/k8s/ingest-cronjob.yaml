@@ -50,9 +50,11 @@ spec:
             lighthouse.source: __NAME__
         spec:
           restartPolicy: Never
+          imagePullSecrets:
+            - name: ghcr-pull
           containers:
             - name: ingest
-              image: dekus/lighthouse:latest
+              image: ghcr.io/elmundiua/lighthouse:latest
               imagePullPolicy: Always
               command: ["lighthouse"]
               args:
