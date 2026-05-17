@@ -1,0 +1,101 @@
+# Ollama serving LFM2.5-1.2B-Instruct in-cluster.
+#
+# Why this and not local: the laptop already runs 4 flat-ingest
+# workers + the migrator; we don't want a 700MB model + inference
+# load on top. Cluster has spare CPU for a 1-2 vCPU pod.
+#
+# Architecture:
+# - one-shot initContainer downloads the GGUF (~700 MB, ~10 s on
+#   cluster network) and drops a Modelfile next to it
+# - main container runs `ollama serve` and registers the model
+#   on startup
+# - emptyDir volume for the model (re-downloads on pod restart;
+#   fine for now, switch to PVC if pod churn becomes wasteful)
+#
+# Quality test: kubectl port-forward 11434:11434, then POST to
+# localhost:11434/api/generate.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama-lfm2
+  namespace: lighthouse
+  labels:
+    app.kubernetes.io/name: ollama-lfm2
+    app.kubernetes.io/part-of: lighthouse
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: ollama-lfm2 }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: ollama-lfm2 }
+    spec:
+      initContainers:
+        - name: fetch-gguf
+          image: curlimages/curl:8.10.1
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -eu
+              if [ ! -s /models/lfm2.gguf ]; then
+                curl -L -o /models/lfm2.gguf \
+                  https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct-GGUF/resolve/main/LFM2.5-1.2B-Instruct-Q4_K_M.gguf
+              fi
+              cat > /models/Modelfile <<'EOF'
+              FROM /models/lfm2.gguf
+              PARAMETER temperature 0.2
+              PARAMETER top_p 0.9
+              PARAMETER num_ctx 8192
+              EOF
+              echo "fetched gguf:"; ls -la /models
+          volumeMounts:
+            - { name: models, mountPath: /models }
+      containers:
+        - name: ollama
+          image: ollama/ollama:0.6.5
+          ports:
+            - { containerPort: 11434, name: ollama }
+          env:
+            - { name: OLLAMA_HOST, value: "0.0.0.0:11434" }
+            - { name: OLLAMA_KEEP_ALIVE, value: "5m" }
+            # Bind to all hosts so port-forward + service work.
+            - { name: OLLAMA_MODELS, value: "/root/.ollama/models" }
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -eu
+              ollama serve &
+              # wait for the daemon
+              for i in $(seq 1 30); do
+                if curl -sf http://127.0.0.1:11434/api/tags >/dev/null; then
+                  break
+                fi
+                sleep 1
+              done
+              # Register if not already.
+              if ! ollama list | grep -q '^lfm2'; then
+                ollama create lfm2 -f /models/Modelfile
+              fi
+              # keep the daemon foregrounded
+              wait
+          volumeMounts:
+            - { name: models, mountPath: /models }
+          resources:
+            requests: { cpu: 500m, memory: 1Gi }
+            limits:   { cpu: 2000m, memory: 3Gi }
+          readinessProbe:
+            httpGet: { path: /api/tags, port: ollama }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      volumes:
+        - { name: models, emptyDir: { sizeLimit: 2Gi } }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama-lfm2
+  namespace: lighthouse
+spec:
+  selector: { app.kubernetes.io/name: ollama-lfm2 }
+  ports:
+    - { name: http, port: 80, targetPort: 11434 }
