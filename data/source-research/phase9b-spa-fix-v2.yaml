@@ -28,12 +28,14 @@ sources:
     schedule: { every: 60d }
 
   # ── web.dev articles (Core Web Vitals, performance) ───────────────
-  - name: web-googlechromelabs-webdev-v2
+  # Repo is GoogleChrome/web.dev (not GoogleChromeLabs — that org
+  # rename was the reason phase 9 originally returned zero).
+  - name: web-googlechrome-webdev-v2
     connector: github_tree
     args:
-      slug: GoogleChromeLabs/web.dev
+      slug: GoogleChrome/web.dev
       branch: main
-      file_extensions: [.md, .mdx]
+      file_extensions: [.md, .njk]
       include_paths: [src/site/content/en/]
       max_files: 1500
     schedule: { every: 30d }
