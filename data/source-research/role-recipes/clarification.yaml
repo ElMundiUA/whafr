@@ -1,0 +1,57 @@
+# Role recipe: clarification (BA / requirements / AC)
+role: clarification
+audit_domains: [clarification]
+queries_sample:
+  - "acceptance criteria template gherkin"
+  - "INVEST story principles"
+  - "definition of ready checklist"
+  - "clarifying questions BA backlog"
+  - "given when then format"
+
+tier1_mainstream:
+  - id: cl-cucumber-docs
+    connector: sitemap
+    args: { root: https://cucumber.io, max_pages: 200, include_paths: [/docs/] }
+    parity: critical
+  - id: cl-atlassian-agile
+    connector: sitemap
+    args: { root: https://www.atlassian.com, max_pages: 200, include_paths: [/agile/] }
+    parity: critical
+  - id: cl-mountain-goat
+    connector: sitemap
+    args: { root: https://www.mountaingoatsoftware.com, max_pages: 200, include_paths: [/blog/] }
+    parity: critical
+  - id: cl-agile-alliance
+    connector: sitemap
+    args: { root: https://www.agilealliance.org, max_pages: 300 }
+    parity: critical
+
+tier2_canonical:
+  - id: cl-agile-manifesto
+    connector: web
+    args: { urls: ["https://agilemanifesto.org/", "https://agilemanifesto.org/principles.html"] }
+  - id: cl-invest
+    connector: web
+    args: { urls: ["https://agilealliance.org/glossary/invest/"] }
+  - id: cl-gherkin-spec
+    connector: github_tree
+    args: { slug: cucumber/cucumber, branch: main, file_extensions: [.md], include_paths: [gherkin/], max_files: 50 }
+
+tier3_methodology:
+  - id: cl-fowler-bliki
+    connector: sitemap
+    args: { root: https://martinfowler.com, max_pages: 300, include_paths: [/bliki/, /articles/] }
+  - id: cl-jpatton
+    connector: sitemap
+    args: { root: https://www.jpattonassociates.com, max_pages: 100 }
+  - id: cl-romanpichler
+    connector: sitemap
+    args: { root: https://www.romanpichler.com, max_pages: 200, include_paths: [/blog/] }
+  - id: cl-domain-language
+    connector: sitemap
+    args: { root: https://www.domainlanguage.com, max_pages: 100 }
+  - id: cl-basecamp-shapeup
+    connector: sitemap
+    args: { root: https://basecamp.com, max_pages: 100, include_paths: [/shapeup/] }
+
+tier4_streams: []

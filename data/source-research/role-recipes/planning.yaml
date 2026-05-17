@@ -1,0 +1,65 @@
+# Role recipe: planning (sprint / capacity / roadmap)
+role: planning
+audit_domains: [planning]
+queries_sample:
+  - "capacity planning sprint velocity"
+  - "story points vs NoEstimates"
+  - "risk register probability impact"
+  - "rollback strategy deployment"
+  - "Q3 launch plan engineering team"
+
+tier1_mainstream:
+  - id: pl-scrumguides
+    connector: web
+    args: { urls: ["https://scrumguides.org/scrum-guide.html", "https://scrumguides.org/docs/scrumguide/v2020/2020-Scrum-Guide-US.pdf"] }
+    parity: critical
+  - id: pl-scrum-org
+    connector: sitemap
+    args: { root: https://www.scrum.org, max_pages: 300, include_paths: [/resources/] }
+    parity: critical
+  - id: pl-safe-framework
+    connector: sitemap
+    args: { root: https://scaledagileframework.com, max_pages: 400 }
+    parity: critical
+  - id: pl-less-works
+    connector: sitemap
+    args: { root: https://less.works, max_pages: 200 }
+    parity: high
+  - id: pl-kanban-university
+    connector: sitemap
+    args: { root: https://kanban.university, max_pages: 100 }
+    parity: high
+  - id: pl-atlassian-agile
+    connector: sitemap
+    args: { root: https://www.atlassian.com, max_pages: 200, include_paths: [/agile/] }
+    parity: critical
+
+tier2_canonical:
+  - id: pl-agile-manifesto
+    connector: web
+    args: { urls: ["https://agilemanifesto.org/", "https://agilemanifesto.org/principles.html"] }
+  - id: pl-pmi-pmbok-summary
+    connector: sitemap
+    args: { root: https://www.pmi.org, max_pages: 50, include_paths: [/learning/library/] }
+
+tier3_methodology:
+  - id: pl-mountain-goat
+    connector: sitemap
+    args: { root: https://www.mountaingoatsoftware.com, max_pages: 300, include_paths: [/blog/] }
+  - id: pl-roman-pichler
+    connector: sitemap
+    args: { root: https://www.romanpichler.com, max_pages: 300, include_paths: [/blog/] }
+  - id: pl-basecamp-signal
+    connector: sitemap
+    args: { root: https://basecamp.com, max_pages: 100, include_paths: [/shapeup/] }
+  - id: pl-humanizing-work
+    connector: sitemap
+    args: { root: https://www.humanizingwork.com, max_pages: 100 }
+  - id: pl-agileforall
+    connector: sitemap
+    args: { root: https://agileforall.com, max_pages: 100 }
+
+tier4_streams:
+  - id: pl-mountain-goat-rss
+    connector: rss
+    args: { feeds: ["https://www.mountaingoatsoftware.com/blog.rss"], max_entries: 50, fetch_body_when_missing: true }

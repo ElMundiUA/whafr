@@ -1,0 +1,144 @@
+# Authority registry — recognised practitioner sources per role.
+#
+# Single source of truth for Tier 3 (methodology / practice) picks
+# in role recipes. A name qualifies if at least one of:
+#  - published a recognised book in the domain
+#  - cited as canonical in two+ state-of-X or handbook references
+#  - maintains a 5+ year high-quality blog cited by peers
+#
+# Format intentionally flat — recipes pull URL lists by role name.
+
+developer:
+  - { name: "Martin Fowler",     url: "https://martinfowler.com",       paths: ["/bliki/", "/articles/", "/eaaCatalog/"] }
+  - { name: "Refactoring Guru",  url: "https://refactoring.guru",       paths: ["/design-patterns/", "/refactoring/"] }
+  - { name: "Sandi Metz",        url: "https://sandimetz.com" }
+  - { name: "Real Python",       url: "https://realpython.com" }
+  - { name: "Norvig essays",     url: "https://norvig.com" }
+  - { name: "Hillel Wayne",      url: "https://www.hillelwayne.com" }
+
+architecture:
+  - { name: "Martin Fowler",     url: "https://martinfowler.com",       paths: ["/architecture/", "/articles/"] }
+  - { name: "Vaughn Vernon",     url: "https://vaughnvernon.com" }
+  - { name: "Eric Evans (DDD)",  url: "https://www.domainlanguage.com" }
+  - { name: "Mark Richards",     url: "https://www.developertoarchitect.com" }
+  - { name: "InfoQ Architecture", url: "https://www.infoq.com",         paths: ["/architecture-design/"] }
+  - { name: "MicroservicesIO",   url: "https://microservices.io" }
+  - { name: "Stefan Tilkov",     url: "https://www.innoq.com",          paths: ["/en/blog/"] }
+
+security:
+  - { name: "Bruce Schneier",    url: "https://www.schneier.com",       paths: ["/blog/", "/essays/"] }
+  - { name: "Troy Hunt",         url: "https://www.troyhunt.com" }
+  - { name: "Adam Shostack",     url: "https://shostack.org",           paths: ["/blog/"] }
+  - { name: "Daniel Miessler",   url: "https://danielmiessler.com",     paths: ["/blog/"] }
+  - { name: "Krebs on Security", url: "https://krebsonsecurity.com" }
+  - { name: "PortSwigger Web Sec Academy", url: "https://portswigger.net", paths: ["/web-security/", "/research/"] }
+
+sre:  # also serves self-heal role
+  - { name: "Google SRE Book",   url: "https://sre.google",             paths: ["/books/"] }
+  - { name: "Honeycomb blog",    url: "https://www.honeycomb.io",       paths: ["/blog/"] }
+  - { name: "Brendan Gregg",     url: "https://www.brendangregg.com" }
+  - { name: "Charity Majors",    url: "https://charity.wtf" }
+  - { name: "DORA",              url: "https://dora.dev" }
+  - { name: "PagerDuty Postmortems",   url: "https://postmortems.pagerduty.com" }
+
+pm:  # product-manager
+  - { name: "SVPG (Marty Cagan)", url: "https://www.svpg.com",          paths: ["/articles/"] }
+  - { name: "Product Talk (Torres)", url: "https://www.producttalk.org" }
+  - { name: "JPattonAssociates", url: "https://www.jpattonassociates.com" }
+  - { name: "Roman Pichler",     url: "https://www.romanpichler.com",   paths: ["/blog/"] }
+  - { name: "Mind the Product",  url: "https://www.mindtheproduct.com", paths: ["/blog/"] }
+  - { name: "Lenny's Newsletter (free posts)", url: "https://www.lennysnewsletter.com" }
+
+planning:
+  - { name: "Mountain Goat (Mike Cohn)", url: "https://www.mountaingoatsoftware.com", paths: ["/blog/"] }
+  - { name: "Roman Pichler",      url: "https://www.romanpichler.com",  paths: ["/blog/"] }
+  - { name: "Scrum.org",          url: "https://www.scrum.org",         paths: ["/resources/"] }
+  - { name: "Scrum Guides",       url: "https://scrumguides.org" }
+  - { name: "SAFe framework",     url: "https://scaledagileframework.com" }
+  - { name: "Kanban University",  url: "https://kanban.university" }
+  - { name: "Less Works",         url: "https://less.works" }
+
+clarification:  # BA / requirements engineering
+  - { name: "Agile Alliance",     url: "https://www.agilealliance.org", paths: ["/agile101/", "/agile-essentials/"] }
+  - { name: "Mountain Goat",      url: "https://www.mountaingoatsoftware.com" }
+  - { name: "Martin Fowler",      url: "https://martinfowler.com",      paths: ["/bliki/"] }
+  - { name: "Jeff Patton",        url: "https://www.jpattonassociates.com" }
+  - { name: "Domain Language (Evans)", url: "https://www.domainlanguage.com" }
+  - { name: "Cucumber docs",      url: "https://cucumber.io",           paths: ["/docs/"] }
+
+decomposition:
+  - { name: "Mountain Goat",      url: "https://www.mountaingoatsoftware.com" }
+  - { name: "Humanizing Work",    url: "https://www.humanizingwork.com" }
+  - { name: "Agile For All",      url: "https://agileforall.com" }
+  - { name: "Roman Pichler",      url: "https://www.romanpichler.com" }
+  - { name: "Jeff Patton",        url: "https://www.jpattonassociates.com" }
+  - { name: "SAFe framework",     url: "https://scaledagileframework.com" }
+
+designer:
+  - { name: "Nielsen Norman Group", url: "https://www.nngroup.com",     paths: ["/articles/"] }
+  - { name: "Smashing Magazine",  url: "https://www.smashingmagazine.com", paths: ["/articles/"] }
+  - { name: "shadcn/ui docs",     url: "https://ui.shadcn.com",         paths: ["/docs/"] }
+  - { name: "Tailwind CSS docs",  url: "https://tailwindcss.com",       paths: ["/docs/"] }
+  - { name: "A11y Project",       url: "https://www.a11yproject.com" }
+  - { name: "Refactoring UI",     url: "https://www.refactoringui.com" }
+
+validation:  # testing
+  - { name: "Kent C. Dodds",      url: "https://kentcdodds.com",        paths: ["/blog/"] }
+  - { name: "Martin Fowler",      url: "https://martinfowler.com",      paths: ["/bliki/", "/articles/"] }
+  - { name: "Dan North (BDD)",    url: "https://dannorth.net" }
+  - { name: "Cypress blog",       url: "https://www.cypress.io",        paths: ["/blog/"] }
+  - { name: "Playwright blog",    url: "https://playwright.dev",        paths: ["/blog/"] }
+  - { name: "Jest blog",          url: "https://jestjs.io",             paths: ["/blog/"] }
+
+mobile:
+  - { name: "Android Developers blog", url: "https://android-developers.googleblog.com" }
+  - { name: "Kotlin Blog",        url: "https://blog.jetbrains.com",    paths: ["/kotlin/"] }
+  - { name: "React Native blog",  url: "https://reactnative.dev",       paths: ["/blog/"] }
+  - { name: "Vasil Dimov (Compose)", url: "https://vasildimov.com" }
+  - { name: "Swift by Sundell",   url: "https://www.swiftbysundell.com" }
+  - { name: "objc.io",            url: "https://www.objc.io" }
+
+performance:
+  - { name: "Brendan Gregg",      url: "https://www.brendangregg.com" }
+  - { name: "web.dev",            url: "https://web.dev",               paths: ["/articles/", "/learn/"] }
+  - { name: "Smashing Magazine — perf", url: "https://www.smashingmagazine.com", paths: ["/category/performance/"] }
+  - { name: "Andy Davies",        url: "https://andydavies.me" }
+  - { name: "k6 blog",            url: "https://k6.io",                 paths: ["/blog/"] }
+
+ml:
+  - { name: "Karpathy",           url: "https://karpathy.github.io" }
+  - { name: "HuggingFace blog",   url: "https://huggingface.co",        paths: ["/blog"] }
+  - { name: "Anthropic Engineering", url: "https://www.anthropic.com",  paths: ["/engineering/"] }
+  - { name: "OpenAI cookbook",    url: "https://cookbook.openai.com" }
+  - { name: "Lilian Weng",        url: "https://lilianweng.github.io" }
+  - { name: "Sebastian Raschka",  url: "https://sebastianraschka.com",  paths: ["/blog/"] }
+  - { name: "Eugene Yan",         url: "https://eugeneyan.com",         paths: ["/writing/"] }
+
+reviewer:
+  - { name: "Google Eng Practices", url: "https://google.github.io",    paths: ["/eng-practices/"] }
+  - { name: "Conventional Comments", url: "https://conventionalcomments.org" }
+  - { name: "Airbnb JS Style",    url: "https://github.com",            paths: ["/airbnb/javascript"] }
+  - { name: "Microsoft API guidelines", url: "https://github.com",      paths: ["/microsoft/api-guidelines"] }
+  - { name: "Rust API guidelines", url: "https://rust-lang.github.io",  paths: ["/api-guidelines/"] }
+
+network:
+  - { name: "Cloudflare blog",    url: "https://blog.cloudflare.com" }
+  - { name: "Internet Society",   url: "https://www.internetsociety.org", paths: ["/articles/"] }
+  - { name: "QUIC implementations","url": "https://quicwg.org" }
+  - { name: "HTTP working group", url: "https://httpwg.org" }
+  - { name: "Daniel Stenberg (curl)", url: "https://daniel.haxx.se",    paths: ["/blog/"] }
+
+devops:
+  - { name: "Honeycomb blog",     url: "https://www.honeycomb.io",      paths: ["/blog/"] }
+  - { name: "Grafana blog",       url: "https://grafana.com",           paths: ["/blog/"] }
+  - { name: "Hashicorp Learn",    url: "https://developer.hashicorp.com" }
+  - { name: "CNCF blog",          url: "https://www.cncf.io",           paths: ["/blog/"] }
+  - { name: "Container Solutions blog", url: "https://www.container-solutions.com", paths: ["/blog"] }
+
+self-heal:  # uses sre + extra
+  - { name: "Google SRE Book",    url: "https://sre.google",            paths: ["/books/", "/sre-book/"] }
+  - { name: "Honeycomb blog",     url: "https://www.honeycomb.io",      paths: ["/blog/"] }
+  - { name: "Brendan Gregg",      url: "https://www.brendangregg.com" }
+  - { name: "PagerDuty postmortems", url: "https://postmortems.pagerduty.com" }
+  - { name: "Increment magazine", url: "https://increment.com",         paths: ["/reliability/", "/oncall/"] }
+  - { name: "ACM Queue",          url: "https://queue.acm.org" }

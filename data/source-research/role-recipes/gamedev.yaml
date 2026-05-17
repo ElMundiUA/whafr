@@ -1,0 +1,62 @@
+# Role recipe: gamedev (Unity / Unreal / Godot / engines)
+role: gamedev
+audit_domains: [gamedev]
+queries_sample:
+  - "Unity ScriptableObject pattern"
+  - "Unreal Engine Niagara emitter"
+  - "Godot signals vs delegates"
+  - "ECS data-oriented design"
+  - "game loop fixed timestep"
+  - "shader compilation hitching"
+
+tier1_mainstream:
+  - id: gd-unreal-docs
+    connector: sitemap
+    args: { root: https://dev.epicgames.com, max_pages: 600, include_paths: [/documentation/en-us/unreal-engine/] }
+    parity: critical
+  - id: gd-unity-docs
+    connector: sitemap
+    args: { root: https://docs.unity3d.com, max_pages: 600, include_paths: [/Manual/, /ScriptReference/] }
+    parity: critical
+  - id: gd-godot-docs
+    connector: github_tree
+    args: { slug: godotengine/godot-docs, branch: master, file_extensions: [.rst, .md], max_files: 500 }
+    parity: critical
+  - id: gd-bevy-book
+    connector: github_tree
+    args: { slug: bevyengine/bevy-website, branch: main, file_extensions: [.md, .mdx], include_paths: [content/], max_files: 200 }
+    parity: high
+  - id: gd-unity-blog
+    connector: sitemap
+    args: { root: https://blog.unity.com, max_pages: 200 }
+    parity: medium
+
+tier2_canonical:
+  - id: gd-glsl-spec
+    connector: web
+    args:
+      urls:
+        - https://registry.khronos.org/OpenGL/specs/gl/GLSLangSpec.4.60.html
+        - https://registry.khronos.org/vulkan/specs/latest/html/vkspec.html
+  - id: gd-game-programming-patterns
+    connector: sitemap
+    args: { root: https://gameprogrammingpatterns.com, max_pages: 30 }
+
+tier3_methodology:
+  - id: gd-gamasutra-gdc
+    connector: sitemap
+    args: { root: https://www.gamedeveloper.com, max_pages: 200 }
+  - id: gd-learnopengl
+    connector: sitemap
+    args: { root: https://learnopengl.com, max_pages: 100 }
+  - id: gd-the-book-of-shaders
+    connector: sitemap
+    args: { root: https://thebookofshaders.com, max_pages: 50 }
+
+tier4_streams:
+  - id: gd-godot-releases
+    connector: github_releases
+    args: { slug: godotengine/godot, max_releases: 30 }
+  - id: gd-bevy-releases
+    connector: github_releases
+    args: { slug: bevyengine/bevy, max_releases: 30 }
