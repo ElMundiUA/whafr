@@ -32,6 +32,7 @@ dependencies = [
     "anthropic>=0.40",
     "python-multipart>=0.0.12",
     "mcp>=1.0",
+    "asyncpg>=0.30",
 ]
 
 [project.optional-dependencies]

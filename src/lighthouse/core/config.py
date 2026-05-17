@@ -45,6 +45,13 @@ class Settings(BaseSettings):
     openai_embedding_model: str = "text-embedding-3-small"
     openai_embedding_dim: int = 1024
 
+    # --- Flat-RAG (Postgres + pgvector) ---
+    # Dedicated Neon project. Empty string = flat path disabled;
+    # legacy Graphiti via NEO4J_* keeps running. Holding both is
+    # explicit so the A/B comparison runs against parallel
+    # backends, not a half-migrated state.
+    lighthouse_pg_url: str = ""
+
     # --- API auth ---
     # Single shared key gates the proposal endpoint. Empty string means
     # "no auth" — fine for local dev, never for a public deployment.

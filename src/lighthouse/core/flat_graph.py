@@ -1,32 +1,31 @@
-"""Flat-RAG graph adapter.
+"""Flat-RAG graph adapter on Postgres + pgvector.
 
 A deliberately small alternative to :class:`KnowledgeGraph` that drops
 Graphiti's entity-relation extraction layer and keeps only what
 audit-evidence shows is actually load-bearing for retrieval:
 
-- one :Chunk node per ingested document chunk
-- fulltext index over ``content`` (the dominant retrieval signal we
-  observed via the episode-body second pass)
-- vector index over ``embedding`` (cosine similarity for semantic
-  proximity)
-- ``published_at`` + optional ``version`` + optional ``superseded_by``
-  for time-aware filtering — time facts at chunk granularity,
-  the layer Graphiti's edge-level temporal invalidation never
+- one ``chunks`` row per ingested document chunk
+- ``tsvector`` GIN index over ``name || content`` (BM25-ish via
+  ``ts_rank_cd``)
+- ``vector(N)`` HNSW index over ``embedding`` (cosine)
+- ``published_at`` + optional ``version`` + optional
+  ``superseded_by`` for time-aware filtering — chunk-level
+  time-facts the Graphiti edge-level temporal invalidation never
   meaningfully delivered for us.
 
 What this **doesn't** do (deliberate):
-- No entity extraction. Each ingest pass embeds the body and indexes
-  it; no LLM call to enumerate entities/relations.
-- No cross-chunk dedup at extraction time. The chunk uuid is derived
-  from ``source_id`` + content hash so re-running an ingest is
-  idempotent without LLM-side dedup gymnastics.
+- No entity extraction. Each ingest pass embeds the body and
+  indexes it; no LLM call to enumerate entities/relations.
+- No cross-chunk dedup at extraction time. The chunk uuid is
+  derived from ``source_id`` + content hash so re-running an ingest
+  is idempotent without LLM-side gymnastics.
 - No "communities" / BFS / saga search recipes. Practical hybrid
-  retrieval (BM25 + vector + optional cross-encoder rerank) covers
-  every query shape the bench actually uses.
+  retrieval (BM25 + vector + RRF fusion) covers every query shape
+  the bench actually uses.
 
-Runs in the same Neo4j instance as the Graphiti corpus — the
-``Chunk`` label keeps it disjoint from ``Episodic``/``Entity`` so the
-two coexist during A/B comparison.
+Lives in a separate Neon project — does not share a database with
+Ship or the Graphiti corpus. Switch between engines by env var;
+both can run simultaneously during the A/B comparison.
 """
 
 from __future__ import annotations
@@ -46,24 +45,22 @@ logger = logging.getLogger(__name__)
 
 
 # Same default cap as the Graphiti path (fits comfortably in any
-# embedder's token budget). Re-exported for callers that want to size
-# their connectors symmetrically.
+# embedder's token budget). Re-exported for callers that want to
+# size their connectors symmetrically.
 MAX_CHUNK_CHARS = 12000
-
 
 # Search-side knobs. Settled by spike-testing against the existing
 # canonical queries; tuned more once we have an A/B audit run.
 DEFAULT_TOP_K = 10
-BM25_OVERSAMPLE = 3   # fetch 3× before rerank
+BM25_OVERSAMPLE = 3
 VECTOR_OVERSAMPLE = 3
-RERANKER_MIN_SCORE = 0.001  # matches the Graphiti path's floor
 
 
 @dataclass(slots=True)
 class FlatHit:
     """One search hit. Same shape as
-    :class:`lighthouse.core.graph.GraphSearchHit` so the MCP layer can
-    project both paths identically."""
+    :class:`lighthouse.core.graph.GraphSearchHit` so the MCP layer
+    can project both paths identically."""
 
     node_id: str
     summary: str
@@ -74,105 +71,136 @@ class FlatHit:
     episode_ids: list[str] = field(default_factory=list)
 
 
-@dataclass(slots=True)
-class FlatChunk:
-    """One ingested chunk — the unit of retrieval + the unit of
-    cost. ``content_sha256`` is the delta-skip key (matches the
-    Graphiti path's ``lighthouse_full_body_sha256``)."""
-
-    chunk_id: str
-    name: str
-    source: str
-    content: str
-    content_sha256: str
-    url: str | None = None
-    published_at: datetime | None = None
-    version: str | None = None
-
-
 class FlatGraph:
-    """Flat-RAG facade. Same lifecycle as :class:`KnowledgeGraph` so
-    the runner / CLI can pick which engine to use behind a settings
-    flag."""
-
-    LABEL = "Chunk"
+    """Flat-RAG facade. Same lifecycle as :class:`KnowledgeGraph`
+    so the runner / CLI can pick which engine to use behind a
+    settings flag."""
 
     def __init__(self, settings: Settings | None = None) -> None:
         self._settings = settings or get_settings()
         self._initialized = False
+        self._pool: Any | None = None
+
+    async def _pool_lazy(self) -> Any:
+        """Lazy connection pool — opened on first use."""
+        if self._pool is not None:
+            return self._pool
+        import asyncpg
+
+        url = self._settings.lighthouse_pg_url
+        if not url:
+            raise RuntimeError(
+                "LIGHTHOUSE_PG_URL is empty — set it to a Postgres "
+                "connection string (Neon recommended) to use the "
+                "flat-RAG engine. The Graphiti path keeps using "
+                "NEO4J_* and is unaffected."
+            )
+        # Neon's pooler URL carries query parameters asyncpg won't
+        # accept (channel_binding etc). Strip them safely.
+        clean_url = _strip_neon_extras(url)
+        self._pool = await asyncpg.create_pool(
+            dsn=clean_url,
+            min_size=1,
+            max_size=10,
+            command_timeout=60,
+            statement_cache_size=0,  # pgbouncer-friendly
+        )
+        return self._pool
+
+    async def close(self) -> None:
+        if self._pool is not None:
+            await self._pool.close()
+            self._pool = None
 
     async def initialize(self) -> None:
-        """Idempotent — creates indexes if they don't exist."""
+        """Idempotent — creates schema + indexes if missing."""
         if self._initialized:
             return
-        from neo4j import AsyncGraphDatabase
-
-        s = self._settings
-        driver = AsyncGraphDatabase.driver(
-            s.neo4j_uri, auth=(s.neo4j_user, s.neo4j_password)
-        )
-        try:
-            async with driver.session(database=s.neo4j_database) as session:
-                # Fulltext index over content + title. Title is short
-                # but high-signal — e.g. "RFC 7636: PKCE" — and BM25
-                # naturally weights short rare-token fields well.
-                await session.run(
-                    "CREATE FULLTEXT INDEX flat_chunk_content IF NOT EXISTS "
-                    "FOR (c:Chunk) ON EACH [c.content, c.name]"
+        pool = await self._pool_lazy()
+        dim = int(self._settings.openai_embedding_dim)
+        async with pool.acquire() as conn:
+            # Extensions
+            await conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
+            # Table — column types chosen for cheap reads:
+            # `tsv` is a generated tsvector (no triggers).
+            await conn.execute(
+                f"""
+                CREATE TABLE IF NOT EXISTS chunks (
+                    uuid             UUID PRIMARY KEY,
+                    name             TEXT,
+                    source           TEXT NOT NULL,
+                    url              TEXT,
+                    content          TEXT NOT NULL,
+                    content_sha256   TEXT NOT NULL,
+                    full_body_sha256 TEXT,
+                    published_at     TIMESTAMPTZ,
+                    ingested_at      TIMESTAMPTZ DEFAULT now(),
+                    version          TEXT,
+                    superseded_by    UUID REFERENCES chunks(uuid)
+                                     ON DELETE SET NULL,
+                    chunk_index      INTEGER,
+                    chunk_count      INTEGER,
+                    embedding        vector({dim}),
+                    tsv              tsvector
+                                     GENERATED ALWAYS AS (
+                                         setweight(
+                                             to_tsvector('english',
+                                                 coalesce(name,'')),
+                                             'A')
+                                         || setweight(
+                                             to_tsvector('english',
+                                                 coalesce(content,'')),
+                                             'B')
+                                     ) STORED
                 )
-                # Vector index — Neo4j 5.13+. Cosine similarity is the
-                # standard for embeddings.
-                await session.run(
-                    "CREATE VECTOR INDEX flat_chunk_embedding IF NOT EXISTS "
-                    "FOR (c:Chunk) ON c.embedding "
-                    "OPTIONS { indexConfig: { "
-                    "  `vector.dimensions`: $dim, "
-                    "  `vector.similarity_function`: 'cosine' "
-                    "}}",
-                    dim=int(s.openai_embedding_dim),
-                )
-                await session.run(
-                    "CREATE INDEX flat_chunk_uuid IF NOT EXISTS "
-                    "FOR (c:Chunk) ON (c.uuid)"
-                )
-                await session.run(
-                    "CREATE INDEX flat_chunk_source_published IF NOT EXISTS "
-                    "FOR (c:Chunk) ON (c.source, c.published_at)"
-                )
-                await session.run(
-                    "CREATE INDEX flat_chunk_sha IF NOT EXISTS "
-                    "FOR (c:Chunk) ON (c.content_sha256)"
-                )
-        finally:
-            await driver.close()
+                """
+            )
+            # Indexes — guarded with IF NOT EXISTS so initialize() is
+            # idempotent across deploys.
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS chunks_tsv_gin ON chunks "
+                "USING GIN (tsv)"
+            )
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS chunks_source_published_idx "
+                "ON chunks (source, published_at DESC)"
+            )
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS chunks_full_body_sha_idx "
+                "ON chunks (full_body_sha256)"
+            )
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS chunks_published_at_idx "
+                "ON chunks (published_at DESC) "
+                "WHERE superseded_by IS NULL"
+            )
+            # HNSW is the fast ANN index — cheap insert + fast
+            # query. ``vector_cosine_ops`` matches the OpenAI embed
+            # convention.
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS chunks_embedding_hnsw_idx "
+                "ON chunks USING hnsw (embedding vector_cosine_ops)"
+            )
         self._initialized = True
 
-    # ---- write path -----------------------------------------------------
+    # ---- write path ----------------------------------------------------
 
-    async def has_unchanged_chunk(self, source: str, body_sha256: str) -> bool:
-        """Delta-skip pre-check — does an existing Chunk for this
+    async def has_unchanged_chunk(
+        self, source: str, body_sha256: str
+    ) -> bool:
+        """Delta-skip pre-check — does an existing chunk for this
         source carry the same full-body hash? Same semantics as
         :meth:`KnowledgeGraph.has_unchanged_episode`."""
-        from neo4j import AsyncGraphDatabase
-
-        s = self._settings
-        driver = AsyncGraphDatabase.driver(
-            s.neo4j_uri, auth=(s.neo4j_user, s.neo4j_password)
-        )
-        try:
-            async with driver.session(database=s.neo4j_database) as session:
-                result = await session.run(
-                    "MATCH (c:Chunk) "
-                    "WHERE c.source = $src "
-                    "AND c.full_body_sha256 = $hash "
-                    "RETURN 1 LIMIT 1",
-                    src=source,
-                    hash=body_sha256,
+        pool = await self._pool_lazy()
+        async with pool.acquire() as conn:
+            return bool(
+                await conn.fetchval(
+                    "SELECT 1 FROM chunks "
+                    "WHERE source = $1 AND full_body_sha256 = $2 LIMIT 1",
+                    source,
+                    body_sha256,
                 )
-                row = await result.single()
-                return row is not None
-        finally:
-            await driver.close()
+            )
 
     async def upsert_document(
         self,
@@ -184,80 +212,72 @@ class FlatGraph:
         url: str | None = None,
         version: str | None = None,
     ) -> str:
-        """Splits the body into chunks, embeds each, upserts as :Chunk
-        nodes. Returns the uuid of the first chunk for caller
-        bookkeeping."""
+        """Splits the body into chunks, embeds each, upserts as
+        ``chunks`` rows. Returns the uuid of the first chunk for
+        caller bookkeeping."""
         if not body or not body.strip():
             return ""
         ref = reference_time or datetime.now(UTC)
         full_hash = hashlib.sha256(body.encode("utf-8")).hexdigest()
         chunks = _split_episode_body(body, cap=MAX_CHUNK_CHARS)
 
-        embeddings = await self._embed_batch(
-            [chunk for chunk in chunks]
-        )
-
-        rows: list[dict[str, Any]] = []
+        embeddings = await self._embed_batch(chunks)
+        rows: list[tuple] = []
         for i, (chunk, emb) in enumerate(zip(chunks, embeddings, strict=True)):
             chunk_name = (
-                name if len(chunks) == 1 else f"{name} (part {i + 1}/{len(chunks)})"
+                name
+                if len(chunks) == 1
+                else f"{name} (part {i + 1}/{len(chunks)})"
             )
             chunk_uuid = _deterministic_uuid(source, full_hash, i)
             rows.append(
-                {
-                    "uuid": chunk_uuid,
-                    "name": chunk_name,
-                    "source": source,
-                    "content": chunk,
-                    "content_sha256": hashlib.sha256(
-                        chunk.encode("utf-8")
-                    ).hexdigest(),
-                    "full_body_sha256": full_hash,
-                    "url": url,
-                    "published_at": ref.isoformat(),
-                    "ingested_at": datetime.now(UTC).isoformat(),
-                    "version": version,
-                    "embedding": emb,
-                    "chunk_index": i,
-                    "chunk_count": len(chunks),
-                }
+                (
+                    chunk_uuid,
+                    chunk_name,
+                    source,
+                    url,
+                    chunk,
+                    hashlib.sha256(chunk.encode("utf-8")).hexdigest(),
+                    full_hash,
+                    ref,
+                    version,
+                    i,
+                    len(chunks),
+                    _vector_literal(emb),
+                )
             )
 
-        from neo4j import AsyncGraphDatabase
-
-        s = self._settings
-        driver = AsyncGraphDatabase.driver(
-            s.neo4j_uri, auth=(s.neo4j_user, s.neo4j_password)
-        )
-        try:
-            async with driver.session(database=s.neo4j_database) as session:
-                # MERGE on uuid so re-ingest of an exact chunk no-ops
-                # at the Neo4j layer too (defence in depth — delta-skip
-                # should catch most before we get here).
-                await session.run(
-                    """
-                    UNWIND $rows AS row
-                    MERGE (c:Chunk {uuid: row.uuid})
-                    SET c.name = row.name,
-                        c.source = row.source,
-                        c.content = row.content,
-                        c.content_sha256 = row.content_sha256,
-                        c.full_body_sha256 = row.full_body_sha256,
-                        c.url = row.url,
-                        c.published_at = datetime(row.published_at),
-                        c.ingested_at = datetime(row.ingested_at),
-                        c.version = row.version,
-                        c.embedding = row.embedding,
-                        c.chunk_index = row.chunk_index,
-                        c.chunk_count = row.chunk_count
-                    """,
-                    rows=rows,
+        pool = await self._pool_lazy()
+        async with pool.acquire() as conn:
+            await conn.executemany(
+                """
+                INSERT INTO chunks (
+                    uuid, name, source, url, content,
+                    content_sha256, full_body_sha256, published_at,
+                    version, chunk_index, chunk_count, embedding
+                ) VALUES (
+                    $1, $2, $3, $4, $5,
+                    $6, $7, $8, $9, $10, $11, $12::vector
                 )
-        finally:
-            await driver.close()
-        return rows[0]["uuid"]
+                ON CONFLICT (uuid) DO UPDATE SET
+                    name = EXCLUDED.name,
+                    source = EXCLUDED.source,
+                    url = EXCLUDED.url,
+                    content = EXCLUDED.content,
+                    content_sha256 = EXCLUDED.content_sha256,
+                    full_body_sha256 = EXCLUDED.full_body_sha256,
+                    published_at = EXCLUDED.published_at,
+                    version = EXCLUDED.version,
+                    chunk_index = EXCLUDED.chunk_index,
+                    chunk_count = EXCLUDED.chunk_count,
+                    embedding = EXCLUDED.embedding,
+                    ingested_at = now()
+                """,
+                rows,
+            )
+        return rows[0][0]
 
-    # ---- read path ------------------------------------------------------
+    # ---- read path -----------------------------------------------------
 
     async def search(
         self,
@@ -268,8 +288,9 @@ class FlatGraph:
         before: datetime | None = None,
         version: str | None = None,
         include_release_notes: bool | None = None,
+        include_superseded: bool = False,
     ) -> list[FlatHit]:
-        """Hybrid BM25 + vector search with time-aware filtering.
+        """Hybrid BM25 + vector search with time-aware filters.
 
         ``after`` / ``before`` filter by ``published_at``. Pass
         ``after=<frontier_cutoff>`` to surface only post-cutoff
@@ -277,8 +298,9 @@ class FlatGraph:
         slice.
 
         ``include_release_notes`` overrides the heuristic that
-        excludes ``gh-releases-*``/``rss-*`` sources on how-to queries
-        (same heuristic as :meth:`KnowledgeGraph._search_episodes`).
+        excludes ``gh-releases-*``/``rss-*`` sources on how-to
+        queries. ``include_superseded`` brings back chunks marked
+        replaced by a newer version (default off).
         """
         if not query or not query.strip():
             return []
@@ -288,24 +310,15 @@ class FlatGraph:
             [] if include_release_notes else ["gh-releases-", "rss-"]
         )
 
-        # Lucene-safe query — same shape as the Graphiti path.
-        safe_q = "".join(
-            c if c.isalnum() or c in " -_" else " " for c in query
-        ).strip()
-        if not safe_q:
-            return []
-
-        # Embed the query once so the vector branch and any caller-side
-        # reranker share the same vector.
         q_embedding = (await self._embed_batch([query]))[0]
-
         bm25 = await self._search_bm25(
-            safe_q,
+            query,
             limit=top_k * BM25_OVERSAMPLE,
             after=after,
             before=before,
             version=version,
             excluded_prefixes=excluded_prefixes,
+            include_superseded=include_superseded,
         )
         vec = await self._search_vector(
             q_embedding,
@@ -314,22 +327,23 @@ class FlatGraph:
             before=before,
             version=version,
             excluded_prefixes=excluded_prefixes,
+            include_superseded=include_superseded,
         )
 
-        # Rank fusion: reciprocal rank fusion with BM25 weighted
-        # slightly higher (BM25 has been the stronger signal in audit
-        # evidence). k=60 is the canonical RRF constant.
+        # RRF fusion with BM25 weighted slightly higher (audit
+        # evidence has BM25 as the stronger signal). k=60 is the
+        # canonical RRF constant.
         scored: dict[str, tuple[float, FlatHit]] = {}
         for rank, h in enumerate(bm25):
             scored[h.node_id] = (1.0 / (60 + rank) * 1.2, h)
         for rank, h in enumerate(vec):
-            prior = scored.get(h.node_id, (0.0, h))
-            new_score = prior[0] + 1.0 / (60 + rank)
-            scored[h.node_id] = (new_score, prior[1] if prior[0] else h)
+            prior = scored.get(h.node_id)
+            if prior is None:
+                scored[h.node_id] = (1.0 / (60 + rank), h)
+            else:
+                scored[h.node_id] = (prior[0] + 1.0 / (60 + rank), prior[1])
 
-        merged = sorted(
-            scored.values(), key=lambda kv: kv[0], reverse=True
-        )[: top_k * 2]
+        merged = sorted(scored.values(), key=lambda kv: kv[0], reverse=True)
         out: list[FlatHit] = []
         seen_keys: set[str] = set()
         for score, hit in merged:
@@ -346,27 +360,15 @@ class FlatGraph:
     async def fetch_source(
         self, chunk_id: str, *, max_chars: int = 6000
     ) -> dict[str, Any] | None:
-        """Return the chunk body, capped to ``max_chars``. Same shape
-        the MCP ``fetch_source`` tool already serialises."""
-        from neo4j import AsyncGraphDatabase
-
-        s = self._settings
-        driver = AsyncGraphDatabase.driver(
-            s.neo4j_uri, auth=(s.neo4j_user, s.neo4j_password)
-        )
-        try:
-            async with driver.session(database=s.neo4j_database) as session:
-                result = await session.run(
-                    "MATCH (c:Chunk {uuid: $uuid}) "
-                    "RETURN c.uuid AS uuid, c.name AS name, "
-                    "c.source AS source, c.url AS url, c.content AS content, "
-                    "c.published_at AS published_at "
-                    "LIMIT 1",
-                    uuid=chunk_id,
-                )
-                row = await result.single()
-        finally:
-            await driver.close()
+        """Return the chunk body, capped to ``max_chars``. Same
+        shape the MCP ``fetch_source`` tool already serialises."""
+        pool = await self._pool_lazy()
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT uuid, name, source, url, content, published_at "
+                "FROM chunks WHERE uuid = $1",
+                _uuid.UUID(chunk_id) if isinstance(chunk_id, str) else chunk_id,
+            )
         if row is None:
             return None
         cap = max(200, min(int(max_chars), 20000))
@@ -375,7 +377,7 @@ class FlatGraph:
         if truncated:
             body = body[:cap]
         return {
-            "episode_id": row["uuid"],
+            "episode_id": str(row["uuid"]),
             "name": row["name"],
             "source": row["source"],
             "url": row["url"],
@@ -389,24 +391,17 @@ class FlatGraph:
             ),
         }
 
-    # ---- internals ------------------------------------------------------
+    # ---- internals -----------------------------------------------------
 
     async def _embed_batch(self, texts: list[str]) -> list[list[float]]:
-        """Batch embedding via OpenAI. Bulk-API call — one request per
-        chunk batch instead of per-chunk, which is the dominant cost
-        win we get from owning this path."""
+        """Batch embedding via OpenAI. One request per chunk batch
+        instead of per-chunk."""
         if not texts:
             return []
         from openai import AsyncOpenAI
 
         s = self._settings
         client = AsyncOpenAI(api_key=s.openai_api_key)
-        # OpenAI accepts up to 2048 inputs per call. Our chunks fit
-        # well inside that with margin. ``dimensions`` is critical —
-        # without it text-embedding-3-small returns 1536-d vectors,
-        # but the existing Neo4j vector index was created with
-        # ``openai_embedding_dim`` (default 1024) to match Graphiti's
-        # bytes-on-disk budget. Mismatched dims fail the index call.
         resp = await client.embeddings.create(
             model=s.openai_embedding_model,
             input=texts,
@@ -416,56 +411,54 @@ class FlatGraph:
 
     async def _search_bm25(
         self,
-        safe_q: str,
+        query: str,
         *,
         limit: int,
         after: datetime | None,
         before: datetime | None,
         version: str | None,
         excluded_prefixes: list[str],
+        include_superseded: bool,
     ) -> list[FlatHit]:
-        from neo4j import AsyncGraphDatabase
-
-        s = self._settings
-        driver = AsyncGraphDatabase.driver(
-            s.neo4j_uri, auth=(s.neo4j_user, s.neo4j_password)
-        )
-        where = ["node:Chunk"]
-        params: dict[str, Any] = {
-            "idx": "flat_chunk_content",
-            "q": safe_q,
-            "limit": int(limit),
-        }
+        # ``websearch_to_tsquery`` accepts loose human queries
+        # (handles AND/OR/quoted phrases) — closer to BM25 ergonomics
+        # than ``plainto_tsquery``.
+        clauses = ["tsv @@ websearch_to_tsquery('english', $1)"]
+        params: list[Any] = [query]
+        if not include_superseded:
+            clauses.append("superseded_by IS NULL")
         if after is not None:
-            where.append("node.published_at >= datetime($after)")
-            params["after"] = after.isoformat()
+            params.append(after)
+            clauses.append(f"published_at >= ${len(params)}")
         if before is not None:
-            where.append("node.published_at < datetime($before)")
-            params["before"] = before.isoformat()
+            params.append(before)
+            clauses.append(f"published_at < ${len(params)}")
         if version is not None:
-            where.append("node.version = $version")
-            params["version"] = version
+            params.append(version)
+            clauses.append(f"version = ${len(params)}")
         if excluded_prefixes:
-            where.append(
-                "NOT any(p IN $excluded WHERE node.source STARTS WITH p)"
+            params.append(excluded_prefixes)
+            clauses.append(
+                f"NOT (source = ANY (SELECT prefix || '%' FROM "
+                f"unnest(${len(params)}::text[]) AS prefix))"
             )
-            params["excluded"] = excluded_prefixes
-        try:
-            async with driver.session(database=s.neo4j_database) as session:
-                result = await session.run(
-                    "CALL db.index.fulltext.queryNodes($idx, $q) "
-                    "YIELD node, score "
-                    "WHERE " + " AND ".join(where) + " "
-                    "RETURN node.uuid AS uuid, node.name AS name, "
-                    "node.source AS source, node.url AS url, "
-                    "node.content AS content, "
-                    "node.published_at AS published_at, score "
-                    "ORDER BY score DESC LIMIT $limit",
-                    **params,
-                )
-                rows = [r async for r in result]
-        finally:
-            await driver.close()
+            # The construct above doesn't work cleanly; simpler:
+            # we replace with NOT (source LIKE ANY (...)).
+            clauses[-1] = (
+                f"NOT (source LIKE ANY (SELECT prefix || '%' FROM "
+                f"unnest(${len(params)}::text[]) AS prefix))"
+            )
+        params.append(int(limit))
+        cypher = (
+            "SELECT uuid, name, source, url, content, published_at, "
+            "ts_rank_cd(tsv, websearch_to_tsquery('english', $1)) AS score "
+            "FROM chunks "
+            "WHERE " + " AND ".join(clauses) + " "
+            f"ORDER BY score DESC LIMIT ${len(params)}"
+        )
+        pool = await self._pool_lazy()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(cypher, *params)
         return [_row_to_hit(r) for r in rows]
 
     async def _search_vector(
@@ -477,52 +470,42 @@ class FlatGraph:
         before: datetime | None,
         version: str | None,
         excluded_prefixes: list[str],
+        include_superseded: bool,
     ) -> list[FlatHit]:
-        from neo4j import AsyncGraphDatabase
-
-        s = self._settings
-        driver = AsyncGraphDatabase.driver(
-            s.neo4j_uri, auth=(s.neo4j_user, s.neo4j_password)
-        )
-        where = ["node:Chunk"]
-        params: dict[str, Any] = {
-            "embedding": embedding,
-            "limit": int(limit),
-            "idx": "flat_chunk_embedding",
-            # Oversample inside the vector index since the WHERE clause
-            # is applied post-search.
-            "k": int(limit) * 3,
-        }
+        # Cosine distance: lower is closer. ``1 - distance`` → score.
+        # pgvector accepts the literal as ``vector`` after cast.
+        vec_lit = _vector_literal(embedding)
+        clauses = ["TRUE"]
+        params: list[Any] = []
+        if not include_superseded:
+            clauses.append("superseded_by IS NULL")
         if after is not None:
-            where.append("node.published_at >= datetime($after)")
-            params["after"] = after.isoformat()
+            params.append(after)
+            clauses.append(f"published_at >= ${len(params)}")
         if before is not None:
-            where.append("node.published_at < datetime($before)")
-            params["before"] = before.isoformat()
+            params.append(before)
+            clauses.append(f"published_at < ${len(params)}")
         if version is not None:
-            where.append("node.version = $version")
-            params["version"] = version
+            params.append(version)
+            clauses.append(f"version = ${len(params)}")
         if excluded_prefixes:
-            where.append(
-                "NOT any(p IN $excluded WHERE node.source STARTS WITH p)"
+            params.append(excluded_prefixes)
+            clauses.append(
+                f"NOT (source LIKE ANY (SELECT prefix || '%' FROM "
+                f"unnest(${len(params)}::text[]) AS prefix))"
             )
-            params["excluded"] = excluded_prefixes
-        try:
-            async with driver.session(database=s.neo4j_database) as session:
-                result = await session.run(
-                    "CALL db.index.vector.queryNodes($idx, $k, $embedding) "
-                    "YIELD node, score "
-                    "WHERE " + " AND ".join(where) + " "
-                    "RETURN node.uuid AS uuid, node.name AS name, "
-                    "node.source AS source, node.url AS url, "
-                    "node.content AS content, "
-                    "node.published_at AS published_at, score "
-                    "ORDER BY score DESC LIMIT $limit",
-                    **params,
-                )
-                rows = [r async for r in result]
-        finally:
-            await driver.close()
+        params.extend([vec_lit, int(limit)])
+        cypher = (
+            "SELECT uuid, name, source, url, content, published_at, "
+            f"1 - (embedding <=> ${len(params) - 1}::vector) AS score "
+            "FROM chunks "
+            "WHERE " + " AND ".join(clauses) + " "
+            f"ORDER BY embedding <=> ${len(params) - 1}::vector ASC "
+            f"LIMIT ${len(params)}"
+        )
+        pool = await self._pool_lazy()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(cypher, *params)
         return [_row_to_hit(r) for r in rows]
 
 
@@ -531,31 +514,49 @@ def _row_to_hit(row: Any) -> FlatHit:
     snippet = content[:280] + ("…" if len(content) > 280 else "")
     name = row["name"] or ""
     summary = f"# {name}\n{snippet}" if name else snippet
-    pub = row.get("published_at") if hasattr(row, "get") else row["published_at"]
-    if pub is not None and not isinstance(pub, datetime):
-        try:
-            pub = pub.to_native()  # type: ignore[attr-defined]
-        except AttributeError:
-            pub = None
     return FlatHit(
-        node_id=str(row["uuid"] or ""),
+        node_id=str(row["uuid"]),
         summary=summary,
         source=str(row["source"] or ""),
-        url=str(row["url"] or "") or None,
-        published_at=pub,
-        score=float(row.get("score", 0.0)) if hasattr(row, "get") else float(row["score"]),
-        episode_ids=[str(row["uuid"] or "")],
+        url=row["url"] or None,
+        published_at=row["published_at"],
+        score=float(row["score"]) if row["score"] is not None else 0.0,
+        episode_ids=[str(row["uuid"])],
     )
 
 
+def _vector_literal(emb: list[float]) -> str:
+    """pgvector literal — asyncpg doesn't auto-encode lists into the
+    vector type, so we pass the canonical ``[v1, v2, ...]`` text
+    form and cast in SQL."""
+    return "[" + ",".join(f"{v:.6f}" for v in emb) + "]"
+
+
 def _deterministic_uuid(source: str, full_hash: str, chunk_index: int) -> str:
-    """Stable uuid for re-ingest idempotency. Derived from the
-    source key + content hash + chunk index so the same body always
-    yields the same uuid, and a changed body yields a fresh one
-    (which the MERGE will treat as a new chunk; orphan-cleanup is a
-    follow-up task)."""
+    """Stable uuid for re-ingest idempotency. Same body + same chunk
+    index → same uuid → INSERT ... ON CONFLICT no-ops."""
     base = f"{source}:{full_hash}:{chunk_index}"
     return str(_uuid.UUID(hashlib.md5(base.encode("utf-8")).hexdigest()))
+
+
+def _strip_neon_extras(url: str) -> str:
+    """Drop asyncpg-incompatible query params from a Neon URL.
+
+    Neon's pooler URL ships ``channel_binding=require`` which
+    asyncpg doesn't recognise — silently strip it.
+    """
+    if "?" not in url:
+        return url
+    head, qs = url.split("?", 1)
+    keep = []
+    for kv in qs.split("&"):
+        if not kv:
+            continue
+        k = kv.split("=", 1)[0]
+        if k.lower() in {"channel_binding"}:
+            continue
+        keep.append(kv)
+    return head + ("?" + "&".join(keep) if keep else "")
 
 
 _RELEASE_KW_RE = re.compile(
@@ -567,8 +568,4 @@ _VERSION_TOKEN_RE = re.compile(r"\bv\d{1,2}(\.\d+)*\b", re.IGNORECASE)
 
 def _query_wants_releases(query: str) -> bool:
     ql = query.lower()
-    if _RELEASE_KW_RE.search(ql):
-        return True
-    if _VERSION_TOKEN_RE.search(ql):
-        return True
-    return False
+    return bool(_RELEASE_KW_RE.search(ql) or _VERSION_TOKEN_RE.search(ql))
