@@ -130,6 +130,36 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Optional markdown summary alongside JSON",
     )
+    audit.add_argument(
+        "--backend",
+        choices=["graphiti", "flat"],
+        default="graphiti",
+        help="Backend to audit. 'graphiti' (default) reads :Episodic "
+        "from Neo4j; 'flat' reads chunks from pgvector. Used during "
+        "the A/B comparison to score the same canonical queries "
+        "against both engines.",
+    )
+    # Boost + reranker default to on — matches production search
+    # behaviour. ``--no-*`` flags are for measuring the lift of
+    # each layer (boost-only, no-boost) during A/B tuning.
+    audit.add_argument(
+        "--no-summary-boost",
+        dest="use_summary_boost",
+        action="store_false",
+        default=True,
+        help="Flat-only: disable the tsv_boosted column for this run. "
+        "Default is ON; pass this to measure the boost lift. "
+        "Ignored when --backend=graphiti.",
+    )
+    audit.add_argument(
+        "--no-reranker",
+        dest="use_reranker",
+        action="store_false",
+        default=True,
+        help="Flat-only: disable the post-hybrid gpt-4o-mini reranker. "
+        "Default is ON; pass this to measure rerank lift. Ignored "
+        "when --backend=graphiti.",
+    )
 
     args = parser.parse_args(argv)
 
@@ -167,6 +197,9 @@ def main(argv: list[str] | None = None) -> int:
                 top_k=args.top_k,
                 out_path=args.out,
                 summary_path=args.summary,
+                backend=args.backend,
+                use_summary_boost=args.use_summary_boost,
+                use_reranker=args.use_reranker,
             )
         )
 

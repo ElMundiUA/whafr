@@ -21,7 +21,7 @@ import os
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any  # noqa: F401  — used in type hints below
 
 import yaml
 
@@ -70,6 +70,9 @@ async def run_audit(
     top_k: int,
     out_path: Path | None,
     summary_path: Path | None,
+    backend: str = "graphiti",
+    use_summary_boost: bool = False,
+    use_reranker: bool = False,
 ) -> int:
     if not queries_path.exists():
         logger.error("queries file not found: %s", queries_path)
@@ -79,9 +82,16 @@ async def run_audit(
         logger.error("queries file must be a non-empty mapping {domain: [...]}: %s", queries_path)
         return 1
 
-    from lighthouse.core.graph import KnowledgeGraph
+    if backend == "flat":
+        from lighthouse.core.flat_graph import FlatGraph
 
-    graph = KnowledgeGraph()
+        graph: Any = FlatGraph()
+        logger.info("audit using FLAT backend (pgvector)")
+    else:
+        from lighthouse.core.graph import KnowledgeGraph
+
+        graph = KnowledgeGraph()
+        logger.info("audit using GRAPHITI backend (Neo4j)")
 
     # Concurrency cap — Claude judge call is the bottleneck; ~5 in
     # flight keeps p95 latency reasonable without rate-limiting.
@@ -91,7 +101,13 @@ async def run_audit(
         if not queries:
             continue
         for q in queries:
-            tasks.append(_audit_one(graph, sem, domain, str(q), top_k))
+            tasks.append(
+                _audit_one(
+                    graph, sem, domain, str(q), top_k,
+                    use_summary_boost=use_summary_boost,
+                    use_reranker=use_reranker,
+                )
+            )
     results: list[QueryResult] = await asyncio.gather(*tasks)
 
     per_domain: dict[str, list[QueryResult]] = {}
@@ -146,11 +162,27 @@ async def run_audit(
 
 
 async def _audit_one(
-    graph, sem: asyncio.Semaphore, domain: str, query: str, top_k: int
+    graph,
+    sem: asyncio.Semaphore,
+    domain: str,
+    query: str,
+    top_k: int,
+    *,
+    use_summary_boost: bool = False,
+    use_reranker: bool = False,
 ) -> QueryResult:
+    # Only FlatGraph supports use_summary_boost / use_reranker; the
+    # graphiti path would crash on unknown kwargs. Pass them only
+    # when FlatGraph is the engine (duck-checked via attribute).
+    extra: dict = {}
+    if hasattr(graph, "has_unchanged_chunk"):
+        if use_summary_boost:
+            extra["use_summary_boost"] = True
+        if use_reranker:
+            extra["use_reranker"] = True
     async with sem:
         try:
-            hits = await graph.search(query, top_k=top_k)
+            hits = await graph.search(query, top_k=top_k, **extra)
         except Exception:
             logger.exception("search failed for %r — counting as gap", query)
             return QueryResult(
