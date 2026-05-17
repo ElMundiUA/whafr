@@ -1,0 +1,113 @@
+---
+// Newspaper layout: masthead → optional flag → page slot → footer.
+// All pages share the masthead so the brand reads on every URL.
+//
+// The masthead is intentionally heavy — big serif title, two
+// hairlines, a date strip. Mimics broadsheet front-page weight.
+
+import "@/styles/global.css";
+
+interface Props {
+  title?: string;
+  section?: string;        // e.g. "FRONT PAGE", "ARCHITECTURE", "ADMIN"
+  description?: string;
+  pageHeading?: string;
+  pageSubhead?: string;
+}
+
+const {
+  title = "Lighthouse — Knowledge for AI Agents",
+  section = "FRONT PAGE",
+  description = "A knowledge base of canonical SDLC reference for AI agents — RFCs, OWASP, framework docs, methodology, post-cutoff streams.",
+  pageHeading,
+  pageSubhead,
+} = Astro.props;
+
+const today = new Date().toLocaleDateString("en-US", {
+  weekday: "long",
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+
+// Static "edition" line — tweak when the corpus passes a milestone.
+const edition = "Vol. I · Edition 001";
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <title>{title}</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body class="min-h-screen flex flex-col">
+    <!-- ─────────────── Masthead ─────────────── -->
+    <header class="border-b-2 border-rule">
+      <div class="max-w-broadsheet mx-auto px-6 pt-8 pb-3">
+        <div class="flex justify-between items-baseline text-xs font-mono uppercase tracking-flag text-muted">
+          <span>{edition}</span>
+          <span>{today}</span>
+          <span>harborgang.com</span>
+        </div>
+        <div class="border-t border-rule mt-3 pt-4 pb-2 text-center">
+          <h1 class="font-display font-black tracking-masthead text-7xl md:text-[7rem] leading-none">
+            <a href="/" class="no-underline hover:text-accent">Lighthouse</a>
+          </h1>
+          <p class="font-serif italic text-base text-muted mt-2">
+            Canonical reference for AI agents — built in the open at lighthouse.harborgang.com
+          </p>
+        </div>
+      </div>
+      <div class="border-t border-b border-rule">
+        <nav class="max-w-broadsheet mx-auto px-6 py-2 flex justify-center gap-x-8 text-xs font-mono uppercase tracking-flag">
+          <a href="/" class="no-underline hover:text-accent">Front Page</a>
+          <a href="/search" class="no-underline hover:text-accent">Search</a>
+          <a href="/sections" class="no-underline hover:text-accent">Sections</a>
+          <a href="/about" class="no-underline hover:text-accent">About</a>
+          <a href="/pricing" class="no-underline hover:text-accent">Subscribe</a>
+        </nav>
+      </div>
+    </header>
+
+    <!-- ─────────────── Optional section flag ─────────────── -->
+    {section && (
+      <div class="max-w-broadsheet mx-auto px-6 pt-6">
+        <span class="section-flag">{section}</span>
+      </div>
+    )}
+
+    <!-- ─────────────── Page heading (optional) ─────────────── -->
+    {pageHeading && (
+      <div class="max-w-broadsheet mx-auto px-6 pt-4 pb-2">
+        <h2 class="font-display text-5xl md:text-6xl leading-tight">
+          {pageHeading}
+        </h2>
+        {pageSubhead && (
+          <p class="font-serif italic text-lg text-muted mt-2">{pageSubhead}</p>
+        )}
+      </div>
+    )}
+
+    <!-- ─────────────── Slot ─────────────── -->
+    <main class="flex-1 max-w-broadsheet mx-auto px-6 py-6 w-full">
+      <slot />
+    </main>
+
+    <!-- ─────────────── Footer ─────────────── -->
+    <footer class="border-t-2 border-rule mt-12">
+      <div class="max-w-broadsheet mx-auto px-6 py-6 flex flex-wrap justify-between items-baseline gap-y-3 text-xs font-mono uppercase tracking-flag text-muted">
+        <span>© {new Date().getFullYear()} Harbor Gang. Built in the open.</span>
+        <span>
+          <a href="https://github.com/ElMundiUA/lighthouse" class="hover:text-accent">Source</a>
+          &nbsp;·&nbsp;
+          <a href="/mcp/" class="hover:text-accent">MCP endpoint</a>
+          &nbsp;·&nbsp;
+          <a href="/about" class="hover:text-accent">About</a>
+        </span>
+      </div>
+    </footer>
+  </body>
+</html>

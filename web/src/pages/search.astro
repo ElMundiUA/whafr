@@ -1,0 +1,97 @@
+---
+import Newspaper from "@/layouts/Newspaper.astro";
+import SearchBar from "@/components/SearchBar.astro";
+import ChunkCard from "@/components/ChunkCard.astro";
+
+export const prerender = false;
+
+const API_BASE =
+  import.meta.env.PUBLIC_LIGHTHOUSE_API_BASE ||
+  "https://lighthouse.harborgang.com";
+
+const q = Astro.url.searchParams.get("q")?.trim() ?? "";
+const topK = Math.min(
+  Math.max(parseInt(Astro.url.searchParams.get("k") || "10", 10) || 10, 1),
+  30,
+);
+
+interface Hit {
+  node_id: string;
+  summary: string;
+  episode_ids?: string[];
+  valid_from?: string | null;
+}
+
+let hits: Hit[] = [];
+let errored = false;
+if (q) {
+  try {
+    const r = await fetch(
+      `${API_BASE}/search?q=${encodeURIComponent(q)}&top_k=${topK}`,
+      { headers: { Accept: "application/json" } },
+    );
+    if (r.ok) {
+      const data = await r.json();
+      hits = data.hits || [];
+    } else {
+      errored = true;
+    }
+  } catch {
+    errored = true;
+  }
+}
+
+const title = q ? `${q} — Lighthouse` : "Search — Lighthouse";
+---
+
+<Newspaper
+  title={title}
+  section="SEARCH"
+  pageHeading={q ? `“${q}”` : "Search the lighthouse"}
+  pageSubhead={q ? `${hits.length} matching dispatches` : "Cite by canonical source, not by memory."}
+>
+  <div class="max-w-2xl mb-10">
+    <SearchBar initial={q} />
+  </div>
+
+  {!q && (
+    <section class="text-muted text-base max-w-broadsheet">
+      <p class="mb-3">
+        Lighthouse is a knowledge base of canonical SDLC reference for
+        AI agents — RFCs, OWASP cheat sheets, NIST SP-800, framework
+        docs, methodology, and post-cutoff release streams. Each
+        chunk carries a one-sentence summary plus search keywords
+        produced by an enrichment worker, so the BM25 + vector +
+        reranker pipeline can route a fuzzy human query to the
+        canonical source.
+      </p>
+      <p>
+        Try a real question:
+        <a href="/search?q=OAuth%20PKCE%20S256">OAuth PKCE S256</a> ·
+        <a href="/search?q=k8s%20readiness%20probe">k8s readiness probe</a> ·
+        <a href="/search?q=RAG%20chunking%20strategies">RAG chunking strategies</a> ·
+        <a href="/search?q=CRDT%20vs%20OT">CRDT vs OT</a>
+      </p>
+    </section>
+  )}
+
+  {q && errored && (
+    <p class="text-accent border border-accent p-4">
+      Couldn't reach the search backend. Try again in a moment.
+    </p>
+  )}
+
+  {q && !errored && hits.length === 0 && (
+    <p class="text-muted italic">
+      No dispatches matched. Try a more specific term, or fewer
+      keywords. Some topics — opinion-heavy domains like estimation
+      or feature prioritisation — return weak results by design.
+    </p>
+  )}
+
+  {q && hits.length > 0 && (
+    <section class="grid grid-cols-1 md:grid-cols-2 gap-x-10">
+      {hits.map((hit, i) => <ChunkCard hit={hit} rank={i + 1} />)}
+    </section>
+  )}
+</Newspaper>

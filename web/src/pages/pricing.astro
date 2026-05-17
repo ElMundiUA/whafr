@@ -1,0 +1,76 @@
+---
+import Newspaper from "@/layouts/Newspaper.astro";
+---
+
+<Newspaper title="Subscribe — Lighthouse" section="SUBSCRIBE" pageHeading="Three editions">
+  <p class="text-muted text-base max-w-2xl mb-10">
+    All tiers see the same corpus. Caps differ. Anonymous and Free
+    tiers are intended to validate that Lighthouse fits your agent's
+    use-case before you upgrade. Limits reset daily at 00:00 UTC.
+  </p>
+
+  <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <!-- Anonymous -->
+    <article class="border-2 border-rule p-5">
+      <p class="section-flag inline-block mb-3">Anonymous</p>
+      <p class="font-display text-4xl font-bold mb-2">Free</p>
+      <p class="byline mb-4">No account required</p>
+      <ul class="font-serif text-sm space-y-2">
+        <li>10 searches / day</li>
+        <li>Top-5 results per query</li>
+        <li>Headline + snippet only</li>
+        <li>Public newspaper view</li>
+      </ul>
+      <p class="mt-5 text-xs font-mono uppercase tracking-flag text-muted">
+        Default. Try the lighthouse at <a href="/search">/search</a>.
+      </p>
+    </article>
+
+    <!-- Free registered -->
+    <article class="border-2 border-rule p-5">
+      <p class="section-flag inline-block mb-3">Reader</p>
+      <p class="font-display text-4xl font-bold mb-2">Free</p>
+      <p class="byline mb-4">Sign in with GitHub or email</p>
+      <ul class="font-serif text-sm space-y-2">
+        <li>100 searches / day</li>
+        <li>Top-10 results per query</li>
+        <li>Full chunk view (<code class="font-mono text-xs">fetch_source</code>)</li>
+        <li>One MCP token for personal use</li>
+      </ul>
+      <a href="/login" class="mt-5 inline-block bg-ink text-paper px-4 py-1.5 hover:bg-accent text-xs uppercase tracking-flag font-mono">
+        Sign in
+      </a>
+    </article>
+
+    <!-- Pro paid -->
+    <article class="border-2 border-accent p-5 bg-soft">
+      <p class="section-flag inline-block mb-3">Pro</p>
+      <p class="font-display text-4xl font-bold mb-2">$19 <span class="text-base font-serif italic text-muted">/ month</span></p>
+      <p class="byline mb-4">Paddle billing</p>
+      <ul class="font-serif text-sm space-y-2">
+        <li>10,000 searches / day</li>
+        <li>Top-30 results per query</li>
+        <li>Reranker + summary boost (default)</li>
+        <li>MCP token rotates, team-shareable</li>
+        <li>Time-aware filters (<code class="font-mono text-xs">after</code> /
+          <code class="font-mono text-xs">version</code>)</li>
+        <li>Email when a watched topic moves</li>
+      </ul>
+      <a href="/checkout?plan=pro" class="mt-5 inline-block bg-accent text-paper px-4 py-1.5 hover:bg-ink text-xs uppercase tracking-flag font-mono">
+        Subscribe
+      </a>
+    </article>
+  </section>
+
+  <hr class="mt-10 mb-6" />
+
+  <section class="font-serif text-sm text-muted max-w-2xl">
+    <h3 class="font-display text-xl mb-2 text-ink">Enterprise</h3>
+    <p>
+      Self-hosted Lighthouse with your own corpus + recipes + admin.
+      Includes installation help and quarterly source curation. By
+      arrangement —
+      <a href="mailto:lighthouse@harborgang.com">lighthouse@harborgang.com</a>.
+    </p>
+  </section>
+</Newspaper>

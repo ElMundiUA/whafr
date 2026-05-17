@@ -1,0 +1,136 @@
+---
+import Newspaper from "@/layouts/Newspaper.astro";
+import SearchBar from "@/components/SearchBar.astro";
+import ChunkCard from "@/components/ChunkCard.astro";
+
+// SSR-rendered so the front-page roster reflects current corpus.
+// Cached on Astro's default 5-min CDN TTL when running behind a CDN.
+export const prerender = false;
+
+const API_BASE =
+  import.meta.env.PUBLIC_LIGHTHOUSE_API_BASE ||
+  "https://lighthouse.harborgang.com";
+
+interface Hit {
+  node_id: string;
+  summary: string;
+  episode_ids?: string[];
+  valid_from?: string | null;
+}
+
+// "Front page" picks: a small curated set of high-signal queries
+// covering different sections. Each fetches a top hit independently
+// so a slow / failing source doesn't blank the page.
+const FEATURE_QUERIES: { section: string; query: string }[] = [
+  { section: "Security", query: "OAuth 2.0 PKCE S256 code challenge" },
+  { section: "Architecture", query: "CRDT vs OT collaborative editing" },
+  { section: "DevOps", query: "Kubernetes readiness probe httpGet" },
+  { section: "ML / AI", query: "RAG chunking strategies retrieval" },
+  { section: "Performance", query: "Core Web Vitals LCP CLS INP" },
+  { section: "Mobile", query: "React Native Fabric architecture" },
+];
+
+async function fetchHit(q: string): Promise<Hit | null> {
+  try {
+    const r = await fetch(
+      `${API_BASE}/search?q=${encodeURIComponent(q)}&top_k=1`,
+      { headers: { Accept: "application/json" } }
+    );
+    if (!r.ok) return null;
+    const data = await r.json();
+    return data.hits?.[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+const features = await Promise.all(
+  FEATURE_QUERIES.map(async (f) => ({
+    ...f,
+    hit: await fetchHit(f.query),
+  }))
+);
+
+// Pull the corpus size for the "Today's tally" stat box. Cheap-ish.
+let corpusSize = "—";
+try {
+  // /health doesn't return size yet; placeholder for a future
+  // /v1/stats endpoint. For now hardcode the last known value.
+  corpusSize = "20,920 chunks";
+} catch {}
+---
+
+<Newspaper section="FRONT PAGE">
+  <!-- Search prominent above the fold -->
+  <div class="mb-8 max-w-2xl mx-auto">
+    <SearchBar placeholder="Ask Lighthouse — RFC, framework, pattern…" />
+  </div>
+
+  <!-- Top story: first feature, full-width -->
+  {features[0]?.hit && (
+    <section class="mb-10">
+      <span class="kicker">{features[0].section}</span>
+      <ChunkCard hit={features[0].hit} variant="feature" />
+    </section>
+  )}
+
+  <!-- Three-column second row -->
+  <section class="grid grid-cols-1 md:grid-cols-3 gap-x-8 mb-12 newspaper-grid">
+    {features.slice(1, 4).map((f) =>
+      f.hit ? (
+        <div>
+          <span class="kicker">{f.section}</span>
+          <ChunkCard hit={f.hit} />
+        </div>
+      ) : null
+    )}
+  </section>
+
+  <hr class="double mb-6" />
+
+  <!-- Briefs strip -->
+  <section class="mb-12">
+    <h3 class="font-display text-2xl mb-4">Other dispatches</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10">
+      {features.slice(4).map((f) =>
+        f.hit ? (
+          <div>
+            <span class="kicker">{f.section}</span>
+            <ChunkCard hit={f.hit} variant="brief" />
+          </div>
+        ) : null
+      )}
+    </div>
+  </section>
+
+  <hr class="mb-6" />
+
+  <!-- Stats / what's-in-the-paper box -->
+  <aside class="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-4 text-sm">
+    <div>
+      <h4 class="font-display text-xl mb-2">In today's edition</h4>
+      <p class="text-muted">
+        Lighthouse indexes canonical SDLC reference content — IETF
+        RFCs, OWASP cheat sheets, NIST SP-800, framework docs, blog
+        archives — and serves a single search endpoint to AI agents
+        over MCP. {corpusSize} ingested.
+      </p>
+    </div>
+    <div>
+      <h4 class="font-display text-xl mb-2">For agents</h4>
+      <p class="text-muted">
+        Point any MCP-capable client (Claude Desktop, Cursor, the
+        official CLI) at <code class="font-mono text-xs">https://lighthouse.harborgang.com/mcp/</code> and
+        wire `search` / `fetch_source` into your tool surface.
+      </p>
+    </div>
+    <div>
+      <h4 class="font-display text-xl mb-2">For readers</h4>
+      <p class="text-muted">
+        The newspaper format is a UI for browsing what's in the
+        corpus. Search above. Section pages roll up role-specific
+        rosters. <a href="/about">About the project →</a>
+      </p>
+    </div>
+  </aside>
+</Newspaper>

@@ -1,0 +1,48 @@
+---
+import Newspaper from "@/layouts/Newspaper.astro";
+
+// Section overview — one row per role recipe. Auto-pulled from
+// the compiled/ yaml directory at build time when running with
+// access to the lighthouse repo. For now we hard-code the roster
+// since this page is just a directory.
+
+const sections = [
+  { slug: "developer",       title: "Developer",        blurb: "Pydantic / FastAPI / SQLAlchemy / TypeScript / React" },
+  { slug: "devops",          title: "DevOps & platform", blurb: "Kubernetes / Helm / Argo / Terraform / Docker" },
+  { slug: "security",        title: "Security",         blurb: "OWASP / RFCs / NIST / MITRE ATT&CK" },
+  { slug: "ml",              title: "ML / AI",          blurb: "PyTorch / HuggingFace / LangChain / MCP" },
+  { slug: "self-heal",       title: "Self-heal & SRE",  blurb: "OpenTelemetry / Honeycomb / Brendan Gregg / SRE Book" },
+  { slug: "validation",      title: "Testing",          blurb: "Playwright / Jest / Pytest / Vitest / BDD" },
+  { slug: "network",         title: "Network",          blurb: "TLS / QUIC / HTTP/3 / OAuth / DNS RFCs" },
+  { slug: "performance",     title: "Performance",      blurb: "Web Vitals / k6 / async-profiler / Postgres EXPLAIN" },
+  { slug: "mobile",          title: "Mobile",           blurb: "React Native / Expo / Compose / SwiftUI" },
+  { slug: "architecture",    title: "Architecture",     blurb: "DDD / microservices / CRDT / event sourcing" },
+  { slug: "designer",        title: "Designer",         blurb: "shadcn / Tailwind / WCAG / NN/g" },
+  { slug: "reviewer",        title: "Reviewer",         blurb: "Google ENG-practices / Conventional Comments / style guides" },
+  { slug: "planning",        title: "Planning",         blurb: "Scrum / SAFe / Kanban / capacity math" },
+  { slug: "decomposition",   title: "Decomposition",    blurb: "WBS / INVEST / story slicing" },
+  { slug: "clarification",   title: "Clarification",    blurb: "Acceptance criteria / Gherkin / Cucumber" },
+  { slug: "product-manager", title: "Product manager",  blurb: "Cagan / Torres / Patton / Lenny" },
+  { slug: "data-eng",        title: "Data engineering", blurb: "dbt / Airflow / Iceberg / Kafka / Spark" },
+  { slug: "embedded",        title: "Embedded",         blurb: "ESP-IDF / Zephyr / FreeRTOS / PlatformIO" },
+  { slug: "web3",            title: "Web3",             blurb: "Solidity / Foundry / EIPs / Vitalik" },
+  { slug: "gamedev",         title: "Gamedev",          blurb: "Unity / Unreal / Godot / Bevy" },
+];
+---
+
+<Newspaper section="DIRECTORY" pageHeading="Sections" pageSubhead="Every role has a curated source roster — Tier 1 mainstream + canonical standards + practitioner literature + streams.">
+  <section class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-2">
+    {sections.map((s) => (
+      <a
+        href={`/search?q=${encodeURIComponent(s.title.split(" /")[0])}`}
+        class="block py-3 border-b border-rule no-underline group"
+      >
+        <div class="flex justify-between items-baseline">
+          <h3 class="font-display font-bold text-lg group-hover:text-accent">{s.title}</h3>
+          <span class="font-mono text-xs uppercase tracking-flag text-muted">→</span>
+        </div>
+        <p class="text-sm text-muted">{s.blurb}</p>
+      </a>
+    ))}
+  </section>
+</Newspaper>

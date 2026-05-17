@@ -1,0 +1,106 @@
+---
+import Newspaper from "@/layouts/Newspaper.astro";
+
+export const prerender = false;
+
+const API_BASE =
+  import.meta.env.PUBLIC_LIGHTHOUSE_API_BASE ||
+  "https://lighthouse.harborgang.com";
+
+const { id } = Astro.params;
+
+interface Source {
+  episode_id: string;
+  name: string;
+  source: string;
+  content: string;
+  valid_at?: string | null;
+  created_at?: string | null;
+}
+
+let src: Source | null = null;
+let notFound = false;
+let errored = false;
+
+if (!id) {
+  notFound = true;
+} else {
+  try {
+    const r = await fetch(`${API_BASE}/fetch_source/${id}`, {
+      headers: { Accept: "application/json" },
+    });
+    if (r.status === 404) {
+      notFound = true;
+    } else if (!r.ok) {
+      errored = true;
+    } else {
+      src = await r.json();
+    }
+  } catch {
+    errored = true;
+  }
+}
+
+const title = src ? `${src.name} — Lighthouse` : "Chunk — Lighthouse";
+
+// Pull origin URL out of source_description if it looks URL-shaped.
+let sourceLabel = src?.source ?? "";
+let sourceUrl: string | null = null;
+if (sourceLabel.includes("http")) {
+  const m = sourceLabel.match(/https?:\/\/\S+/);
+  if (m) sourceUrl = m[0];
+}
+
+const dateStr = src?.valid_at
+  ? new Date(src.valid_at).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    })
+  : null;
+---
+
+<Newspaper title={title} section={src ? "DISPATCH" : "ARCHIVE"}>
+  {notFound && (
+    <section>
+      <h2 class="font-display text-3xl mb-3">Dispatch not in the archive</h2>
+      <p class="text-muted">
+        That chunk uuid doesn't correspond to a Lighthouse episode. It
+        may have been re-ingested under a different hash. Try the
+        <a href="/search">search desk</a>.
+      </p>
+    </section>
+  )}
+
+  {errored && (
+    <p class="text-accent border border-accent p-4">
+      Couldn't reach the backend. Try again in a moment.
+    </p>
+  )}
+
+  {src && (
+    <article class="max-w-column mx-auto dropcap">
+      <p class="byline mb-2">
+        {sourceLabel.split(":", 1)[0]}{dateStr ? ` · Filed ${dateStr}` : ""}
+      </p>
+      <h2 class="font-display font-black text-4xl md:text-5xl leading-tight mb-3">
+        {src.name}
+      </h2>
+      {sourceUrl && (
+        <p class="text-sm font-mono mb-6 text-muted">
+          <a href={sourceUrl} target="_blank" rel="noopener nofollow noreferrer">
+            {sourceUrl} ↗
+          </a>
+        </p>
+      )}
+      <div class="font-serif text-[1.07rem] leading-[1.65] whitespace-pre-wrap">
+        {src.content}
+      </div>
+      <hr class="mt-10 mb-3" />
+      <p class="text-xs font-mono uppercase tracking-flag text-muted">
+        Episode <span class="normal-case">{src.episode_id}</span> ·
+        <a href={`/search?q=${encodeURIComponent(src.name)}`} class="hover:text-accent">More like this</a>
+      </p>
+    </article>
+  )}
+</Newspaper>

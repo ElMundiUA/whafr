@@ -1,0 +1,27 @@
+---
+// Search form — submits via GET so URLs are shareable.
+// Bound to GET /search?q=…
+
+interface Props {
+  initial?: string;
+  placeholder?: string;
+}
+const { initial = "", placeholder = "Search the lighthouse…" } = Astro.props;
+---
+
+<form action="/search" method="get" class="flex items-center gap-3 border-b-2 border-rule pb-2">
+  <span class="font-mono text-xs uppercase tracking-flag text-muted">Q.</span>
+  <input
+    type="search"
+    name="q"
+    value={initial}
+    placeholder={placeholder}
+    autocomplete="off"
+    autocapitalize="off"
+    spellcheck="false"
+    class="flex-1 !border-none !pb-0"
+  />
+  <button type="submit" class="bg-ink text-paper px-4 py-1.5 hover:bg-accent">
+    Read
+  </button>
+</form>
