@@ -113,7 +113,15 @@ class FlatGraph:
             self._pool = None
 
     async def initialize(self) -> None:
-        """Idempotent — creates schema + indexes if missing."""
+        """Idempotent — creates schema + indexes if missing.
+
+        Also evolves the schema: adds ``summary`` / ``tags`` columns
+        and a boosted tsvector when missing, so existing deployments
+        don't need a manual migration. The boosted tsv is what
+        ``search(use_summary_boost=True)`` queries against — kept as
+        a separate column so the un-boosted retrieval still works
+        unchanged for clients that didn't opt in.
+        """
         if self._initialized:
             return
         pool = await self._pool_lazy()
@@ -141,6 +149,8 @@ class FlatGraph:
                     chunk_index      INTEGER,
                     chunk_count      INTEGER,
                     embedding        vector({dim}),
+                    summary          TEXT,
+                    tags             TEXT,
                     tsv              tsvector
                                      GENERATED ALWAYS AS (
                                          setweight(
@@ -151,15 +161,71 @@ class FlatGraph:
                                              to_tsvector('english',
                                                  coalesce(content,'')),
                                              'B')
+                                     ) STORED,
+                    tsv_boosted      tsvector
+                                     GENERATED ALWAYS AS (
+                                         setweight(
+                                             to_tsvector('english',
+                                                 coalesce(summary,'')),
+                                             'A')
+                                         || setweight(
+                                             to_tsvector('english',
+                                                 coalesce(tags,'')),
+                                             'A')
+                                         || setweight(
+                                             to_tsvector('english',
+                                                 coalesce(name,'')),
+                                             'B')
+                                         || setweight(
+                                             to_tsvector('english',
+                                                 coalesce(content,'')),
+                                             'C')
                                      ) STORED
                 )
                 """
             )
+            # Schema-evolve for existing deployments that pre-date
+            # the summary/keywords columns. ADD COLUMN IF NOT EXISTS
+            # is cheap, idempotent, and matches our test environment.
+            # ``keywords`` is the expansion field — synonyms / related
+            # terms / alternative phrasings the body itself doesn't
+            # mention but a real query might. We weight it the same as
+            # summary in the boosted tsvector so it can rescue queries
+            # that don't textually match the source.
+            for stmt in (
+                "ALTER TABLE chunks ADD COLUMN IF NOT EXISTS summary TEXT",
+                "ALTER TABLE chunks ADD COLUMN IF NOT EXISTS tags TEXT",
+                "ALTER TABLE chunks ADD COLUMN IF NOT EXISTS keywords TEXT",
+                # ADD COLUMN with GENERATED clause is supported in
+                # PG 12+. Drop + recreate the boosted index whenever
+                # the underlying columns shape changes — keeps a
+                # single canonical definition in code.
+                "ALTER TABLE chunks DROP COLUMN IF EXISTS tsv_boosted",
+                """
+                ALTER TABLE chunks
+                ADD COLUMN IF NOT EXISTS tsv_boosted tsvector
+                GENERATED ALWAYS AS (
+                    setweight(to_tsvector('english', coalesce(summary,'')), 'A') ||
+                    setweight(to_tsvector('english', coalesce(keywords,'')), 'A') ||
+                    setweight(to_tsvector('english', coalesce(tags,'')), 'B') ||
+                    setweight(to_tsvector('english', coalesce(name,'')), 'B') ||
+                    setweight(to_tsvector('english', coalesce(content,'')), 'C')
+                ) STORED
+                """,
+            ):
+                try:
+                    await conn.execute(stmt)
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("schema evolve skipped: %s", exc)
             # Indexes — guarded with IF NOT EXISTS so initialize() is
             # idempotent across deploys.
             await conn.execute(
                 "CREATE INDEX IF NOT EXISTS chunks_tsv_gin ON chunks "
                 "USING GIN (tsv)"
+            )
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS chunks_tsv_boosted_gin ON chunks "
+                "USING GIN (tsv_boosted)"
             )
             await conn.execute(
                 "CREATE INDEX IF NOT EXISTS chunks_source_published_idx "
@@ -316,6 +382,7 @@ class FlatGraph:
         version: str | None = None,
         include_release_notes: bool | None = None,
         include_superseded: bool = False,
+        use_summary_boost: bool = False,
     ) -> list[FlatHit]:
         """Hybrid BM25 + vector search with time-aware filters.
 
@@ -346,6 +413,7 @@ class FlatGraph:
             version=version,
             excluded_prefixes=excluded_prefixes,
             include_superseded=include_superseded,
+            use_summary_boost=use_summary_boost,
         )
         vec = await self._search_vector(
             q_embedding,
@@ -446,11 +514,13 @@ class FlatGraph:
         version: str | None,
         excluded_prefixes: list[str],
         include_superseded: bool,
+        use_summary_boost: bool = False,
     ) -> list[FlatHit]:
         # ``websearch_to_tsquery`` accepts loose human queries
         # (handles AND/OR/quoted phrases) — closer to BM25 ergonomics
         # than ``plainto_tsquery``.
-        clauses = ["tsv @@ websearch_to_tsquery('english', $1)"]
+        tsv_col = "tsv_boosted" if use_summary_boost else "tsv"
+        clauses = [f"{tsv_col} @@ websearch_to_tsquery('english', $1)"]
         params: list[Any] = [query]
         if not include_superseded:
             clauses.append("superseded_by IS NULL")
@@ -478,7 +548,7 @@ class FlatGraph:
         params.append(int(limit))
         cypher = (
             "SELECT uuid, name, source, url, content, published_at, "
-            "ts_rank_cd(tsv, websearch_to_tsquery('english', $1)) AS score "
+            f"ts_rank_cd({tsv_col}, websearch_to_tsquery('english', $1)) AS score "
             "FROM chunks "
             "WHERE " + " AND ".join(clauses) + " "
             f"ORDER BY score DESC LIMIT ${len(params)}"
