@@ -78,6 +78,7 @@ class SourceSpec(BaseModel):
         "sitemap",
         "rss",
         "github_releases",
+        "github_tree",
     ]
     args: dict[str, Any] = Field(default_factory=dict)
     schedule: Schedule
@@ -181,6 +182,26 @@ def _github_releases_factory(args: dict[str, Any]) -> Connector:
     )
 
 
+def _github_tree_factory(args: dict[str, Any]) -> Connector:
+    from lighthouse.connectors.github_tree import GitHubTreeConnector
+
+    slug = args.get("slug")
+    if slug and "/" in slug:
+        owner, repo = slug.split("/", 1)
+    else:
+        owner = args["owner"]
+        repo = args["repo"]
+    return GitHubTreeConnector(
+        owner=owner,
+        repo=repo,
+        branch=args.get("branch", "main"),
+        file_extensions=args.get("file_extensions"),
+        include_paths=args.get("include_paths"),
+        max_files=int(args.get("max_files", 2000)),
+        rate_limit_per_sec=float(args.get("rate_limit_per_sec", 5.0)),
+    )
+
+
 _FACTORIES: dict[str, ConnectorFactory] = {
     "markdown": _markdown_factory,
     "web": _web_factory,
@@ -188,6 +209,7 @@ _FACTORIES: dict[str, ConnectorFactory] = {
     "sitemap": _sitemap_factory,
     "rss": _rss_factory,
     "github_releases": _github_releases_factory,
+    "github_tree": _github_tree_factory,
 }
 
 
