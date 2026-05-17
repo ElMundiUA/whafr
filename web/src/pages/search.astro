@@ -41,15 +41,23 @@ if (q) {
     if (!check.allowed) {
       rateLimited = true;
     } else {
-      const r = await fetch(
-        `${API_BASE}/search?q=${encodeURIComponent(q)}&top_k=${topK}`,
-        { headers: { Accept: "application/json" } },
-      );
-      if (r.ok) {
-        const data = await r.json();
-        hits = data.hits || [];
-      } else {
-        errored = true;
+      // 5s budget — a real query should be under a second; longer
+      // means the API is sick and we want to show the banner.
+      const ac = new AbortController();
+      const timer = setTimeout(() => ac.abort(), 5000);
+      try {
+        const r = await fetch(
+          `${API_BASE}/search?q=${encodeURIComponent(q)}&top_k=${topK}`,
+          { headers: { Accept: "application/json" }, signal: ac.signal },
+        );
+        if (r.ok) {
+          const data = await r.json();
+          hits = data.hits || [];
+        } else {
+          errored = true;
+        }
+      } finally {
+        clearTimeout(timer);
       }
     }
   } catch {

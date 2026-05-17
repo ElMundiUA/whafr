@@ -197,10 +197,13 @@ class FlatGraph:
                 "ALTER TABLE chunks ADD COLUMN IF NOT EXISTS tags TEXT",
                 "ALTER TABLE chunks ADD COLUMN IF NOT EXISTS keywords TEXT",
                 # ADD COLUMN with GENERATED clause is supported in
-                # PG 12+. Drop + recreate the boosted index whenever
-                # the underlying columns shape changes — keeps a
-                # single canonical definition in code.
-                "ALTER TABLE chunks DROP COLUMN IF EXISTS tsv_boosted",
+                # PG 12+. We intentionally do NOT drop-recreate when
+                # the formula changes — that opens a "column does
+                # not exist" window where concurrent /search hits
+                # 500. If the formula needs to change, ship an
+                # explicit migration that ADDs the new column under
+                # a versioned name, switches readers, then drops the
+                # old one out-of-band.
                 """
                 ALTER TABLE chunks
                 ADD COLUMN IF NOT EXISTS tsv_boosted tsvector

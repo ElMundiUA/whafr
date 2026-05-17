@@ -31,16 +31,23 @@ const FEATURE_QUERIES: { section: string; query: string }[] = [
 ];
 
 async function fetchHit(q: string): Promise<Hit | null> {
+  // 3-second budget per teaser. We're SSR-rendering six of these
+  // in parallel; if the API is sick, the page should still load
+  // promptly with empty slots rather than spinning for 30 s.
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 3000);
   try {
     const r = await fetch(
       `${API_BASE}/search?q=${encodeURIComponent(q)}&top_k=1`,
-      { headers: { Accept: "application/json" } }
+      { headers: { Accept: "application/json" } , signal: ac.signal },
     );
     if (!r.ok) return null;
     const data = await r.json();
     return data.hits?.[0] ?? null;
   } catch {
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
