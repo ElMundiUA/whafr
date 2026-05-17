@@ -20,9 +20,9 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
+from typing import Any
 
 from lighthouse.connectors.base import Connector
-from lighthouse.core.graph import KnowledgeGraph
 from lighthouse.ingest import drain
 from lighthouse.runner.config import RunnerConfig, SourceSpec, build_connector
 from lighthouse.runner.state import RunState, StateStore, utc_now
@@ -31,11 +31,15 @@ logger = logging.getLogger(__name__)
 
 
 # ``drain`` injected for tests; defaults to the real ingest loop.
-DrainFn = Callable[[Connector, KnowledgeGraph, str], Awaitable[int]]
+# Graph type is Any so the scheduler works with either
+# :class:`lighthouse.core.graph.KnowledgeGraph` (Graphiti / Neo4j)
+# or :class:`lighthouse.core.flat_graph.FlatGraph` (pgvector). Both
+# expose the same surface ``drain()`` calls.
+DrainFn = Callable[[Connector, Any, str], Awaitable[int]]
 
 
 async def _default_drain(
-    connector: Connector, graph: KnowledgeGraph, source_prefix: str
+    connector: Connector, graph: Any, source_prefix: str
 ) -> int:
     return await drain(connector, source_prefix=source_prefix, graph=graph)
 
@@ -47,7 +51,7 @@ class SourceScheduler:
         self,
         config: RunnerConfig,
         state: StateStore,
-        graph: KnowledgeGraph,
+        graph: Any,
         *,
         heartbeat_seconds: float = 30.0,
         max_concurrent: int = 2,

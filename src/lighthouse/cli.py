@@ -18,6 +18,7 @@ import asyncio
 import logging
 import sys
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,16 @@ def main(argv: list[str] | None = None) -> int:
         default=5,
         help="Max parallel source ingests. Sitemap connector is polite "
         "by default (per-source rate_limit_per_sec=1.0).",
+    )
+    runner_cmd.add_argument(
+        "--backend",
+        choices=["graphiti", "flat"],
+        default="graphiti",
+        help="Which retrieval backend to upsert into. 'graphiti' keeps "
+        "the legacy Neo4j path (default — production). 'flat' uses "
+        "the new pgvector path (LIGHTHOUSE_PG_URL). Both can run "
+        "side-by-side during the A/B comparison; do not delete the "
+        "other while comparing.",
     )
 
     mcp_cmd = sub.add_parser("mcp", help="Run the MCP server (for AI clients)")
@@ -135,6 +146,7 @@ def main(argv: list[str] | None = None) -> int:
                 once=args.once,
                 heartbeat=args.heartbeat,
                 max_concurrent=args.max_concurrent,
+                backend=args.backend,
             )
         )
     if args.cmd == "ingest":
@@ -203,9 +215,9 @@ async def _runner(
     once: bool,
     heartbeat: float,
     max_concurrent: int,
+    backend: str = "graphiti",
 ) -> int:
     from lighthouse.core.config import get_settings
-    from lighthouse.core.graph import KnowledgeGraph
     from lighthouse.runner import SourceScheduler, StateStore, load_config
 
     settings = get_settings()
@@ -215,8 +227,18 @@ async def _runner(
         logger.warning("no sources configured in %s — nothing to do", cfg_path)
         return 0
 
+    if backend == "flat":
+        from lighthouse.core.flat_graph import FlatGraph
+
+        graph: Any = FlatGraph(settings)
+        logger.info("runner using FLAT backend (pgvector)")
+    else:
+        from lighthouse.core.graph import KnowledgeGraph
+
+        graph = KnowledgeGraph(settings)
+        logger.info("runner using GRAPHITI backend (Neo4j)")
+
     state = StateStore(Path(settings.lighthouse_runner_state))
-    graph = KnowledgeGraph(settings)
     scheduler = SourceScheduler(
         config,
         state,

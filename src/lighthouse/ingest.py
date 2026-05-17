@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+from typing import Any
 
 from lighthouse.connectors.base import Connector
 from lighthouse.core.graph import KnowledgeGraph
@@ -23,7 +24,7 @@ async def drain(
     connector: Connector,
     *,
     source_prefix: str,
-    graph: KnowledgeGraph | None = None,
+    graph: "KnowledgeGraph | Any | None" = None,
     gate: RelevanceGate | None = None,
 ) -> int:
     """Run ``connector.ingest()`` and upsert each document as an episode.

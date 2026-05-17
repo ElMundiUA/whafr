@@ -185,6 +185,33 @@ class FlatGraph:
 
     # ---- write path ----------------------------------------------------
 
+    # Aliases so ``drain()`` can treat FlatGraph and KnowledgeGraph
+    # interchangeably. The Graphiti path's contract is the older,
+    # episode-named one; we adopt those names here as thin wrappers
+    # over the chunk-native API.
+
+    async def has_unchanged_episode(
+        self, source: str, body_sha256: str
+    ) -> bool:
+        return await self.has_unchanged_chunk(source, body_sha256)
+
+    async def upsert_episode(
+        self,
+        *,
+        name: str,
+        body: str,
+        source: str,
+        reference_time: datetime | None = None,
+        group_id: str = "lighthouse",  # ignored — flat path has no
+                                       # multi-tenant partitioning yet
+    ) -> str:
+        return await self.upsert_document(
+            name=name,
+            body=body,
+            source=source,
+            reference_time=reference_time,
+        )
+
     async def has_unchanged_chunk(
         self, source: str, body_sha256: str
     ) -> bool:
