@@ -62,6 +62,8 @@ spec:
                 - "/etc/lighthouse/source.yaml"
                 - "--max-concurrent"
                 - "3"
+                - "--backend"
+                - "flat"
               env:
                 - name: NEO4J_URI
                   value: bolt://neo4j.lighthouse.svc.cluster.local:7687

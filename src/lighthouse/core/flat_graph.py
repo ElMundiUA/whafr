@@ -217,36 +217,30 @@ class FlatGraph:
                     await conn.execute(stmt)
                 except Exception as exc:  # noqa: BLE001
                     logger.warning("schema evolve skipped: %s", exc)
-            # Indexes — guarded with IF NOT EXISTS so initialize() is
-            # idempotent across deploys.
-            await conn.execute(
-                "CREATE INDEX IF NOT EXISTS chunks_tsv_gin ON chunks "
-                "USING GIN (tsv)"
-            )
-            await conn.execute(
-                "CREATE INDEX IF NOT EXISTS chunks_tsv_boosted_gin ON chunks "
-                "USING GIN (tsv_boosted)"
-            )
-            await conn.execute(
-                "CREATE INDEX IF NOT EXISTS chunks_source_published_idx "
-                "ON chunks (source, published_at DESC)"
-            )
-            await conn.execute(
-                "CREATE INDEX IF NOT EXISTS chunks_full_body_sha_idx "
-                "ON chunks (full_body_sha256)"
-            )
-            await conn.execute(
-                "CREATE INDEX IF NOT EXISTS chunks_published_at_idx "
-                "ON chunks (published_at DESC) "
-                "WHERE superseded_by IS NULL"
-            )
-            # HNSW is the fast ANN index — cheap insert + fast
-            # query. ``vector_cosine_ops`` matches the OpenAI embed
-            # convention.
-            await conn.execute(
-                "CREATE INDEX IF NOT EXISTS chunks_embedding_hnsw_idx "
-                "ON chunks USING hnsw (embedding vector_cosine_ops)"
-            )
+            # Indexes — guarded with IF NOT EXISTS AND wrapped in
+            # try/except. Even with the IF NOT EXISTS clause, two
+            # workers calling initialize() concurrently can both
+            # see "does not exist" and race into CREATE INDEX,
+            # producing a duplicate-key violation on pg_class. The
+            # try/except catches that without crashing whichever
+            # worker lost the race.
+            for idx_stmt in (
+                "CREATE INDEX IF NOT EXISTS chunks_tsv_gin ON chunks USING GIN (tsv)",
+                "CREATE INDEX IF NOT EXISTS chunks_tsv_boosted_gin ON chunks USING GIN (tsv_boosted)",
+                "CREATE INDEX IF NOT EXISTS chunks_source_published_idx ON chunks (source, published_at DESC)",
+                "CREATE INDEX IF NOT EXISTS chunks_full_body_sha_idx ON chunks (full_body_sha256)",
+                "CREATE INDEX IF NOT EXISTS chunks_published_at_idx ON chunks (published_at DESC) WHERE superseded_by IS NULL",
+                # HNSW is the fast ANN index — cheap insert + fast
+                # query. ``vector_cosine_ops`` matches the OpenAI
+                # embed convention.
+                "CREATE INDEX IF NOT EXISTS chunks_embedding_hnsw_idx ON chunks USING hnsw (embedding vector_cosine_ops)",
+            ):
+                try:
+                    await conn.execute(idx_stmt)
+                except Exception as exc:  # noqa: BLE001
+                    # Tolerate the duplicate-key race; log anything
+                    # else.
+                    logger.info("index create skipped (likely race): %s", exc)
         self._initialized = True
 
     # ---- write path ----------------------------------------------------
