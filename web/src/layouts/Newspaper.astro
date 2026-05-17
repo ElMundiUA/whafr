@@ -55,11 +55,11 @@ const currentPath = Astro.url.pathname + Astro.url.search;
           <span>{today}</span>
           <span>harborgang.com</span>
         </div>
-        <div class="border-t border-rule mt-3 pt-4 pb-2 text-center">
-          <h1 class="font-display font-black tracking-masthead text-7xl md:text-[7rem] leading-none">
-            <a href="/" class="no-underline hover:text-accent">Lighthouse</a>
+        <div class="border-t border-rule mt-3 pt-6 pb-3 text-center">
+          <h1 class="font-display font-extrabold tracking-masthead text-6xl md:text-8xl leading-[0.95]">
+            <a href="/" class="no-underline hover:text-mist text-mist">Light<span class="text-champagne">house</span></a>
           </h1>
-          <p class="font-serif italic text-base text-muted mt-2">
+          <p class="text-sm md:text-base text-muted mt-3">
             Canonical reference for AI agents — built in the open at lighthouse.harborgang.com
           </p>
         </div>
@@ -79,7 +79,7 @@ const currentPath = Astro.url.pathname + Astro.url.search;
                 {user.is_admin && (
                   <a href="/admin" class="no-underline hover:text-accent">Admin</a>
                 )}
-                <span class="text-muted normal-case tracking-normal font-serif italic">
+                <span class="text-muted normal-case tracking-normal">
                   {user.tier === "pro" ? "Pro" : "Reader"} · {user.email}
                 </span>
                 <a href="/api/auth/logout" class="no-underline hover:text-accent">Sign out</a>

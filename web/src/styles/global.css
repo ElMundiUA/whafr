@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700;900&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -6,82 +6,118 @@
 
 @layer base {
   :root {
-    color-scheme: light;
+    color-scheme: dark;
+  }
+  html {
+    scroll-behavior: smooth;
   }
   html, body {
-    background: theme("colors.paper");
-    color: theme("colors.ink");
-    font-family: theme("fontFamily.serif");
-    font-size: 17px;
-    line-height: 1.55;
+    background: theme("colors.ink");
+    color: theme("colors.mist");
+    font-family: theme("fontFamily.sans");
+    font-size: 16px;
+    line-height: 1.65;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
   }
+  body {
+    background-image:
+      radial-gradient(ellipse 110% 55% at 50% -5%, rgba(207, 169, 107, 0.10), transparent 55%),
+      radial-gradient(ellipse 70% 40% at 95% 0%, rgba(91, 184, 255, 0.06), transparent 50%),
+      radial-gradient(ellipse 50% 35% at 0% 15%, rgba(180, 195, 255, 0.04), transparent 45%);
+    background-attachment: fixed;
+  }
   h1, h2, h3, h4 {
     font-family: theme("fontFamily.display");
-    color: theme("colors.ink");
-    letter-spacing: -0.005em;
+    color: theme("colors.mist");
+    letter-spacing: -0.015em;
+    font-weight: 700;
   }
-  /* Drop-cap on first paragraph of a body article */
+  ::selection {
+    background: rgba(207, 169, 107, 0.35);
+    color: #fff;
+  }
+  /* Drop-cap on first paragraph of a body article — kept for the
+     chunk/[id] view; recoloured to champagne. */
   article.dropcap > p:first-of-type::first-letter {
     font-family: theme("fontFamily.display");
-    font-size: 4.2rem;
+    font-size: 4rem;
     line-height: 1;
     float: left;
-    margin: 0.15rem 0.5rem 0 0;
-    font-weight: 900;
+    margin: 0.2rem 0.6rem 0 0;
+    font-weight: 800;
+    color: theme("colors.champagne");
   }
-  /* Hairline rule used between sections */
   hr {
     border-top: 1px solid theme("colors.rule");
     border-bottom: none;
   }
   hr.double {
-    border-top: 3px double theme("colors.rule");
+    border-top: 1px solid theme("colors.rule");
+    border-bottom: 1px solid theme("colors.rule");
+    height: 4px;
   }
-  /* Default link style — keeps newspaper feel, no chrome blue */
   a {
-    color: theme("colors.ink");
+    color: theme("colors.mist");
     text-decoration: underline;
     text-decoration-thickness: 1px;
-    text-underline-offset: 3px;
+    text-decoration-color: rgba(207, 169, 107, 0.55);
+    text-underline-offset: 4px;
+    transition: color 0.15s ease, text-decoration-color 0.15s ease;
   }
   a:hover {
-    color: theme("colors.accent");
+    color: theme("colors.champagne");
+    text-decoration-color: theme("colors.champagne");
   }
   /* Section flag — "FRONT PAGE" / "ARCHITECTURE" / "SECURITY" */
   .section-flag {
-    font-family: theme("fontFamily.mono");
+    font-family: theme("fontFamily.sans");
     font-size: 0.7rem;
     letter-spacing: theme("letterSpacing.flag");
     text-transform: uppercase;
-    color: theme("colors.accent");
-    border-top: 1px solid theme("colors.accent");
-    border-bottom: 1px solid theme("colors.accent");
-    padding: 0.25rem 0.5rem;
+    font-weight: 700;
+    color: theme("colors.champagne");
+    border-top: 1px solid rgba(207, 169, 107, 0.4);
+    border-bottom: 1px solid rgba(207, 169, 107, 0.4);
+    padding: 0.3rem 0.7rem;
     display: inline-block;
+    background: rgba(207, 169, 107, 0.06);
   }
-  /* Drop-shadow-free, paper-textured input */
   input[type="search"],
   input[type="text"] {
     background: transparent;
     border: none;
-    border-bottom: 2px solid theme("colors.rule");
-    font-family: theme("fontFamily.serif");
+    border-bottom: 1px solid theme("colors.rule");
+    font-family: theme("fontFamily.sans");
     font-size: 1.05rem;
+    color: theme("colors.mist");
     padding: 0.5rem 0.25rem;
     width: 100%;
     outline: none;
   }
   input[type="search"]:focus,
   input[type="text"]:focus {
-    border-bottom-color: theme("colors.accent");
+    border-bottom-color: theme("colors.champagne");
+  }
+  input[type="search"]::placeholder,
+  input[type="text"]::placeholder {
+    color: rgba(232, 244, 255, 0.35);
   }
   button {
-    font-family: theme("fontFamily.mono");
+    font-family: theme("fontFamily.sans");
     font-size: 0.8rem;
     letter-spacing: 0.05em;
     text-transform: uppercase;
+    font-weight: 600;
+  }
+  code {
+    font-family: theme("fontFamily.mono");
+    color: theme("colors.champagne");
+    background: rgba(207, 169, 107, 0.08);
+    border: 1px solid rgba(207, 169, 107, 0.15);
+    border-radius: 0.25rem;
+    padding: 0.05rem 0.35rem;
+    font-size: 0.85em;
   }
 }
 
@@ -91,18 +127,36 @@
     column-rule-style: solid;
   }
   .byline {
-    font-family: theme("fontFamily.mono");
-    font-size: 0.78rem;
+    font-family: theme("fontFamily.sans");
+    font-size: 0.75rem;
     color: theme("colors.muted");
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.08em;
+    font-weight: 500;
   }
   .kicker {
-    font-family: theme("fontFamily.mono");
+    font-family: theme("fontFamily.sans");
     font-size: 0.72rem;
-    color: theme("colors.accent");
+    color: theme("colors.champagne");
     text-transform: uppercase;
     letter-spacing: theme("letterSpacing.flag");
-    margin-bottom: 0.25rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    display: inline-block;
+  }
+  /* Harbor Gang pill button — primary action. */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-champagne px-6 py-3 text-sm font-semibold text-ink shadow-glow-sm transition hover:brightness-110 hover:shadow-glow active:scale-[0.99];
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-transparent px-6 py-3 text-sm font-semibold text-mist/80 transition hover:border-white/35 hover:bg-white/5 hover:text-mist;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  /* Glass card — for chunk cards, pricing tiles, admin stats. */
+  .glass {
+    @apply rounded-2xl border border-white/[0.08] bg-white/[0.025] backdrop-blur-sm transition hover:border-champagne/25 hover:bg-white/[0.04];
   }
 }

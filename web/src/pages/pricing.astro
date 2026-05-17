@@ -50,7 +50,7 @@ const readerLabel = user ? "You're signed in" : "Sign in";
         <li>Full chunk view (<code class="font-mono text-xs">fetch_source</code>)</li>
         <li>One MCP token for personal use</li>
       </ul>
-      <a href={readerHref} class="mt-5 inline-block bg-ink text-paper px-4 py-1.5 hover:bg-accent text-xs uppercase tracking-flag font-mono">
+      <a href={readerHref} class="btn-secondary mt-5">
         {readerLabel}
       </a>
     </article>
@@ -69,7 +69,7 @@ const readerLabel = user ? "You're signed in" : "Sign in";
           <code class="font-mono text-xs">version</code>)</li>
         <li>Email when a watched topic moves</li>
       </ul>
-      <a href={upgradeHref} class="mt-5 inline-block bg-accent text-paper px-4 py-1.5 hover:bg-ink text-xs uppercase tracking-flag font-mono">
+      <a href={upgradeHref} class="btn-primary mt-5">
         {upgradeLabel}
       </a>
     </article>
@@ -78,7 +78,7 @@ const readerLabel = user ? "You're signed in" : "Sign in";
   <hr class="mt-10 mb-6" />
 
   <section class="font-serif text-sm text-muted max-w-2xl">
-    <h3 class="font-display text-xl mb-2 text-ink">Enterprise</h3>
+    <h3 class="font-display text-xl mb-2 text-mist">Enterprise</h3>
     <p>
       Self-hosted Lighthouse with your own corpus + recipes + admin.
       Includes installation help and quarterly source curation. By
