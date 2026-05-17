@@ -608,12 +608,23 @@ class KnowledgeGraph:
         last_uuid = ""
         for i, chunk in enumerate(chunks):
             chunk_name = name if len(chunks) == 1 else f"{name} (part {i + 1}/{len(chunks)})"
+            # Pass an empty previous-episode list to skip Graphiti's
+            # auto-load of recent episodes as extraction context.
+            # On a large multi-source corpus that auto-load pulls in
+            # 3 recent 12 KB episodes from the same group_id, plus
+            # the structured-output schema, and the combined prompt
+            # blew gpt-4o-mini's responses-API context window on
+            # every MDN page during Phase 9b (3000/3000 failed).
+            # We don't need cross-episode dedup at this stage —
+            # Graphiti's entity-resolution layer dedups via embedding
+            # similarity over the whole graph anyway.
             result = await client.add_episode(
                 name=chunk_name,
                 episode_body=chunk,
                 source_description=source,
                 reference_time=ref,
                 group_id=group_id,
+                previous_episode_uuids=[],
             )
             episode = getattr(result, "episode", None)
             uuid = getattr(episode, "uuid", None) if episode is not None else None
