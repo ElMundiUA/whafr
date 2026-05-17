@@ -78,6 +78,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     mcp_cmd.add_argument("--host", default="127.0.0.1")
     mcp_cmd.add_argument("--port", type=int, default=8765)
+    mcp_cmd.add_argument(
+        "--backend",
+        choices=["graphiti", "flat"],
+        default="flat",
+        help="Retrieval backend. 'flat' (default, production) reads "
+        "chunks from pgvector with summary + keywords + reranker. "
+        "'graphiti' reads :Episodic from Neo4j (legacy).",
+    )
 
     ingest = sub.add_parser("ingest", help="Drain a source into the graph")
     ingest_sub = ingest.add_subparsers(dest="source", required=True)
@@ -168,7 +176,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "serve":
         return _serve()
     if args.cmd == "mcp":
-        return _mcp(args.transport, args.host, args.port)
+        return _mcp(args.transport, args.host, args.port, args.backend)
     if args.cmd == "runner":
         return asyncio.run(
             _runner(
@@ -214,17 +222,25 @@ def _serve() -> int:
     return 0
 
 
-def _mcp(transport: str, host: str, port: int) -> int:
+def _mcp(transport: str, host: str, port: int, backend: str = "flat") -> int:
     from pathlib import Path
 
     from lighthouse.core.config import get_settings
-    from lighthouse.core.graph import KnowledgeGraph
     from lighthouse.librarian.agent import Librarian
     from lighthouse.mcp.server import run_http, run_stdio
     from lighthouse.proposals.store import GitProposalStore
 
     settings = get_settings()
-    graph = KnowledgeGraph(settings)
+    if backend == "flat":
+        from lighthouse.core.flat_graph import FlatGraph
+
+        graph: Any = FlatGraph(settings)
+        logger.info("MCP serving FLAT backend (pgvector)")
+    else:
+        from lighthouse.core.graph import KnowledgeGraph
+
+        graph = KnowledgeGraph(settings)
+        logger.info("MCP serving GRAPHITI backend (Neo4j)")
     store = GitProposalStore(Path(settings.lighthouse_proposals_dir))
     librarian = Librarian(settings)
 

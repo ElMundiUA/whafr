@@ -140,6 +140,13 @@ def build_server(
     librarian: Librarian | None = None,
     queue: ProposalQueue | None = None,
 ) -> FastMCP:
+    """Wire the FastMCP server against either the Graphiti
+    :class:`KnowledgeGraph` (legacy Neo4j path) or the
+    :class:`lighthouse.core.flat_graph.FlatGraph` (current
+    pgvector-backed flat-RAG path) — both expose ``search()`` and
+    ``fetch_source()`` with the same wire contract. The caller picks
+    the engine by passing the right instance.
+    """
     """Wire a :class:`FastMCP` instance with all three tools.
 
     Each dependency is a parameter so tests inject fakes without

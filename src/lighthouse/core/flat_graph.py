@@ -582,39 +582,54 @@ class FlatGraph:
             ranked.append(h)
         return ranked[:top_k]
 
-    async def fetch_source(
-        self, chunk_id: str, *, max_chars: int = 6000
-    ) -> dict[str, Any] | None:
-        """Return the chunk body, capped to ``max_chars``. Same
-        shape the MCP ``fetch_source`` tool already serialises."""
+    async def fetch_source(self, chunk_id: str):
+        """Return the chunk row as a ``GraphSource``-shaped object so
+        the MCP server treats us identically to the Graphiti path.
+
+        No truncation here — callers (MCP, bench) handle ``max_chars``.
+        Returns ``None`` when the uuid doesn't match a Chunk row.
+        Accepts a string (full uuid) or short-prefix (the wire form
+        the bench uses, e.g. ``ep:9f3a2c``).
+        """
+        # Resolve short prefix → full uuid via column scan. Cheap
+        # (PK lookup when full), bounded (LIMIT 1) when prefix.
+        from lighthouse.core.graph import GraphSource
+
         pool = await self._pool_lazy()
         async with pool.acquire() as conn:
-            row = await conn.fetchrow(
-                "SELECT uuid, name, source, url, content, published_at "
-                "FROM chunks WHERE uuid = $1",
-                _uuid.UUID(chunk_id) if isinstance(chunk_id, str) else chunk_id,
-            )
+            row = None
+            try:
+                uid = _uuid.UUID(chunk_id)
+                row = await conn.fetchrow(
+                    "SELECT uuid, name, source, url, content, "
+                    "published_at, ingested_at FROM chunks WHERE uuid = $1",
+                    uid,
+                )
+            except (ValueError, AttributeError):
+                # Short prefix — fall back to LIKE on the uuid string.
+                row = await conn.fetchrow(
+                    "SELECT uuid, name, source, url, content, "
+                    "published_at, ingested_at FROM chunks "
+                    "WHERE replace(uuid::text, '-', '') LIKE $1 LIMIT 1",
+                    str(chunk_id).lower() + "%",
+                )
         if row is None:
             return None
-        cap = max(200, min(int(max_chars), 20000))
-        body = row["content"] or ""
-        truncated = len(body) > cap
-        if truncated:
-            body = body[:cap]
-        return {
-            "episode_id": str(row["uuid"]),
-            "name": row["name"],
-            "source": row["source"],
-            "url": row["url"],
-            "content": body,
-            "truncated": truncated,
-            "full_length": len(row["content"] or ""),
-            "valid_at": (
-                row["published_at"].isoformat()
-                if row["published_at"] is not None
-                else None
-            ),
-        }
+        return GraphSource(
+            episode_id=str(row["uuid"]),
+            name=row["name"] or "",
+            source=row["source"] or "",
+            content=row["content"] or "",
+            created_at=row["ingested_at"],
+            valid_at=row["published_at"],
+        )
+
+    async def fetch(self, node_id: str):
+        """No entity layer in flat-RAG — return ``None``. Kept so the
+        MCP server can call ``fetch_entity`` against either backend
+        and get a graceful empty result on the flat side instead of
+        an AttributeError."""
+        return None
 
     # ---- internals -----------------------------------------------------
 

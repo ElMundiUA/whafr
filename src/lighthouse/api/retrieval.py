@@ -19,13 +19,12 @@ its own auth.
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from lighthouse.api.dependencies import get_graph
-from lighthouse.core.graph import KnowledgeGraph
 
 router = APIRouter(tags=["retrieval"])
 
@@ -78,31 +77,47 @@ class SourceResponse(BaseModel):
 @router.get("/search", response_model=SearchResponse)
 async def search(
     q: Annotated[str, Query(min_length=1, description="Natural-language query")],
-    graph: Annotated[KnowledgeGraph, Depends(get_graph)],
+    graph: Annotated[Any, Depends(get_graph)],
     top_k: Annotated[int, Query(ge=1, le=50)] = 10,
 ) -> SearchResponse:
     hits = await graph.search(q, top_k=top_k)
+    # Build response from whichever hit type the engine returned —
+    # GraphSearchHit (Graphiti) carries entity uuids; FlatHit
+    # (pgvector) doesn't have an entity layer so those fields are
+    # None. valid_from/valid_until map to GraphSearchHit timestamps
+    # OR FlatHit.published_at, depending on engine.
     return SearchResponse(
         query=q,
         hits=[
             SearchHit(
                 node_id=h.node_id,
                 summary=h.summary,
-                source_node_id=h.source_node_uuid or None,
-                target_node_id=h.target_node_uuid or None,
-                valid_from=h.valid_from.isoformat() if h.valid_from else None,
-                valid_until=h.valid_until.isoformat() if h.valid_until else None,
-                episode_ids=list(h.episode_ids),
+                source_node_id=getattr(h, "source_node_uuid", None) or None,
+                target_node_id=getattr(h, "target_node_uuid", None) or None,
+                valid_from=_iso_or_none(
+                    getattr(h, "valid_from", None)
+                    or getattr(h, "published_at", None)
+                ),
+                valid_until=_iso_or_none(getattr(h, "valid_until", None)),
+                episode_ids=list(getattr(h, "episode_ids", []) or []),
             )
             for h in hits
         ],
     )
 
 
+def _iso_or_none(v: Any) -> str | None:
+    if v is None:
+        return None
+    if hasattr(v, "isoformat"):
+        return v.isoformat()
+    return str(v)
+
+
 @router.get("/fetch_entity/{node_id}", response_model=EntityResponse)
 async def fetch_entity(
     node_id: str,
-    graph: Annotated[KnowledgeGraph, Depends(get_graph)],
+    graph: Annotated[Any, Depends(get_graph)],
 ) -> EntityResponse:
     if not node_id:
         raise HTTPException(status_code=400, detail="node_id required")
@@ -122,7 +137,7 @@ async def fetch_entity(
 @router.get("/fetch/{node_id}", response_model=EntityResponse, include_in_schema=False)
 async def fetch_legacy(
     node_id: str,
-    graph: Annotated[KnowledgeGraph, Depends(get_graph)],
+    graph: Annotated[Any, Depends(get_graph)],
 ) -> EntityResponse:
     return await fetch_entity(node_id, graph)
 
@@ -130,7 +145,7 @@ async def fetch_legacy(
 @router.get("/fetch_source/{episode_id}", response_model=SourceResponse)
 async def fetch_source(
     episode_id: str,
-    graph: Annotated[KnowledgeGraph, Depends(get_graph)],
+    graph: Annotated[Any, Depends(get_graph)],
 ) -> SourceResponse:
     if not episode_id:
         raise HTTPException(status_code=400, detail="episode_id required")
@@ -142,6 +157,6 @@ async def fetch_source(
         name=src.name,
         source=src.source,
         content=src.content,
-        created_at=src.created_at.isoformat() if src.created_at else None,
-        valid_at=src.valid_at.isoformat() if src.valid_at else None,
+        created_at=_iso_or_none(getattr(src, "created_at", None)),
+        valid_at=_iso_or_none(getattr(src, "valid_at", None)),
     )

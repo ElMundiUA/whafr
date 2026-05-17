@@ -9,24 +9,45 @@ without monkey-patching modules.
 
 from __future__ import annotations
 
+import logging
+import os
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 from lighthouse.core.config import get_settings
-from lighthouse.core.graph import KnowledgeGraph
 from lighthouse.librarian.agent import Librarian
 from lighthouse.proposals.queue import ProposalQueue
 from lighthouse.proposals.store import GitProposalStore
 
+logger = logging.getLogger(__name__)
+
 
 @lru_cache(maxsize=1)
-def get_graph() -> KnowledgeGraph:
-    """Process-singleton :class:`KnowledgeGraph`.
+def get_graph() -> Any:
+    """Process-singleton retrieval engine.
 
-    Cached so every request reuses the same Neo4j connection. The
-    cache is cleared between test runs via ``get_graph.cache_clear()``
-    when a fake graph is injected; production never clears it.
+    Picks the engine from ``LIGHTHOUSE_BACKEND`` env var:
+    - ``flat`` (default — production): pgvector with summary +
+      keywords + reranker. The Graphiti / Neo4j path is being
+      retired; see docs/flat-rag-migration.md.
+    - ``graphiti``: legacy :class:`KnowledgeGraph` against Neo4j.
+      Kept reachable for the deprecation window — flip the env back
+      to ``graphiti`` to roll back.
+
+    Cached so every request reuses the same connection pool. Tests
+    override via ``app.dependency_overrides[get_graph]`` rather
+    than touching the cache.
     """
+    backend = os.environ.get("LIGHTHOUSE_BACKEND", "flat").lower()
+    if backend == "flat":
+        from lighthouse.core.flat_graph import FlatGraph
+
+        logger.info("API serving FLAT backend (pgvector)")
+        return FlatGraph()
+    from lighthouse.core.graph import KnowledgeGraph
+
+    logger.info("API serving GRAPHITI backend (Neo4j)")
     return KnowledgeGraph()
 
 
