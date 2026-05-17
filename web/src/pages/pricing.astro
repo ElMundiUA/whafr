@@ -1,5 +1,18 @@
 ---
 import Newspaper from "@/layouts/Newspaper.astro";
+import { checkoutUrl } from "@/lib/paddle";
+
+export const prerender = false;
+
+const user = Astro.locals.user;
+const upgradeHref = user
+  ? checkoutUrl(user.sub, user.email)
+  : "/api/auth/login?return_to=/pricing";
+const upgradeLabel = user
+  ? user.tier === "pro" ? "Manage subscription" : "Subscribe"
+  : "Sign in to subscribe";
+const readerHref = user ? "/" : "/api/auth/login?return_to=/";
+const readerLabel = user ? "You're signed in" : "Sign in";
 ---
 
 <Newspaper title="Subscribe — Lighthouse" section="SUBSCRIBE" pageHeading="Three editions">
@@ -37,8 +50,8 @@ import Newspaper from "@/layouts/Newspaper.astro";
         <li>Full chunk view (<code class="font-mono text-xs">fetch_source</code>)</li>
         <li>One MCP token for personal use</li>
       </ul>
-      <a href="/login" class="mt-5 inline-block bg-ink text-paper px-4 py-1.5 hover:bg-accent text-xs uppercase tracking-flag font-mono">
-        Sign in
+      <a href={readerHref} class="mt-5 inline-block bg-ink text-paper px-4 py-1.5 hover:bg-accent text-xs uppercase tracking-flag font-mono">
+        {readerLabel}
       </a>
     </article>
 
@@ -56,8 +69,8 @@ import Newspaper from "@/layouts/Newspaper.astro";
           <code class="font-mono text-xs">version</code>)</li>
         <li>Email when a watched topic moves</li>
       </ul>
-      <a href="/checkout?plan=pro" class="mt-5 inline-block bg-accent text-paper px-4 py-1.5 hover:bg-ink text-xs uppercase tracking-flag font-mono">
-        Subscribe
+      <a href={upgradeHref} class="mt-5 inline-block bg-accent text-paper px-4 py-1.5 hover:bg-ink text-xs uppercase tracking-flag font-mono">
+        {upgradeLabel}
       </a>
     </article>
   </section>

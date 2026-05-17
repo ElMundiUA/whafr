@@ -2,6 +2,7 @@
 import Newspaper from "@/layouts/Newspaper.astro";
 import SearchBar from "@/components/SearchBar.astro";
 import ChunkCard from "@/components/ChunkCard.astro";
+import { bumpAndCheck, clientIp, subjectFor, tierForUser, LIMITS } from "@/lib/usage";
 
 export const prerender = false;
 
@@ -10,9 +11,13 @@ const API_BASE =
   "https://lighthouse.harborgang.com";
 
 const q = Astro.url.searchParams.get("q")?.trim() ?? "";
+const user = Astro.locals.user;
+const tier = tierForUser(user);
+// Pro gets a richer top-k by default; anon/free capped at 10.
+const userMax = tier === "pro" ? 30 : 10;
 const topK = Math.min(
   Math.max(parseInt(Astro.url.searchParams.get("k") || "10", 10) || 10, 1),
-  30,
+  userMax,
 );
 
 interface Hit {
@@ -24,17 +29,28 @@ interface Hit {
 
 let hits: Hit[] = [];
 let errored = false;
+let rateLimited = false;
+let usageRemaining: number = LIMITS[tier];
+let usageCount = 0;
 if (q) {
   try {
-    const r = await fetch(
-      `${API_BASE}/search?q=${encodeURIComponent(q)}&top_k=${topK}`,
-      { headers: { Accept: "application/json" } },
-    );
-    if (r.ok) {
-      const data = await r.json();
-      hits = data.hits || [];
+    const subject = subjectFor(user, clientIp(Astro.request));
+    const check = await bumpAndCheck(subject, LIMITS[tier]);
+    usageRemaining = check.remaining;
+    usageCount = check.count;
+    if (!check.allowed) {
+      rateLimited = true;
     } else {
-      errored = true;
+      const r = await fetch(
+        `${API_BASE}/search?q=${encodeURIComponent(q)}&top_k=${topK}`,
+        { headers: { Accept: "application/json" } },
+      );
+      if (r.ok) {
+        const data = await r.json();
+        hits = data.hits || [];
+      } else {
+        errored = true;
+      }
     }
   } catch {
     errored = true;
@@ -75,9 +91,34 @@ const title = q ? `${q} — Lighthouse` : "Search — Lighthouse";
     </section>
   )}
 
-  {q && errored && (
+  {q && rateLimited && (
+    <p class="text-accent border-2 border-accent p-4 font-serif">
+      Daily search limit reached
+      ({usageCount} of {LIMITS[tier]} used as a {tier === "anon" ? "guest" : `${tier} reader`}).
+      {tier === "anon" && (
+        <>
+          {" "}<a href="/api/auth/login?return_to=/search" class="underline">Sign in</a> for 100 / day,
+          or <a href="/pricing" class="underline">upgrade to Pro</a> for 5,000 / day.
+        </>
+      )}
+      {tier === "free" && (
+        <>
+          {" "}<a href="/pricing" class="underline">Upgrade to Pro</a> for 5,000 / day.
+        </>
+      )}
+      Counter resets at 00:00 UTC.
+    </p>
+  )}
+
+  {q && errored && !rateLimited && (
     <p class="text-accent border border-accent p-4">
       Couldn't reach the search backend. Try again in a moment.
+    </p>
+  )}
+
+  {q && !errored && !rateLimited && (
+    <p class="text-xs font-mono uppercase tracking-flag text-muted mb-4">
+      {usageRemaining} of {LIMITS[tier]} {tier} searches left today
     </p>
   )}
 

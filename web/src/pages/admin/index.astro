@@ -1,0 +1,88 @@
+---
+import Newspaper from "@/layouts/Newspaper.astro";
+import { corpusOverview, topSources } from "@/lib/admin";
+
+export const prerender = false;
+
+const user = Astro.locals.user;
+if (!user || !user.is_admin) {
+  return Astro.redirect("/api/auth/login?return_to=/admin");
+}
+
+let overview: Awaited<ReturnType<typeof corpusOverview>> | null = null;
+let sources: Awaited<ReturnType<typeof topSources>> = [];
+let dbError: string | null = null;
+try {
+  [overview, sources] = await Promise.all([corpusOverview(), topSources(40)]);
+} catch (err) {
+  dbError = String(err);
+}
+
+function pct(num: number, denom: number): string {
+  if (denom === 0) return "0%";
+  return `${Math.round((num / denom) * 100)}%`;
+}
+---
+
+<Newspaper title="Admin — Lighthouse" section="ADMIN" pageHeading="Corpus desk">
+  {dbError && (
+    <p class="text-accent border-2 border-accent p-3 font-mono text-xs mb-6">
+      {dbError}
+    </p>
+  )}
+
+  {overview && (
+    <section class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10">
+      <article class="border-2 border-rule p-4">
+        <p class="byline">Chunks</p>
+        <p class="font-display text-3xl">{overview.total_chunks.toLocaleString()}</p>
+      </article>
+      <article class="border-2 border-rule p-4">
+        <p class="byline">Sources</p>
+        <p class="font-display text-3xl">{overview.total_sources}</p>
+      </article>
+      <article class="border-2 border-rule p-4">
+        <p class="byline">w/ summary</p>
+        <p class="font-display text-3xl">{pct(overview.with_summary, overview.total_chunks)}</p>
+      </article>
+      <article class="border-2 border-rule p-4">
+        <p class="byline">w/ keywords</p>
+        <p class="font-display text-3xl">{pct(overview.with_keywords, overview.total_chunks)}</p>
+      </article>
+      <article class="border-2 border-rule p-4">
+        <p class="byline">w/ embedding</p>
+        <p class="font-display text-3xl">{pct(overview.with_embedding, overview.total_chunks)}</p>
+      </article>
+    </section>
+  )}
+
+  <nav class="font-mono text-xs uppercase tracking-flag mb-6 flex gap-x-6">
+    <a href="/admin">Corpus</a>
+    <a href="/admin/users">Users</a>
+    <a href="/admin/billing">Billing</a>
+  </nav>
+
+  <section>
+    <h3 class="font-display text-2xl mb-4">Top sources by chunk count</h3>
+    <table class="w-full text-sm font-serif">
+      <thead>
+        <tr class="text-left border-b-2 border-rule font-mono uppercase tracking-flag text-xs">
+          <th class="py-2">Source</th>
+          <th class="py-2 w-24 text-right">Chunks</th>
+          <th class="py-2 w-44">Last ingest</th>
+          <th class="py-2 w-32">Earliest</th>
+        </tr>
+      </thead>
+      <tbody>
+        {sources.map((s) => (
+          <tr class="border-b border-rule">
+            <td class="py-1.5 break-all">{s.source}</td>
+            <td class="py-1.5 text-right tabular-nums">{Number(s.chunks).toLocaleString()}</td>
+            <td class="py-1.5 text-muted">{s.last_ingest ? new Date(s.last_ingest).toISOString().slice(0, 19).replace("T", " ") : "—"}</td>
+            <td class="py-1.5 text-muted">{s.earliest_published ? new Date(s.earliest_published).toISOString().slice(0, 10) : "—"}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </section>
+</Newspaper>

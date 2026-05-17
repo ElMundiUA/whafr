@@ -32,6 +32,9 @@ const today = new Date().toLocaleDateString("en-US", {
 
 // Static "edition" line — tweak when the corpus passes a milestone.
 const edition = "Vol. I · Edition 001";
+
+const user = Astro.locals.user;
+const currentPath = Astro.url.pathname + Astro.url.search;
 ---
 
 <!doctype html>
@@ -62,12 +65,30 @@ const edition = "Vol. I · Edition 001";
         </div>
       </div>
       <div class="border-t border-b border-rule">
-        <nav class="max-w-broadsheet mx-auto px-6 py-2 flex justify-center gap-x-8 text-xs font-mono uppercase tracking-flag">
-          <a href="/" class="no-underline hover:text-accent">Front Page</a>
-          <a href="/search" class="no-underline hover:text-accent">Search</a>
-          <a href="/sections" class="no-underline hover:text-accent">Sections</a>
-          <a href="/about" class="no-underline hover:text-accent">About</a>
-          <a href="/pricing" class="no-underline hover:text-accent">Subscribe</a>
+        <nav class="max-w-broadsheet mx-auto px-6 py-2 flex justify-between items-center text-xs font-mono uppercase tracking-flag">
+          <div class="flex gap-x-8">
+            <a href="/" class="no-underline hover:text-accent">Front Page</a>
+            <a href="/search" class="no-underline hover:text-accent">Search</a>
+            <a href="/sections" class="no-underline hover:text-accent">Sections</a>
+            <a href="/about" class="no-underline hover:text-accent">About</a>
+            <a href="/pricing" class="no-underline hover:text-accent">Subscribe</a>
+          </div>
+          <div class="flex gap-x-4 items-center">
+            {user ? (
+              <>
+                {user.is_admin && (
+                  <a href="/admin" class="no-underline hover:text-accent">Admin</a>
+                )}
+                <span class="text-muted normal-case tracking-normal font-serif italic">
+                  {user.tier === "pro" ? "Pro" : "Reader"} · {user.email}
+                </span>
+                <a href="/api/auth/logout" class="no-underline hover:text-accent">Sign out</a>
+              </>
+            ) : (
+              <a href={`/api/auth/login?return_to=${encodeURIComponent(currentPath)}`}
+                 class="no-underline hover:text-accent">Sign in</a>
+            )}
+          </div>
         </nav>
       </div>
     </header>

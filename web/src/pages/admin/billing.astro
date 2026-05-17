@@ -1,0 +1,59 @@
+---
+import Newspaper from "@/layouts/Newspaper.astro";
+import { recentPaddleEvents } from "@/lib/admin";
+
+export const prerender = false;
+
+const user = Astro.locals.user;
+if (!user || !user.is_admin) {
+  return Astro.redirect("/api/auth/login?return_to=/admin/billing");
+}
+
+let events: Awaited<ReturnType<typeof recentPaddleEvents>> = [];
+let dbError: string | null = null;
+try {
+  events = await recentPaddleEvents(60);
+} catch (err) {
+  dbError = String(err);
+}
+---
+
+<Newspaper title="Billing — Lighthouse Admin" section="ADMIN" pageHeading="Paddle ledger">
+  <nav class="font-mono text-xs uppercase tracking-flag mb-6 flex gap-x-6">
+    <a href="/admin">Corpus</a>
+    <a href="/admin/users">Users</a>
+    <a href="/admin/billing">Billing</a>
+  </nav>
+
+  {dbError && (
+    <p class="text-accent border-2 border-accent p-3 font-mono text-xs mb-6">{dbError}</p>
+  )}
+
+  <p class="font-serif text-sm text-muted mb-6 max-w-2xl">
+    Last 60 webhook receipts, newest first. <code class="font-mono">processed_at</code>
+    is set after the user-state apply path commits; rows still empty there are
+    either no-op event types (e.g. <code class="font-mono">transaction.*</code>) or
+    failures that bubbled up to Paddle's retry queue.
+  </p>
+
+  <table class="w-full text-sm font-serif">
+    <thead>
+      <tr class="text-left border-b-2 border-rule font-mono uppercase tracking-flag text-xs">
+        <th class="py-2">Event ID</th>
+        <th class="py-2 w-56">Type</th>
+        <th class="py-2 w-44">Received</th>
+        <th class="py-2 w-44">Processed</th>
+      </tr>
+    </thead>
+    <tbody>
+      {events.map((e) => (
+        <tr class="border-b border-rule">
+          <td class="py-1.5 font-mono text-xs">{e.event_id}</td>
+          <td class="py-1.5">{e.event_type}</td>
+          <td class="py-1.5 text-muted">{new Date(e.received_at).toISOString().slice(0, 19).replace("T", " ")}</td>
+          <td class="py-1.5 text-muted">{e.processed_at ? new Date(e.processed_at).toISOString().slice(0, 19).replace("T", " ") : "—"}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</Newspaper>

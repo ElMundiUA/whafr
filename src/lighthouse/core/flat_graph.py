@@ -628,20 +628,62 @@ class FlatGraph:
     # ---- internals -----------------------------------------------------
 
     async def _embed_batch(self, texts: list[str]) -> list[list[float]]:
-        """Batch embedding via OpenAI. One request per chunk batch
-        instead of per-chunk."""
+        """Batch embedding via OpenAI. Two budgets to respect:
+
+        * Per-input: ``text-embedding-3-*`` accept 8192 tokens. A
+          12K-char chunk of dense markdown (code, math) can blow
+          that. We pre-truncate to ~24K *characters* — well under
+          8192 tokens even at the worst byte/token ratio.
+        * Per-request: the API rejects requests over ~300K total
+          tokens. We sub-batch into groups whose summed length stays
+          well below that.
+
+        Both caps got hit during the May 2026 role-recipe ingest;
+        before this guard, a single oversized chunk would fail the
+        whole document.
+        """
         if not texts:
             return []
         from openai import AsyncOpenAI
 
+        # Conservative: 4 chars/token is a typical floor for English
+        # prose; code/JSON can dip to ~2. 24K chars at 2 chars/tok
+        # = 12K tokens, still over 8192 — so cap at 16000 chars to
+        # be safe for the most token-dense inputs.
+        PER_INPUT_CHAR_CAP = 16_000
+        # Sub-batch budget. ~64K chars ≈ 32K tokens for prose; even
+        # at code density (~16K tokens) we stay an order of
+        # magnitude under the 300K request cap.
+        PER_BATCH_CHAR_BUDGET = 64_000
+
+        truncated = [t[:PER_INPUT_CHAR_CAP] for t in texts]
+
         s = self._settings
         client = AsyncOpenAI(api_key=s.openai_api_key)
-        resp = await client.embeddings.create(
-            model=s.openai_embedding_model,
-            input=texts,
-            dimensions=int(s.openai_embedding_dim),
-        )
-        return [d.embedding for d in resp.data]
+
+        out: list[list[float]] = []
+        batch: list[str] = []
+        batch_chars = 0
+        for t in truncated:
+            if batch and batch_chars + len(t) > PER_BATCH_CHAR_BUDGET:
+                resp = await client.embeddings.create(
+                    model=s.openai_embedding_model,
+                    input=batch,
+                    dimensions=int(s.openai_embedding_dim),
+                )
+                out.extend(d.embedding for d in resp.data)
+                batch = []
+                batch_chars = 0
+            batch.append(t)
+            batch_chars += len(t)
+        if batch:
+            resp = await client.embeddings.create(
+                model=s.openai_embedding_model,
+                input=batch,
+                dimensions=int(s.openai_embedding_dim),
+            )
+            out.extend(d.embedding for d in resp.data)
+        return out
 
     async def _search_bm25(
         self,
