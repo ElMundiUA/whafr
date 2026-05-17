@@ -349,11 +349,42 @@ class KnowledgeGraph:
         episode projected into the same hit shape as edge results,
         with ``summary`` set to a snippet of the body so procedural
         queries get back actual prose, not just one-line facts.
+
+        Release-note / news episodes (``gh-releases-*``, ``rss-*``)
+        are excluded by default — they pollute "how does X work?"
+        queries with changelog diffs and announcement blurbs that
+        keyword-match but answer the wrong question. We re-include
+        them when the query phrasing signals the caller actually
+        wants the changelog ("what's new", "release notes", "added
+        in v…", "changelog", "vX.Y.Z").
         """
         from neo4j import AsyncGraphDatabase
         from neo4j.time import DateTime as Neo4jDateTime
 
         SNIPPET_CHARS = 280
+
+        # Phrasing-based switch — terse but covers the common forms.
+        ql = query.lower()
+        want_releases = any(
+            kw in ql
+            for kw in (
+                "what's new",
+                "whats new",
+                "what is new",
+                "release note",
+                "changelog",
+                "since version",
+                "added in v",
+                "added in version",
+                " release ",
+                "deprecate",
+            )
+        ) or any(
+            f" v{n}" in f" {ql}" for n in range(3, 30)
+        )  # " v3" .. " v29" → version-pin queries
+        excluded_prefixes = (
+            [] if want_releases else ["gh-releases-", "rss-"]
+        )
         driver = AsyncGraphDatabase.driver(
             self._settings.neo4j_uri,
             auth=(self._settings.neo4j_user, self._settings.neo4j_password),
@@ -366,17 +397,27 @@ class KnowledgeGraph:
                 safe_q = "".join(c if c.isalnum() or c in " -_" else " " for c in query).strip()
                 if not safe_q:
                     return []
-                result = await session.run(
+                where_clauses = ["node:Episodic"]
+                if excluded_prefixes:
+                    where_clauses.append(
+                        "NOT any(p IN $excluded WHERE "
+                        "node.source_description STARTS WITH p)"
+                    )
+                cypher = (
                     "CALL db.index.fulltext.queryNodes($idx, $q) "
                     "YIELD node, score "
-                    "WHERE node:Episodic "
+                    "WHERE " + " AND ".join(where_clauses) + " "
                     "RETURN node.uuid AS uuid, node.name AS name, "
                     "node.source_description AS source, node.content AS content, "
                     "node.valid_at AS valid_at, score "
-                    "ORDER BY score DESC LIMIT $limit",
+                    "ORDER BY score DESC LIMIT $limit"
+                )
+                result = await session.run(
+                    cypher,
                     idx="episode_content",
                     q=safe_q,
                     limit=int(limit),
+                    excluded=excluded_prefixes,
                 )
                 rows = [r async for r in result]
         except Exception:
