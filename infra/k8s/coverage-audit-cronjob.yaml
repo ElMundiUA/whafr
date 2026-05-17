@@ -34,11 +34,9 @@ spec:
       template:
         spec:
           restartPolicy: Never
-          imagePullSecrets:
-            - name: ghcr-pull
           containers:
             - name: audit
-              image: ghcr.io/elmundiua/lighthouse:latest
+              image: dekus/lighthouse:latest
               imagePullPolicy: Always
               command: ["sh", "-c"]
               # Write to /var/audits inside the pod; tail the markdown
