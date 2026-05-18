@@ -1,0 +1,247 @@
+# Second targeted-URL recipe — covers the 4 domains still below the
+# 3.0-useful threshold after the gaps-pm-clr-dev ingest:
+#   decomposition (2.00), architecture (2.36), planning (2.68),
+#   self-heal (2.52).
+#
+# Same shape as gaps-pm-clr-dev: a handful of concrete URLs per
+# domain pointing at the exact pages that answer the audit queries
+# in data/coverage-eval/queries.yaml.
+
+role: gaps-dec-arc-plan-sh
+sources:
+  # ---------- decomposition ----------
+  - name: dc-wbs
+    role: decomposition
+    connector: web
+    args:
+      urls:
+        - https://www.workbreakdownstructure.com/
+        - https://www.atlassian.com/agile/project-management/work-breakdown-structure
+        - https://www.pmi.org/learning/library/work-breakdown-structure-template-7654
+        - https://www.productplan.com/glossary/work-breakdown-structure/
+    schedule: { every: 60d }
+
+  - name: dc-story-slicing
+    role: decomposition
+    connector: web
+    args:
+      urls:
+        - https://www.agileforall.com/wp-content/uploads/2012/06/Story-Splitting-Cheat-Sheet.pdf
+        - https://www.agileforall.com/new-story-splitting-resource/
+        - https://www.industriallogic.com/blog/elephant-carpaccio/
+        - https://wiki.c2.com/?StorySplit
+        - https://xp123.com/articles/twenty-ways-to-split-stories/
+    schedule: { every: 60d }
+
+  - name: dc-invest
+    role: decomposition
+    connector: web
+    args:
+      urls:
+        - https://xp123.com/articles/invest-in-good-stories-and-smart-tasks/
+        - https://www.agilealliance.org/glossary/invest/
+        - https://www.scaledagileframework.com/story/
+    schedule: { every: 60d }
+
+  - name: dc-mece-bill-wake
+    role: decomposition
+    connector: sitemap
+    args:
+      root: https://xp123.com
+      max_pages: 150
+      include_paths: [/articles/]
+    schedule: { every: 30d }
+
+  - name: dc-richardlawrence
+    role: decomposition
+    connector: sitemap
+    args:
+      root: https://www.richardlawrence.info
+      max_pages: 80
+    schedule: { every: 30d }
+
+  # ---------- architecture ----------
+  - name: arc-crdt-vs-ot
+    role: architecture
+    connector: web
+    args:
+      urls:
+        - https://www.bartoszsypytkowski.com/the-state-of-a-state-based-crdts/
+        - https://www.bartoszsypytkowski.com/operation-based-crdts-arrays-1/
+        - https://crdt.tech/
+        - https://josephg.com/blog/crdts-go-brrr/
+        - https://josephg.com/blog/crdts-are-the-future/
+    schedule: { every: 90d }
+
+  - name: arc-event-sourcing-cqrs
+    role: architecture
+    connector: web
+    args:
+      urls:
+        - https://martinfowler.com/eaaDev/EventSourcing.html
+        - https://martinfowler.com/bliki/CQRS.html
+        - https://microservices.io/patterns/data/event-sourcing.html
+        - https://microservices.io/patterns/data/cqrs.html
+        - https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing
+        - https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs
+    schedule: { every: 90d }
+
+  - name: arc-saga
+    role: architecture
+    connector: web
+    args:
+      urls:
+        - https://microservices.io/patterns/data/saga.html
+        - https://learn.microsoft.com/en-us/azure/architecture/patterns/saga
+        - https://www.kamilgrzybek.com/blog/posts/distributed-transactions-modular-monolith-asp-net-core
+    schedule: { every: 90d }
+
+  - name: arc-hexagonal
+    role: architecture
+    connector: web
+    args:
+      urls:
+        - https://alistair.cockburn.us/hexagonal-architecture/
+        - https://herbertograca.com/2017/09/14/ports-adapters-architecture/
+        - https://netflixtechblog.com/ready-for-changes-with-hexagonal-architecture-b315ec967749
+    schedule: { every: 90d }
+
+  - name: arc-eventual-consistency
+    role: architecture
+    connector: web
+    args:
+      urls:
+        - https://martinfowler.com/articles/patterns-of-distributed-systems/anti-entropy.html
+        - https://martinfowler.com/articles/patterns-of-distributed-systems/
+        - https://www.allthingsdistributed.com/2008/12/eventually_consistent.html
+        - https://jepsen.io/consistency
+    schedule: { every: 90d }
+
+  - name: arc-microservices-io
+    role: architecture
+    connector: sitemap
+    args:
+      root: https://microservices.io
+      max_pages: 200
+      include_paths: [/patterns/]
+    schedule: { every: 30d }
+
+  # ---------- planning ----------
+  - name: pl-capacity-velocity
+    role: planning
+    connector: web
+    args:
+      urls:
+        - https://www.atlassian.com/agile/project-management/estimation
+        - https://www.atlassian.com/agile/project-management/sprint-planning
+        - https://www.mountaingoatsoftware.com/blog/where-do-story-points-come-from
+        - https://www.mountaingoatsoftware.com/blog/why-the-fibonacci-sequence-works-well-for-estimating
+    schedule: { every: 60d }
+
+  - name: pl-noestimates
+    role: planning
+    connector: web
+    args:
+      urls:
+        - https://ronjeffries.com/xprog/articles/the-noestimates-movement/
+        - https://neilkillick.com/2013/01/02/12-steps-towards-noestimates/
+        - https://www.allankellyassociates.co.uk/archives/4257/whats-wrong-with-estimation/
+    schedule: { every: 90d }
+
+  - name: pl-risk-register
+    role: planning
+    connector: web
+    args:
+      urls:
+        - https://www.pmi.org/learning/library/risk-management-process-overview-9001
+        - https://www.atlassian.com/work-management/project-management/risk-management
+        - https://en.wikipedia.org/wiki/Risk_register
+    schedule: { every: 90d }
+
+  - name: pl-rollback-deploy
+    role: planning
+    connector: web
+    args:
+      urls:
+        - https://martinfowler.com/bliki/BlueGreenDeployment.html
+        - https://martinfowler.com/bliki/CanaryRelease.html
+        - https://martinfowler.com/articles/feature-toggles.html
+        - https://www.atlassian.com/continuous-delivery/principles/deployment-strategies
+        - https://sre.google/sre-book/release-engineering/
+    schedule: { every: 60d }
+
+  - name: pl-shape-up
+    role: planning
+    connector: web
+    args:
+      urls:
+        - https://basecamp.com/shapeup/0.3-chapter-01
+        - https://basecamp.com/shapeup/1.1-chapter-02
+        - https://basecamp.com/shapeup/2.1-chapter-08
+        - https://basecamp.com/shapeup/3.1-chapter-12
+        - https://basecamp.com/shapeup/3.5-chapter-16
+    schedule: { every: 90d }
+
+  # ---------- self-heal / SRE ----------
+  - name: sh-google-sre-book
+    role: self-heal
+    connector: sitemap
+    args:
+      root: https://sre.google
+      max_pages: 250
+      include_paths: [/sre-book/, /workbook/]
+    schedule: { every: 60d }
+
+  - name: sh-incident-response
+    role: self-heal
+    connector: web
+    args:
+      urls:
+        - https://response.pagerduty.com/
+        - https://response.pagerduty.com/before/severity_levels/
+        - https://response.pagerduty.com/during/during_an_incident/
+        - https://response.pagerduty.com/after/post_mortem_process/
+        - https://github.com/dastergon/awesome-sre
+    schedule: { every: 60d }
+
+  - name: sh-brendan-gregg
+    role: self-heal
+    connector: sitemap
+    args:
+      root: https://www.brendangregg.com
+      max_pages: 200
+    schedule: { every: 30d }
+
+  - name: sh-postgres-perf
+    role: self-heal
+    connector: web
+    args:
+      urls:
+        - https://www.postgresql.org/docs/current/pgstatstatements.html
+        - https://www.postgresql.org/docs/current/auto-explain.html
+        - https://www.postgresql.org/docs/current/sql-explain.html
+        - https://wiki.postgresql.org/wiki/Slow_Query_Questions
+        - https://www.cybertec-postgresql.com/en/3-ways-to-detect-slow-queries-in-postgresql/
+    schedule: { every: 60d }
+
+  - name: sh-python-memory-debug
+    role: self-heal
+    connector: web
+    args:
+      urls:
+        - https://docs.python.org/3/library/tracemalloc.html
+        - https://docs.python.org/3/library/gc.html
+        - https://pythonspeed.com/articles/memory-profiling-debugging-pandas/
+        - https://pythonspeed.com/articles/python-out-of-memory/
+        - https://docs.python.org/3/library/resource.html
+    schedule: { every: 60d }
+
+  - name: sh-k8s-oom-debug
+    role: self-heal
+    connector: web
+    args:
+      urls:
+        - https://kubernetes.io/docs/tasks/debug/debug-application/debug-pods/
+        - https://kubernetes.io/docs/tasks/debug/debug-application/determine-reason-pod-failure/
+        - https://learnk8s.io/troubleshooting-deployments
+    schedule: { every: 60d }
