@@ -1,0 +1,63 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lighthouse-web
+  namespace: lighthouse
+  labels:
+    app.kubernetes.io/name: lighthouse-web
+    app.kubernetes.io/part-of: lighthouse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lighthouse-web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lighthouse-web
+    spec:
+      containers:
+        - name: web
+          image: dekus/lighthouse-web:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 4321
+              name: http
+          env:
+            - name: NODE_ENV
+              value: production
+            # API_BASE points at the in-cluster API service so SSR
+            # fetches don't ride the public ingress (cheaper, no TLS
+            # handshake per request).
+            - name: PUBLIC_LIGHTHOUSE_API_BASE
+              value: http://lighthouse-api.lighthouse.svc.cluster.local
+          envFrom:
+            # Carries AUTH0_*, SESSION_SECRET, ADMIN_EMAIL, PADDLE_*,
+            # LIGHTHOUSE_DATABASE_URL.
+            - secretRef:
+                name: lighthouse-web-env
+          readinessProbe:
+            httpGet: { path: /, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /, port: http }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests: { cpu: 100m, memory: 192Mi }
+            limits:   { cpu: 500m, memory: 512Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lighthouse-web
+  namespace: lighthouse
+spec:
+  selector:
+    app.kubernetes.io/name: lighthouse-web
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
