@@ -46,7 +46,7 @@ export async function topSources(limit = 30): Promise<SourceStat[]> {
     `SELECT
         source,
         COUNT(*)::int AS chunks,
-        MAX(valid_from) AS last_ingest,
+        MAX(ingested_at) AS last_ingest,
         MIN(published_at) AS earliest_published
        FROM chunks
        GROUP BY source
