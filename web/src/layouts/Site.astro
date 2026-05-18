@@ -15,15 +15,17 @@ interface Props {
   description?: string;
   pageHeading?: string;
   pageSubhead?: string;
-  fullBleed?: boolean;       // skip the default centered container
+  fullBleed?: boolean;
+  ogImage?: string;
 }
 
 const {
-  title = "Lighthouse — Knowledge for AI Agents",
-  description = "A knowledge base of canonical SDLC reference for AI agents — RFCs, OWASP, framework docs, methodology, post-cutoff streams.",
+  title = "Lighthouse — grounding layer for coding agents",
+  description = "Lighthouse indexes 71K chunks of canonical SDLC reference — RFCs, OWASP, NIST, framework docs — and serves them to coding agents over MCP. Apache-2.0. Hosted free, hosted paid, or self-host.",
   pageHeading,
   pageSubhead,
   fullBleed = false,
+  ogImage = "https://lighthouse.harborgang.com/og.png",
 } = Astro.props;
 
 const user = Astro.locals.user;
@@ -49,7 +51,6 @@ try {
 
 const nav = [
   { href: "/",          label: "Home" },
-  { href: "/search",    label: "Search" },
   { href: "/pricing",   label: "Pricing" },
   { href: "/about",     label: "About" },
 ];
@@ -71,7 +72,14 @@ function isActive(href: string): boolean {
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
+    <meta property="og:url" content={Astro.url.toString()} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
   </head>
   <body class="min-h-screen flex flex-col">
     <!-- ─────────────── Navbar ─────────────── -->
@@ -137,7 +145,7 @@ function isActive(href: string): boolean {
           ) : (
             <a href={`/api/auth/login?return_to=${encodeURIComponent(currentPath)}`}
                class="rounded-full bg-champagne px-4 py-1.5 font-semibold text-ink hover:brightness-110 no-underline">
-              Sign in
+              Sign in <span class="hidden md:inline font-normal opacity-75">· free, no card</span>
             </a>
           )}
         </div>
@@ -171,16 +179,44 @@ function isActive(href: string): boolean {
 
     <!-- ─────────────── Footer ─────────────── -->
     <footer class="mt-16 border-t border-white/10">
-      <div class="mx-auto max-w-[80rem] px-4 sm:px-6 py-8 flex flex-wrap items-baseline justify-between gap-y-3 text-xs text-mist/55">
-        <span>© {new Date().getFullYear()} Harbor Gang. Built in the open.</span>
-        <span class="flex flex-wrap gap-x-4 gap-y-1">
-          <a href="https://github.com/ElMundiUA/lighthouse" target="_blank" rel="noopener" class="hover:text-champagne">GitHub</a>
-          <a href="/mcp/" class="hover:text-champagne">MCP</a>
-          <a href="/about" class="hover:text-champagne">About</a>
-          <a href="/legal/privacy" class="hover:text-champagne">Privacy</a>
-          <a href="/legal/terms" class="hover:text-champagne">Terms</a>
-          <a href="/legal/cookies" class="hover:text-champagne">Cookies</a>
-        </span>
+      <div class="mx-auto max-w-[80rem] px-4 sm:px-6 py-10">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-sm">
+          <div>
+            <p class="section-kicker mb-3">Build</p>
+            <ul class="space-y-1.5 text-mist/65">
+              <li><a href="https://github.com/ElMundiUA/lighthouse" target="_blank" rel="noopener" class="hover:text-champagne no-underline">GitHub · Apache-2.0</a></li>
+              <li><a href="/mcp/" class="hover:text-champagne no-underline">MCP endpoint</a></li>
+              <li><a href="/v1/search" class="hover:text-champagne no-underline">REST API</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="section-kicker mb-3">Read</p>
+            <ul class="space-y-1.5 text-mist/65">
+              <li><a href="/about" class="hover:text-champagne no-underline">About</a></li>
+              <li><a href="/pricing" class="hover:text-champagne no-underline">Pricing</a></li>
+              <li><a href="/home" class="hover:text-champagne no-underline">MCP quick-start</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="section-kicker mb-3">Legal</p>
+            <ul class="space-y-1.5 text-mist/65">
+              <li><a href="/legal/privacy" class="hover:text-champagne no-underline">Privacy</a></li>
+              <li><a href="/legal/terms" class="hover:text-champagne no-underline">Terms</a></li>
+              <li><a href="/legal/cookies" class="hover:text-champagne no-underline">Cookies</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="section-kicker mb-3">Contact</p>
+            <ul class="space-y-1.5 text-mist/65">
+              <li><a href="mailto:hello@harborgang.com" class="hover:text-champagne no-underline">hello@harborgang.com</a></li>
+              <li class="text-mist/45 text-xs pt-1">Harbor Gang · Kyiv & remote EU</li>
+            </ul>
+          </div>
+        </div>
+        <p class="mt-8 pt-6 border-t border-white/5 text-xs text-mist/40">
+          © {new Date().getFullYear()} Harbor Gang. Built in the open at
+          <a href="https://github.com/ElMundiUA/lighthouse" class="hover:text-champagne">github.com/ElMundiUA/lighthouse</a>.
+        </p>
       </div>
     </footer>
   </body>

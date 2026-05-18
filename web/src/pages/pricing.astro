@@ -22,8 +22,8 @@ const paddleConfig = {
 };
 ---
 
-<Site title="Subscribe — Lighthouse" pageHeading="Pick a tier"
-      pageSubhead="All tiers see the same corpus — IETF RFCs, OWASP, NIST SP-800, framework docs, methodology, post-cutoff release streams. Daily caps reset at 00:00 UTC.">
+<Site title="Lighthouse pricing — $12/mo Pro, free anon, free self-host" pageHeading="Pick a tier"
+      pageSubhead="Same corpus on every tier — IETF RFCs, OWASP, NIST SP-800, framework docs, methodology, post-cutoff release streams. Caps reset 00:00 UTC. Cancel anytime, prorated. Self-host for free if you'd rather run your own index.">
 
   <!-- Single global Monthly / Annual toggle drives both Pro and Team -->
   <div class="flex justify-center my-8">
@@ -39,12 +39,12 @@ const paddleConfig = {
     </div>
   </div>
 
-  <section class="grid grid-cols-1 md:grid-cols-4 gap-5">
+  <section class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-5">
     <!-- Anonymous -->
     <article class="glass p-5 min-w-0">
       <p class="section-kicker mb-3">Anonymous</p>
       <p class="font-display text-3xl font-extrabold mb-1">Free</p>
-      <p class="text-xs text-mist/55 mb-4">No account</p>
+      <p class="text-xs text-mist/55 italic mb-4">Kicking the tyres.</p>
       <ul class="text-sm space-y-2 text-mist/80">
         <li>30 searches / day per IP</li>
         <li>Top-10 results</li>
@@ -52,7 +52,7 @@ const paddleConfig = {
         <li>No MCP token</li>
       </ul>
       <p class="mt-5 text-xs uppercase tracking-[0.15em] text-mist/55">
-        Try at <a href="/search" class="text-champagne">/search</a> first
+        Try the search bar on <a href="/" class="text-champagne">/</a>
       </p>
     </article>
 
@@ -60,7 +60,7 @@ const paddleConfig = {
     <article class="glass p-5 min-w-0">
       <p class="section-kicker mb-3">Reader</p>
       <p class="font-display text-3xl font-extrabold mb-1">Free</p>
-      <p class="text-xs text-mist/55 mb-4">Sign in</p>
+      <p class="text-xs text-mist/55 italic mb-4">Daily driver for one engineer.</p>
       <ul class="text-sm space-y-2 text-mist/80">
         <li>200 searches / day</li>
         <li>Top-15 results</li>
@@ -75,20 +75,21 @@ const paddleConfig = {
     <!-- Pro -->
     <article class="glass p-5 min-w-0 border-champagne/40 ring-1 ring-champagne/40">
       <p class="section-kicker mb-3">Pro</p>
-      <div class="mb-4 flex items-baseline gap-1">
+      <div class="mb-1 flex items-baseline gap-1">
         <span id="pro-price" class="font-display text-3xl font-extrabold">$12</span>
         <span id="pro-cadence" class="text-sm text-mist/55">/ month</span>
       </div>
+      <p class="text-xs text-mist/55 italic mb-4">One engineer, serious about it.</p>
       <ul class="text-sm space-y-2 text-mist/80">
         <li>1,500 searches / day</li>
         <li>Top-30 results</li>
-        <li>Reranker + summary boost</li>
-        <li>Unlimited MCP endpoints</li>
-        <li>Watch-on-update (RSS / releases)</li>
-        <li>Priority rerank queue</li>
+        <li>Cross-encoder rerank + summary boost</li>
+        <li>One MCP token per agent, revocable</li>
+        <li>Notify on changes to bookmarked sources</li>
+        <li>Your queries jump rerank queue under load</li>
       </ul>
       <button id="pro-checkout" class="btn-primary mt-5 w-full justify-center">
-        Subscribe
+        Start Pro
       </button>
       <p id="pro-checkout-hint" class="text-mist/55 text-xs mt-2 hidden"></p>
     </article>
@@ -100,34 +101,43 @@ const paddleConfig = {
         <span id="team-price" class="font-display text-3xl font-extrabold">$9</span>
         <span id="team-cadence" class="text-sm text-mist/55">/ seat / month</span>
       </div>
-      <p class="text-xs text-mist/55 mb-4">Min 2 seats</p>
+      <p class="text-xs text-mist/55 italic mb-3">Shared usage view, GitHub-org SSO.</p>
       <label class="block text-xs uppercase tracking-[0.15em] text-mist/55 mb-3">
         Seats
         <input id="team-seats" type="number" min="2" max="200" value="2"
-          class="ml-2 w-20 !border-b !border-white/15 !text-mist text-base text-center" />
+          class="ml-2 w-20 !border-b !border-white/15 !text-mist text-base text-center tabular-nums" />
       </label>
       <ul class="text-sm space-y-2 text-mist/80">
-        <li>Everything in Pro</li>
-        <li>1,500 searches / seat / day</li>
+        <li>Everything in Pro · 1,500/seat/day</li>
         <li>GitHub-org SSO (rolling out)</li>
         <li>Shared bookmarks + usage dashboard</li>
+        <li>Org-scoped private corpus (opt-in)</li>
       </ul>
       <button id="team-checkout" class="btn-primary mt-5 w-full justify-center">
-        Subscribe team
+        Start team plan
       </button>
       <p id="team-checkout-hint" class="text-mist/55 text-xs mt-2 hidden"></p>
     </article>
-  </section>
 
-  <hr class="mt-12 mb-6 border-white/10" />
-
-  <section class="text-sm text-mist/65 max-w-2xl">
-    <h3 class="font-display text-xl mb-2 text-mist">Self-hosted</h3>
-    <p>
-      Self-host Lighthouse with your own corpus + recipes + admin. Installation
-      help, quarterly source curation, custom-source ingest. By arrangement —{" "}
-      <a href="mailto:lighthouse@harborgang.com" class="text-champagne">lighthouse@harborgang.com</a>.
-    </p>
+    <!-- Self-host -->
+    <article class="glass p-5 min-w-0">
+      <p class="section-kicker mb-3">Self-host</p>
+      <p class="font-display text-3xl font-extrabold mb-1">Free</p>
+      <p class="text-xs text-champagne/85 italic mb-4">Your hardware, your corpus, your admin.</p>
+      <ul class="text-sm space-y-2 text-mist/80">
+        <li>Full retrieval engine — open source</li>
+        <li>MCP server + admin panel included</li>
+        <li>Bring your own corpus + role recipes</li>
+        <li>Apache-2.0 licensed</li>
+      </ul>
+      <a href="https://github.com/ElMundiUA/lighthouse" target="_blank" rel="noopener"
+         class="btn-secondary mt-5 !text-champagne !border-champagne/40 hover:!border-champagne">
+        Read the repo ↗
+      </a>
+      <p class="text-mist/45 text-xs mt-3">
+        Need quarterly source curation? <a href="mailto:lighthouse@harborgang.com" class="text-champagne">Talk to us</a>.
+      </p>
+    </article>
   </section>
 </Site>
 

@@ -84,7 +84,7 @@ if (!q) {
   } catch { /* placeholders on db hiccup */ }
 }
 
-const title = q ? `${q} — Lighthouse` : "Lighthouse — Knowledge for AI Agents";
+const title = q ? `${q} — Lighthouse` : "Lighthouse — grounding layer for coding agents";
 ---
 
 <Site title={title}>
@@ -96,19 +96,27 @@ const title = q ? `${q} — Lighthouse` : "Lighthouse — Knowledge for AI Agent
     )}
     {!q && (
       <>
-        <p class="section-kicker mb-4">Knowledge base for AI agents</p>
+        <p class="section-kicker mb-4">Grounding layer for coding agents</p>
         <h1 class="font-display text-5xl md:text-6xl font-extrabold tracking-tight text-mist leading-[1.05] max-w-3xl mx-auto">
-          Find the canonical doc <span class="text-champagne">in one search.</span>
+          Stop your agent inventing <span class="text-champagne">RFC numbers.</span>
         </h1>
-        <p class="mt-5 text-mist/65 text-lg max-w-xl mx-auto leading-relaxed">
-          RFCs, OWASP, framework docs, methodology, release streams — indexed,
-          ranked, and pointed back to the original. Plug it into your agent over MCP.
+        <p class="mt-5 text-mist/70 text-lg max-w-2xl mx-auto leading-relaxed">
+          Lighthouse indexes the canonical SDLC corpus — IETF RFCs, OWASP, NIST SP-800,
+          framework docs, practitioner literature, post-cutoff release streams — and
+          serves it to your agent over MCP. Search returns a one-line fact plus a
+          link to the original.
+          <span class="text-mist/55">Apache-2.0. Self-host or use the hosted index.</span>
         </p>
       </>
     )}
     <div class={`mt-${q ? "0" : "8"} max-w-2xl mx-auto`}>
       <SearchBar initial={q} placeholder="Ask Lighthouse — RFC, framework, pattern…" />
     </div>
+    {!q && (
+      <p class="mt-3 text-xs text-mist/45 font-mono">
+        {stats.total_chunks.toLocaleString()} chunks · {stats.total_sources.toLocaleString()} sources · {stats.total_recipes} recipes · 30 free searches/day · no card
+      </p>
+    )}
     {q && !rateLimited && !errored && (
       <div class="flex items-center justify-center gap-3 mt-4 text-xs uppercase tracking-[0.18em] text-mist/55">
         <span>Sort:</span>
@@ -184,10 +192,47 @@ const title = q ? `${q} — Lighthouse` : "Lighthouse — Knowledge for AI Agent
           <p class="section-kicker">Role recipes</p>
           <p class="font-display text-3xl font-extrabold mt-2 tabular-nums">{stats.total_recipes}</p>
         </article>
-        <article class="glass p-5">
-          <p class="section-kicker">MCP endpoint</p>
-          <p class="font-mono text-xs mt-3 break-all text-mist/85">{MCP_URL}</p>
-        </article>
+        <a href="https://github.com/ElMundiUA/lighthouse" target="_blank" rel="noopener"
+           class="glass p-5 no-underline group">
+          <p class="section-kicker">Apache-2.0</p>
+          <p class="font-display text-xl font-extrabold mt-2 text-mist group-hover:text-champagne break-all">
+            github.com/ElMundiUA/<wbr/>lighthouse
+          </p>
+        </a>
+      </section>
+
+      <!-- Three ways to run -->
+      <section class="mt-14">
+        <p class="section-kicker text-center mb-6">Three ways to run Lighthouse</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <article class="glass p-6">
+            <p class="font-display text-xl font-bold mb-1">Hosted, free</p>
+            <p class="text-sm text-mist/55 mb-4">200 searches/day signed in · 30/day anon</p>
+            <p class="text-mist/70 text-sm leading-relaxed">
+              Same corpus, same MCP endpoint, no card. Sign in with GitHub or email.
+            </p>
+            <a href="/api/auth/login?return_to=/home" class="inline-flex mt-5 text-champagne text-sm font-semibold hover:text-mist no-underline">Sign in →</a>
+          </article>
+          <article class="glass p-6 border-champagne/30">
+            <p class="font-display text-xl font-bold mb-1">Hosted, Pro</p>
+            <p class="text-sm text-mist/55 mb-4">1,500 searches/day · top-30 · watch-on-update</p>
+            <p class="text-mist/70 text-sm leading-relaxed">
+              Lifts the cap meaningfully, opens cross-encoder rerank, notifies on
+              changes to sources you bookmark. $12/mo or $9/seat for teams.
+            </p>
+            <a href="/pricing" class="inline-flex mt-5 text-champagne text-sm font-semibold hover:text-mist no-underline">Pricing →</a>
+          </article>
+          <article class="glass p-6">
+            <p class="font-display text-xl font-bold mb-1">Self-host <span class="text-champagne/85 text-sm font-normal">· Apache-2.0</span></p>
+            <p class="text-sm text-mist/55 mb-4">Your hardware, your corpus, your admin</p>
+            <p class="text-mist/70 text-sm leading-relaxed">
+              The full retrieval engine, MCP server, ingest pipeline, admin panel —
+              all in one repo. Bring your own sources and role recipes.
+            </p>
+            <a href="https://github.com/ElMundiUA/lighthouse" target="_blank" rel="noopener"
+               class="inline-flex mt-5 text-champagne text-sm font-semibold hover:text-mist no-underline">github.com/ElMundiUA/lighthouse ↗</a>
+          </article>
+        </div>
       </section>
 
       <section class="mt-10">
@@ -236,33 +281,6 @@ const title = q ? `${q} — Lighthouse` : "Lighthouse — Knowledge for AI Agent
         )}
       </section>
 
-      <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16">
-        <article>
-          <p class="section-kicker mb-3">What is Lighthouse</p>
-          <p class="text-mist/70 leading-relaxed">
-            A retrieval engine over canonical SDLC reference. Indexed under
-            permissive licenses; results link out to the original. We're a
-            finder, not a republisher.
-          </p>
-        </article>
-        <article>
-          <p class="section-kicker mb-3">For agents</p>
-          <p class="text-mist/70 leading-relaxed">
-            Point Claude Desktop, Cursor, or any MCP client at
-            <code class="font-mono text-xs">{MCP_URL}</code>. Wire
-            <code class="font-mono text-xs">search</code> +
-            <code class="font-mono text-xs">fetch_source</code> into your toolset.
-            <a href="/home" class="text-champagne">Quick-start →</a>
-          </p>
-        </article>
-        <article>
-          <p class="section-kicker mb-3">For readers</p>
-          <p class="text-mist/70 leading-relaxed">
-            Use search to find the canonical doc for any SDLC question. We
-            surface the right paragraph and link you to the original.
-          </p>
-        </article>
-      </section>
     </>
   )}
 </Site>
