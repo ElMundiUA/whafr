@@ -30,11 +30,12 @@ const FEATURE_QUERIES: { section: string; query: string }[] = [
 ];
 
 async function fetchHit(q: string): Promise<Hit | null> {
-  // 3-second budget per teaser. We're SSR-rendering six of these
-  // in parallel; if the API is sick, the page should still load
-  // promptly with empty slots rather than spinning for 30 s.
+  // 5s budget. Per page-view we're inside the teaser cache (10 min
+  // TTL) so this is amortised — bumping from 3s to 5s makes the
+  // refresh path more resilient to OpenAI tail-latency without
+  // costing every visitor.
   const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), 3000);
+  const timer = setTimeout(() => ac.abort(), 5000);
   try {
     const r = await fetch(
       `${API_BASE}/search?q=${encodeURIComponent(q)}&top_k=1`,
@@ -50,12 +51,29 @@ async function fetchHit(q: string): Promise<Hit | null> {
   }
 }
 
-const features = await Promise.all(
-  FEATURE_QUERIES.map(async (f) => ({
-    ...f,
-    hit: await fetchHit(f.query),
-  }))
-);
+const CACHE_KEY = `front:teasers:v1:${FEATURE_QUERIES.map((f) => f.section).join(",")}`;
+
+async function refreshFeatures() {
+  return Promise.all(
+    FEATURE_QUERIES.map(async (f) => ({ ...f, hit: await fetchHit(f.query) })),
+  );
+}
+
+// Cache the fan-out — every visitor was triggering 6 parallel
+// embed+rerank calls; OpenAI rate-limit + tail-latency blanked
+// cards. Refresh once per 10 min.
+let features = await cached(CACHE_KEY, 600, refreshFeatures);
+
+// Self-heal: if the cached payload happened to land all-null
+// (API was sick at refresh time), retry once uncached so a bad
+// moment doesn't blank the page for the next 10 minutes.
+if (features.every((f) => f.hit === null)) {
+  const fresh = await refreshFeatures();
+  if (fresh.some((f) => f.hit !== null)) {
+    await cached(CACHE_KEY, 0, async () => fresh);
+    features = fresh;
+  }
+}
 
 // Pull the corpus size for the "Today's tally" stat box. Cheap-ish.
 let corpusSize = "—";
