@@ -17,8 +17,9 @@ interface PaddleEvent {
   };
 }
 
-const PRO_PRICE_MONTHLY = import.meta.env.PADDLE_PRICE_PRO_MONTHLY ?? "";
-const PRO_PRICE_ANNUAL = import.meta.env.PADDLE_PRICE_PRO_ANNUAL ?? "";
+// Server-only — read at runtime. See note in lib/auth.ts.
+const PRO_PRICE_MONTHLY = process.env.PADDLE_PRICE_PRO_MONTHLY ?? "";
+const PRO_PRICE_ANNUAL = process.env.PADDLE_PRICE_PRO_ANNUAL ?? "";
 const PRO_PRICE_IDS = [PRO_PRICE_MONTHLY, PRO_PRICE_ANNUAL].filter(Boolean);
 
 export async function recordEvent(evt: PaddleEvent): Promise<void> {

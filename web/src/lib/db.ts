@@ -4,15 +4,11 @@
 
 import pg from "pg";
 
-// Accept either env name — LIGHTHOUSE_DATABASE_URL is the web's
-// preferred key, but the cluster's lighthouse-env Secret already
-// publishes LIGHTHOUSE_PG_URL for the Python API to consume.
-// Falling back means one Secret can drive both.
+// Server-only secret — must be read via process.env so the value
+// is picked up at runtime from k8s. import.meta.env is build-time
+// only for non-PUBLIC vars.
 const conn =
-  import.meta.env.LIGHTHOUSE_DATABASE_URL ||
-  import.meta.env.LIGHTHOUSE_PG_URL ||
-  process.env.LIGHTHOUSE_DATABASE_URL ||
-  process.env.LIGHTHOUSE_PG_URL;
+  process.env.LIGHTHOUSE_DATABASE_URL || process.env.LIGHTHOUSE_PG_URL;
 
 // Reuse a single pool across requests. With Neon's pooler endpoint
 // the pool size matters less, but cap at 5 to avoid surprising

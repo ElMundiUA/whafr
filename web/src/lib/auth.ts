@@ -6,13 +6,17 @@
 import { createRemoteJWKSet, jwtVerify, SignJWT } from "jose";
 import type { APIContext } from "astro";
 
-const AUTH0_DOMAIN = import.meta.env.AUTH0_DOMAIN;
-const AUTH0_CLIENT_ID = import.meta.env.AUTH0_CLIENT_ID;
-const AUTH0_CLIENT_SECRET = import.meta.env.AUTH0_CLIENT_SECRET;
-const AUTH0_AUDIENCE = import.meta.env.AUTH0_AUDIENCE;
-const AUTH0_SCOPE = import.meta.env.AUTH0_SCOPE ?? "openid profile email";
-const SESSION_SECRET = import.meta.env.SESSION_SECRET ?? "dev-only-change-me";
-const ADMIN_EMAIL = import.meta.env.ADMIN_EMAIL ?? "";
+// IMPORTANT: read these from process.env, NOT import.meta.env.
+// Astro/Vite bakes import.meta.env into the build bundle, so the
+// runtime k8s Secret values would be invisible. Server-only vars
+// must be read through process.env at request time.
+const AUTH0_DOMAIN = process.env.AUTH0_DOMAIN ?? "";
+const AUTH0_CLIENT_ID = process.env.AUTH0_CLIENT_ID ?? "";
+const AUTH0_CLIENT_SECRET = process.env.AUTH0_CLIENT_SECRET ?? "";
+const AUTH0_AUDIENCE = process.env.AUTH0_AUDIENCE ?? "";
+const AUTH0_SCOPE = process.env.AUTH0_SCOPE ?? "openid profile email";
+const SESSION_SECRET = process.env.SESSION_SECRET ?? "dev-only-change-me";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? "";
 
 export const SESSION_COOKIE = "lh_session";
 export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7d
