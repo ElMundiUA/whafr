@@ -7,9 +7,7 @@ import ChunkCard from "@/components/ChunkCard.astro";
 // Cached on Astro's default 5-min CDN TTL when running behind a CDN.
 export const prerender = false;
 
-const API_BASE =
-  import.meta.env.PUBLIC_LIGHTHOUSE_API_BASE ||
-  "https://lighthouse.harborgang.com";
+import { API_BASE } from "@/lib/api-base";
 
 interface Hit {
   node_id: string;

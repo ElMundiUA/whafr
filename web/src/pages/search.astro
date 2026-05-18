@@ -6,9 +6,7 @@ import { bumpAndCheck, clientIp, subjectFor, tierForUser, LIMITS } from "@/lib/u
 
 export const prerender = false;
 
-const API_BASE =
-  import.meta.env.PUBLIC_LIGHTHOUSE_API_BASE ||
-  "https://lighthouse.harborgang.com";
+import { API_BASE } from "@/lib/api-base";
 
 const q = Astro.url.searchParams.get("q")?.trim() ?? "";
 const sort = Astro.url.searchParams.get("sort") === "newest" ? "newest" : "relevance";

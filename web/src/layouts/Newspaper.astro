@@ -9,7 +9,7 @@ import "@/styles/global.css";
 
 interface Props {
   title?: string;
-  section?: string;        // e.g. "FRONT PAGE", "ARCHITECTURE", "ADMIN"
+  section?: string;        // e.g. "ARCHITECTURE", "ADMIN"; omit/empty for front
   description?: string;
   pageHeading?: string;
   pageSubhead?: string;
@@ -17,7 +17,7 @@ interface Props {
 
 const {
   title = "Lighthouse — Knowledge for AI Agents",
-  section = "FRONT PAGE",
+  section = "",
   description = "A knowledge base of canonical SDLC reference for AI agents — RFCs, OWASP, framework docs, methodology, post-cutoff streams.",
   pageHeading,
   pageSubhead,

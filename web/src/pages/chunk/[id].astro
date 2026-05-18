@@ -4,9 +4,7 @@ import { prettifyChunkName, renderMarkdown } from "@/lib/chunk-display";
 
 export const prerender = false;
 
-const API_BASE =
-  import.meta.env.PUBLIC_LIGHTHOUSE_API_BASE ||
-  "https://lighthouse.harborgang.com";
+import { API_BASE } from "@/lib/api-base";
 
 const { id } = Astro.params;
 
@@ -82,7 +80,7 @@ const dateStr = src?.valid_at
   )}
 
   {src && (
-    <article class="max-w-3xl mx-auto dropcap">
+    <article class="max-w-3xl mx-auto">
       <p class="byline mb-2">
         {sourceLabel.split(":", 1)[0]}{dateStr ? ` · Filed ${dateStr}` : ""}
       </p>
