@@ -36,6 +36,7 @@ try {
         <th class="py-2 w-20">Tier</th>
         <th class="py-2 w-44">Last login</th>
         <th class="py-2 w-44">Pro until</th>
+        <th class="py-2 w-32 text-right">Set</th>
       </tr>
     </thead>
     <tbody>
@@ -49,6 +50,20 @@ try {
           </td>
           <td class="py-1.5 text-muted">{u.last_login_at ? new Date(u.last_login_at).toISOString().slice(0, 19).replace("T", " ") : "—"}</td>
           <td class="py-1.5 text-muted">{u.pro_until ? new Date(u.pro_until).toISOString().slice(0, 10) : "—"}</td>
+          <td class="py-1.5 w-32">
+            <form action="/api/admin/set-tier" method="post" class="flex gap-1 items-center">
+              <input type="hidden" name="user_id" value={u.id} />
+              {u.tier === "pro" ? (
+                <button name="tier" value="free"
+                  class="text-xs uppercase tracking-[0.12em] text-mist/60 hover:text-coral"
+                  title="Downgrade to free">→ Free</button>
+              ) : (
+                <button name="tier" value="pro"
+                  class="text-xs uppercase tracking-[0.12em] text-mist/60 hover:text-champagne"
+                  title="Comp to Pro (bypasses Paddle)">→ Pro</button>
+              )}
+            </form>
+          </td>
         </tr>
       ))}
     </tbody>
