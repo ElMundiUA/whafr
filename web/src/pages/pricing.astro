@@ -5,12 +5,8 @@ export const prerender = false;
 
 const user = Astro.locals.user;
 const readerHref = user ? "/home" : "/api/auth/login?return_to=/home";
-const readerLabel = user ? "You're signed in" : "Sign in (GitHub or email)";
+const readerLabel = user ? "You're signed in" : "Sign in";
 
-// Client-side Paddle.js needs the public token + environment + the
-// two price IDs to open the checkout overlay. Server-side env reads
-// happen here; the values are inlined into a JSON config block
-// below for the browser script to pick up.
 const paddleConfig = {
   token: process.env.PADDLE_CLIENT_TOKEN ?? "",
   environment: process.env.PADDLE_ENVIRONMENT ?? "sandbox",
@@ -26,40 +22,50 @@ const paddleConfig = {
 };
 ---
 
-<Site title="Subscribe — Lighthouse" pageHeading="Pick a tier">
-  <p class="text-muted text-base max-w-2xl mb-10">
-    All tiers see the same corpus — IETF RFCs, OWASP, NIST SP-800, framework
-    docs, methodology, post-cutoff release streams. Daily search caps differ.
-    Caps reset at 00:00 UTC.
-  </p>
+<Site title="Subscribe — Lighthouse" pageHeading="Pick a tier"
+      pageSubhead="All tiers see the same corpus — IETF RFCs, OWASP, NIST SP-800, framework docs, methodology, post-cutoff release streams. Daily caps reset at 00:00 UTC.">
+
+  <!-- Single global Monthly / Annual toggle drives both Pro and Team -->
+  <div class="flex justify-center my-8">
+    <div class="inline-flex gap-1 rounded-full border border-white/10 bg-white/[0.03] p-1 text-xs uppercase tracking-[0.15em]">
+      <button data-billing="monthly"
+        class="billing-toggle px-4 py-1.5 rounded-full bg-champagne text-ink font-semibold">
+        Monthly
+      </button>
+      <button data-billing="annual"
+        class="billing-toggle px-4 py-1.5 rounded-full text-mist/60 hover:text-mist">
+        Annual <span class="text-champagne/80 font-semibold">−25%</span>
+      </button>
+    </div>
+  </div>
 
   <section class="grid grid-cols-1 md:grid-cols-4 gap-5">
     <!-- Anonymous -->
     <article class="glass p-5 min-w-0">
-      <p class="section-flag inline-block mb-3">Anonymous</p>
+      <p class="section-kicker mb-3">Anonymous</p>
       <p class="font-display text-3xl font-extrabold mb-1">Free</p>
-      <p class="byline mb-4">No account</p>
+      <p class="text-xs text-mist/55 mb-4">No account</p>
       <ul class="text-sm space-y-2 text-mist/80">
         <li>30 searches / day per IP</li>
         <li>Top-10 results</li>
-        <li>Public newspaper + chunk view</li>
+        <li>Links to original sources</li>
         <li>No MCP token</li>
       </ul>
-      <p class="mt-5 text-xs uppercase tracking-[0.15em] text-muted">
-        Try at <a href="/search">/search</a> first
+      <p class="mt-5 text-xs uppercase tracking-[0.15em] text-mist/55">
+        Try at <a href="/search" class="text-champagne">/search</a> first
       </p>
     </article>
 
-    <!-- Free reader -->
+    <!-- Reader (free signed-in) -->
     <article class="glass p-5 min-w-0">
-      <p class="section-flag inline-block mb-3">Reader</p>
+      <p class="section-kicker mb-3">Reader</p>
       <p class="font-display text-3xl font-extrabold mb-1">Free</p>
-      <p class="byline mb-4">Sign in</p>
+      <p class="text-xs text-mist/55 mb-4">Sign in</p>
       <ul class="text-sm space-y-2 text-mist/80">
         <li>200 searches / day</li>
         <li>Top-15 results</li>
-        <li>Full <code class="text-xs">fetch_source</code></li>
         <li>1 personal MCP endpoint</li>
+        <li>Sort by date or relevance</li>
       </ul>
       <a href={readerHref} class="btn-secondary mt-5">
         {readerLabel}
@@ -68,82 +74,59 @@ const paddleConfig = {
 
     <!-- Pro -->
     <article class="glass p-5 min-w-0 border-champagne/40 ring-1 ring-champagne/40">
-      <p class="section-flag inline-block mb-3">Pro</p>
-      <div class="mb-1 flex items-baseline gap-1">
+      <p class="section-kicker mb-3">Pro</p>
+      <div class="mb-4 flex items-baseline gap-1">
         <span id="pro-price" class="font-display text-3xl font-extrabold">$12</span>
-        <span id="pro-cadence" class="text-sm text-muted">/ month</span>
-      </div>
-      <div class="flex gap-1 text-xs uppercase tracking-[0.15em] mb-4">
-        <button data-billing="monthly"
-          class="billing-toggle px-2 py-1 rounded-full border border-champagne/40 bg-champagne/15 text-champagne">
-          Monthly
-        </button>
-        <button data-billing="annual"
-          class="billing-toggle px-2 py-1 rounded-full border border-white/15 text-mist/60 hover:text-mist">
-          Annual <span class="text-champagne/70">−25%</span>
-        </button>
+        <span id="pro-cadence" class="text-sm text-mist/55">/ month</span>
       </div>
       <ul class="text-sm space-y-2 text-mist/80">
         <li>1,500 searches / day</li>
         <li>Top-30 results</li>
         <li>Reranker + summary boost</li>
         <li>Unlimited MCP endpoints</li>
-        <li>Watch-on-update (RSS / release notes)</li>
+        <li>Watch-on-update (RSS / releases)</li>
         <li>Priority rerank queue</li>
       </ul>
-      <button id="pro-checkout" data-billing="monthly" class="btn-primary mt-5 w-full justify-center">
+      <button id="pro-checkout" class="btn-primary mt-5 w-full justify-center">
         Subscribe
       </button>
-      <p id="pro-checkout-hint" class="text-muted text-xs mt-2 hidden">
-        <a href={paddleConfig.loginUrl}>Sign in</a> first — we attach your
-        account to the subscription.
-      </p>
+      <p id="pro-checkout-hint" class="text-mist/55 text-xs mt-2 hidden"></p>
     </article>
 
     <!-- Team -->
     <article class="glass p-5 min-w-0">
-      <p class="section-flag inline-block mb-3">Team</p>
+      <p class="section-kicker mb-3">Team</p>
       <div class="mb-1 flex items-baseline gap-1">
         <span id="team-price" class="font-display text-3xl font-extrabold">$9</span>
-        <span id="team-cadence" class="text-sm text-muted">/ seat / month</span>
+        <span id="team-cadence" class="text-sm text-mist/55">/ seat / month</span>
       </div>
-      <div class="flex gap-1 text-xs uppercase tracking-[0.15em] mb-3">
-        <button data-team-billing="monthly"
-          class="team-toggle px-2 py-1 rounded-full border border-champagne/40 bg-champagne/15 text-champagne">
-          Monthly
-        </button>
-        <button data-team-billing="annual"
-          class="team-toggle px-2 py-1 rounded-full border border-white/15 text-mist/60 hover:text-mist">
-          Annual <span class="text-champagne/70">−25%</span>
-        </button>
-      </div>
-      <label class="block text-xs uppercase tracking-[0.15em] text-muted mb-1">
+      <p class="text-xs text-mist/55 mb-4">Min 2 seats</p>
+      <label class="block text-xs uppercase tracking-[0.15em] text-mist/55 mb-3">
         Seats
-        <input id="team-seats" type="number" min="3" max="200" value="3"
-          class="ml-2 w-20 !border-b-2 !border-rule !text-mist text-base text-center" />
+        <input id="team-seats" type="number" min="2" max="200" value="2"
+          class="ml-2 w-20 !border-b !border-white/15 !text-mist text-base text-center" />
       </label>
-      <ul class="text-sm space-y-2 text-mist/80 mt-3">
+      <ul class="text-sm space-y-2 text-mist/80">
         <li>Everything in Pro</li>
         <li>1,500 searches / seat / day</li>
         <li>GitHub-org SSO (rolling out)</li>
         <li>Shared bookmarks + usage dashboard</li>
-        <li>Org-scoped private corpus (opt-in)</li>
       </ul>
       <button id="team-checkout" class="btn-primary mt-5 w-full justify-center">
         Subscribe team
       </button>
-      <p id="team-checkout-hint" class="text-muted text-xs mt-2 hidden"></p>
+      <p id="team-checkout-hint" class="text-mist/55 text-xs mt-2 hidden"></p>
     </article>
   </section>
 
-  <hr class="mt-12 mb-6" />
+  <hr class="mt-12 mb-6 border-white/10" />
 
-  <section class="text-sm text-muted max-w-2xl">
+  <section class="text-sm text-mist/65 max-w-2xl">
     <h3 class="font-display text-xl mb-2 text-mist">Self-hosted</h3>
     <p>
       Self-host Lighthouse with your own corpus + recipes + admin. Installation
       help, quarterly source curation, custom-source ingest. By arrangement —{" "}
-      <a href="mailto:lighthouse@harborgang.com">lighthouse@harborgang.com</a>.
+      <a href="mailto:lighthouse@harborgang.com" class="text-champagne">lighthouse@harborgang.com</a>.
     </p>
   </section>
 </Site>
@@ -154,65 +137,44 @@ const paddleConfig = {
 (() => {
   const cfg = JSON.parse(document.getElementById("paddle-config").textContent);
 
-  // ---- Billing-cadence toggle (UI only) ----
+  // Single global billing toggle drives both Pro and Team.
   let billing = "monthly";
+
   const proPrice = document.getElementById("pro-price");
   const proCadence = document.getElementById("pro-cadence");
   const proButton = document.getElementById("pro-checkout");
   const proHint = document.getElementById("pro-checkout-hint");
 
-  function setBilling(next) {
-    billing = next;
-    proButton.dataset.billing = next;
-    document.querySelectorAll(".billing-toggle").forEach((b) => {
-      const active = b.dataset.billing === next;
-      b.classList.toggle("bg-champagne/15", active);
-      b.classList.toggle("border-champagne/40", active);
-      b.classList.toggle("text-champagne", active);
-      b.classList.toggle("border-white/15", !active);
-      b.classList.toggle("text-mist/60", !active);
-    });
-    if (next === "annual") {
-      proPrice.textContent = "$9";
-      proCadence.textContent = "/ month, billed $108 / year";
-    } else {
-      proPrice.textContent = "$12";
-      proCadence.textContent = "/ month";
-    }
-  }
-
-  document.querySelectorAll(".billing-toggle").forEach((b) => {
-    b.addEventListener("click", () => setBilling(b.dataset.billing));
-  });
-
-  // ---- Team billing toggle ----
-  let teamBilling = "monthly";
   const teamPrice = document.getElementById("team-price");
   const teamCadence = document.getElementById("team-cadence");
   const teamButton = document.getElementById("team-checkout");
   const teamHint = document.getElementById("team-checkout-hint");
   const teamSeats = document.getElementById("team-seats");
 
-  function setTeamBilling(next) {
-    teamBilling = next;
-    document.querySelectorAll(".team-toggle").forEach((b) => {
-      const active = b.dataset.teamBilling === next;
-      b.classList.toggle("bg-champagne/15", active);
-      b.classList.toggle("border-champagne/40", active);
-      b.classList.toggle("text-champagne", active);
-      b.classList.toggle("border-white/15", !active);
+  function setBilling(next) {
+    billing = next;
+    document.querySelectorAll(".billing-toggle").forEach((b) => {
+      const active = b.dataset.billing === next;
+      b.classList.toggle("bg-champagne", active);
+      b.classList.toggle("text-ink", active);
+      b.classList.toggle("font-semibold", active);
       b.classList.toggle("text-mist/60", !active);
     });
     if (next === "annual") {
+      proPrice.textContent = "$9";
+      proCadence.textContent = "/ month, billed $108 / year";
       teamPrice.textContent = "$7";
       teamCadence.textContent = "/ seat / month, billed annually";
     } else {
+      proPrice.textContent = "$12";
+      proCadence.textContent = "/ month";
       teamPrice.textContent = "$9";
       teamCadence.textContent = "/ seat / month";
     }
   }
-  document.querySelectorAll(".team-toggle").forEach((b) => {
-    b.addEventListener("click", () => setTeamBilling(b.dataset.teamBilling));
+
+  document.querySelectorAll(".billing-toggle").forEach((b) => {
+    b.addEventListener("click", () => setBilling(b.dataset.billing));
   });
 
   // ---- Checkout ----
@@ -222,13 +184,11 @@ const paddleConfig = {
       window.location.href = cfg.signedIn ? "/home" : cfg.loginUrl;
     });
   }
-
   if (!cfg.token || !window.Paddle) {
     fallbackClick(proButton);
     fallbackClick(teamButton);
     return;
   }
-
   window.Paddle.Environment.set(cfg.environment);
   window.Paddle.Initialize({ token: cfg.token });
 
@@ -260,8 +220,8 @@ const paddleConfig = {
   });
 
   teamButton.addEventListener("click", () => {
-    const priceId = teamBilling === "annual" ? cfg.prices.teamAnnual : cfg.prices.teamMonthly;
-    const seats = Math.max(3, Math.min(200, parseInt(teamSeats.value, 10) || 3));
+    const priceId = billing === "annual" ? cfg.prices.teamAnnual : cfg.prices.teamMonthly;
+    const seats = Math.max(2, Math.min(200, parseInt(teamSeats.value, 10) || 2));
     teamSeats.value = String(seats);
     openCheckout(priceId, seats, teamHint);
   });
