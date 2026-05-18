@@ -91,10 +91,26 @@ function isActive(href: string): boolean {
         </nav>
 
         <div class="flex flex-1 items-center justify-end gap-2 text-sm">
-          <span class="hidden sm:inline text-[11px] text-mist/55 tabular-nums"
-                title={`Daily search cap on the ${tier} tier`}>
-            {usedToday} / {limit.toLocaleString()}
-          </span>
+          {(() => {
+            const pct = Math.min(100, Math.round((usedToday / limit) * 100));
+            const danger = pct >= 80;
+            const warn = pct >= 50 && pct < 80;
+            const barColor = danger ? "bg-coral" : warn ? "bg-champagne" : "bg-mist/60";
+            const labelColor = danger ? "text-coral" : warn ? "text-champagne" : "text-mist/75";
+            return (
+              <a href="/pricing" title={`Daily cap on the ${tier} tier · click to upgrade`}
+                 class="hidden sm:flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs no-underline hover:bg-white/[0.06]">
+                <span class={`tabular-nums font-semibold ${labelColor}`}>
+                  {usedToday.toLocaleString()}
+                </span>
+                <span class="text-mist/40">/ {limit.toLocaleString()}</span>
+                <span class="block h-1.5 w-12 rounded-full bg-white/10 overflow-hidden">
+                  <span class={`block h-full ${barColor} transition-[width]`} style={`width:${pct}%`}></span>
+                </span>
+                <span class="text-mist/45 uppercase tracking-[0.15em] text-[10px]">{tier}</span>
+              </a>
+            );
+          })()}
           {user ? (
             <>
               {user.is_admin && (
