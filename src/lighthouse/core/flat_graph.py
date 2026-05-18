@@ -196,6 +196,13 @@ class FlatGraph:
                 "ALTER TABLE chunks ADD COLUMN IF NOT EXISTS summary TEXT",
                 "ALTER TABLE chunks ADD COLUMN IF NOT EXISTS tags TEXT",
                 "ALTER TABLE chunks ADD COLUMN IF NOT EXISTS keywords TEXT",
+                # `recipes` carries which role-recipe slugs claim this
+                # source — multiple recipes routinely point at the same
+                # canonical doc (RFC 9110 is relevant to network,
+                # performance, and security). Membership is set-valued
+                # so a doc can belong to many recipes without being
+                # duplicated as separate rows.
+                "ALTER TABLE chunks ADD COLUMN IF NOT EXISTS recipes TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[]",
                 # ADD COLUMN with GENERATED clause is supported in
                 # PG 12+. We intentionally do NOT drop-recreate when
                 # the formula changes — that opens a "column does
@@ -233,6 +240,9 @@ class FlatGraph:
                 "CREATE INDEX IF NOT EXISTS chunks_source_published_idx ON chunks (source, published_at DESC)",
                 "CREATE INDEX IF NOT EXISTS chunks_full_body_sha_idx ON chunks (full_body_sha256)",
                 "CREATE INDEX IF NOT EXISTS chunks_published_at_idx ON chunks (published_at DESC) WHERE superseded_by IS NULL",
+                # GIN on recipes lets the search path filter chunks
+                # by role membership cheaply (recipes @> '{ml}').
+                "CREATE INDEX IF NOT EXISTS chunks_recipes_gin ON chunks USING GIN (recipes)",
                 # HNSW is the fast ANN index — cheap insert + fast
                 # query. ``vector_cosine_ops`` matches the OpenAI
                 # embed convention.
@@ -254,9 +264,9 @@ class FlatGraph:
     # over the chunk-native API.
 
     async def has_unchanged_episode(
-        self, source: str, body_sha256: str
+        self, source: str, body_sha256: str, recipe: str | None = None,
     ) -> bool:
-        return await self.has_unchanged_chunk(source, body_sha256)
+        return await self.has_unchanged_chunk(source, body_sha256, recipe)
 
     async def upsert_episode(
         self,
@@ -265,6 +275,7 @@ class FlatGraph:
         body: str,
         source: str,
         reference_time: datetime | None = None,
+        recipe: str | None = None,
         group_id: str = "lighthouse",  # ignored — flat path has no
                                        # multi-tenant partitioning yet
     ) -> str:
@@ -273,22 +284,38 @@ class FlatGraph:
             body=body,
             source=source,
             reference_time=reference_time,
+            recipe=recipe,
         )
 
     async def has_unchanged_chunk(
-        self, source: str, body_sha256: str
+        self, source: str, body_sha256: str, recipe: str | None = None,
     ) -> bool:
-        """Delta-skip pre-check — does an existing chunk for this
-        source carry the same full-body hash? Same semantics as
-        :meth:`KnowledgeGraph.has_unchanged_episode`."""
+        """Delta-skip pre-check.
+
+        Two variants:
+        * ``recipe=None`` — does the (source, hash) tuple already
+          exist anywhere? Used by old single-recipe ingest paths.
+        * ``recipe=<slug>`` — does it exist AND already carry this
+          recipe membership? A miss means we still need to upsert
+          (the row exists under another recipe and we need to
+          merge the slug into ``recipes``).
+        """
         pool = await self._pool_lazy()
         async with pool.acquire() as conn:
+            if recipe is None:
+                return bool(
+                    await conn.fetchval(
+                        "SELECT 1 FROM chunks "
+                        "WHERE source = $1 AND full_body_sha256 = $2 LIMIT 1",
+                        source, body_sha256,
+                    )
+                )
             return bool(
                 await conn.fetchval(
                     "SELECT 1 FROM chunks "
-                    "WHERE source = $1 AND full_body_sha256 = $2 LIMIT 1",
-                    source,
-                    body_sha256,
+                    "WHERE source = $1 AND full_body_sha256 = $2 "
+                    "  AND $3 = ANY(recipes) LIMIT 1",
+                    source, body_sha256, recipe,
                 )
             )
 
@@ -301,15 +328,25 @@ class FlatGraph:
         reference_time: datetime | None = None,
         url: str | None = None,
         version: str | None = None,
+        recipe: str | None = None,
     ) -> str:
         """Splits the body into chunks, embeds each, upserts as
         ``chunks`` rows. Returns the uuid of the first chunk for
-        caller bookkeeping."""
+        caller bookkeeping.
+
+        ``recipe`` records the role-recipe slug that just ingested
+        this source. On ON CONFLICT (existing uuid for the same
+        canonical source) it's merged into the row's ``recipes``
+        array, so a doc shared across recipes (RFC 9110 → network /
+        performance / security) lives as a single row carrying
+        multi-recipe membership instead of being duplicated.
+        """
         if not body or not body.strip():
             return ""
         ref = reference_time or datetime.now(UTC)
         full_hash = hashlib.sha256(body.encode("utf-8")).hexdigest()
         chunks = _split_episode_body(body, cap=MAX_CHUNK_CHARS)
+        recipes_arr = [recipe] if recipe else []
 
         embeddings = await self._embed_batch(chunks)
         rows: list[tuple] = []
@@ -334,6 +371,7 @@ class FlatGraph:
                     i,
                     len(chunks),
                     _vector_literal(emb),
+                    recipes_arr,
                 )
             )
 
@@ -344,10 +382,11 @@ class FlatGraph:
                 INSERT INTO chunks (
                     uuid, name, source, url, content,
                     content_sha256, full_body_sha256, published_at,
-                    version, chunk_index, chunk_count, embedding
+                    version, chunk_index, chunk_count, embedding,
+                    recipes
                 ) VALUES (
                     $1, $2, $3, $4, $5,
-                    $6, $7, $8, $9, $10, $11, $12::vector
+                    $6, $7, $8, $9, $10, $11, $12::vector, $13
                 )
                 ON CONFLICT (uuid) DO UPDATE SET
                     name = EXCLUDED.name,
@@ -361,6 +400,10 @@ class FlatGraph:
                     chunk_index = EXCLUDED.chunk_index,
                     chunk_count = EXCLUDED.chunk_count,
                     embedding = EXCLUDED.embedding,
+                    recipes = (
+                        SELECT ARRAY(SELECT DISTINCT unnest(
+                            chunks.recipes || EXCLUDED.recipes))
+                    ),
                     ingested_at = now()
                 """,
                 rows,

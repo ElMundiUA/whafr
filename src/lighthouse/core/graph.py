@@ -543,8 +543,12 @@ class KnowledgeGraph:
         )
 
     async def has_unchanged_episode(
-        self, source: str, body_sha256: str
+        self, source: str, body_sha256: str, recipe: str | None = None,
     ) -> bool:
+        # ``recipe`` is the multi-recipe membership field used by the
+        # flat backend. Graphiti doesn't model it; accept and ignore
+        # so the drain caller can pass it uniformly to either backend.
+        del recipe
         """True if any Episodic for ``source`` already carries the
         ``lighthouse_full_body_sha256`` property equal to
         ``body_sha256``. Used by the ingest delta-skip to bypass
@@ -585,7 +589,12 @@ class KnowledgeGraph:
         source: str,
         reference_time: datetime | None = None,
         group_id: str = "lighthouse",
+        recipe: str | None = None,
     ) -> str:
+        # ``recipe`` ignored on the graphiti backend (see note in
+        # has_unchanged_episode). Multi-recipe membership lives in
+        # the flat backend's chunks.recipes[] column.
+        del recipe
         """Feed one episode (a chunk of source text) into the graph.
 
         Graphiti handles entity extraction, dedup against prior episodes,

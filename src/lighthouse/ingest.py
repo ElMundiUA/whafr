@@ -62,10 +62,18 @@ async def drain(
                 skipped += 1
                 logger.info("relevance gate rejected: %s", doc.title)
                 continue
-            source_full = f"{source_prefix}:{doc.source_id}"
+            # `source` is the canonical upstream identifier (URL or
+            # github-tree ref); `recipe` is the slug claiming it
+            # (RFC 9110 lives once, owned by multiple recipes). Delta
+            # skip only when this *recipe* is already a member —
+            # otherwise we still need to write so the row's recipes[]
+            # picks up the new membership.
+            source_canonical = doc.source_id
             body_hash = hashlib.sha256(doc.body.encode("utf-8")).hexdigest()
             try:
-                if await g.has_unchanged_episode(source_full, body_hash):
+                if await g.has_unchanged_episode(
+                    source_canonical, body_hash, recipe=source_prefix
+                ):
                     unchanged += 1
                     logger.debug(
                         "delta-ingest skip (unchanged): %s", doc.source_id
@@ -73,8 +81,7 @@ async def drain(
                     continue
             except Exception:
                 # Don't let the delta-check kill the run; fall back to
-                # always-upsert when the lookup errors (e.g. transient
-                # Neo4j blip).
+                # always-upsert when the lookup errors.
                 logger.warning(
                     "delta-ingest check failed for %s — upserting anyway",
                     doc.source_id,
@@ -83,8 +90,9 @@ async def drain(
                 await g.upsert_episode(
                     name=doc.title,
                     body=doc.body,
-                    source=source_full,
+                    source=source_canonical,
                     reference_time=doc.reference_time,
+                    recipe=source_prefix,
                 )
             except Exception:
                 # Graphiti can raise Pydantic ValidationError on the

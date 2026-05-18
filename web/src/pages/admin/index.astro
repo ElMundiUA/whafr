@@ -77,12 +77,15 @@ function pct(num: number, denom: number): string {
       <tbody>
         {sources.map((s) => {
           const p = parseSource(s.source);
+          const recipes = s.recipes ?? [];
           return (
             <tr class="border-b border-rule align-top">
               <td class="py-3 pr-4 min-w-0">
-                <div class="text-xs uppercase tracking-[0.12em] text-champagne/85 mb-0.5">
-                  {p.recipe}
-                </div>
+                {recipes.length > 0 && (
+                  <div class="text-xs uppercase tracking-[0.12em] text-champagne/85 mb-0.5 flex flex-wrap gap-x-2">
+                    {recipes.map((r) => <span>{r}</span>)}
+                  </div>
+                )}
                 {p.href ? (
                   <a href={p.href} target="_blank" rel="noopener noreferrer"
                      class="text-mist/85 text-sm [overflow-wrap:anywhere]">

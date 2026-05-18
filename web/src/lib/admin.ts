@@ -5,6 +5,7 @@ import { query, one } from "@/lib/db";
 
 export interface SourceStat {
   source: string;
+  recipes: string[];
   chunks: number;
   last_ingest: Date | null;
   earliest_published: Date | null;
@@ -42,13 +43,20 @@ export async function corpusOverview(): Promise<{
 }
 
 export async function topSources(limit = 30): Promise<SourceStat[]> {
+  // Aggregate recipe membership across the chunk rows for a given
+  // source — when the same upstream is owned by multiple recipes
+  // (post-migration), every row's recipes[] is unioned. ARRAY_AGG
+  // DISTINCT can't dedupe inside arrays so we unnest + agg back.
   return await query<SourceStat>(
     `SELECT
         source,
+        (SELECT COALESCE(ARRAY_AGG(DISTINCT r), ARRAY[]::TEXT[])
+           FROM (SELECT UNNEST(recipes) AS r FROM chunks c2
+                 WHERE c2.source = c.source) sub) AS recipes,
         COUNT(*)::int AS chunks,
         MAX(ingested_at) AS last_ingest,
         MIN(published_at) AS earliest_published
-       FROM chunks
+       FROM chunks c
        GROUP BY source
        ORDER BY chunks DESC
        LIMIT $1`,

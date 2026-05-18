@@ -7,22 +7,19 @@
 // destination clickable when it resolves to a real URL.
 
 export interface ParsedSource {
-  recipe: string;          // e.g. "rfc-http-semantics"
   display: string;         // human-readable URL / path
   href: string | null;     // clickable target, or null if not resolvable
 }
 
+// After the multi-recipe migration `source` is the canonical
+// upstream identifier (URL or github-tree ref) without any recipe
+// prefix. Recipe membership lives in chunks.recipes[] instead.
 export function parseSource(s: string): ParsedSource {
-  if (!s) return { recipe: "", display: "", href: null };
-  const idx = s.indexOf(":");
-  if (idx < 0) return { recipe: s, display: "", href: null };
-  const recipe = s.slice(0, idx);
-  const rest = s.slice(idx + 1);
+  if (!s) return { display: "", href: null };
 
   // github-tree:owner/repo@sha:path
-  if (rest.startsWith("github-tree:")) {
-    const tail = rest.slice("github-tree:".length);
-    // "openai/openai-cookbook@9b4e627:examples/foo.ipynb"
+  if (s.startsWith("github-tree:")) {
+    const tail = s.slice("github-tree:".length);
     const at = tail.indexOf("@");
     const colon = tail.indexOf(":", at < 0 ? 0 : at);
     if (at > 0 && colon > at) {
@@ -30,18 +27,31 @@ export function parseSource(s: string): ParsedSource {
       const sha = tail.slice(at + 1, colon);
       const path = tail.slice(colon + 1);
       return {
-        recipe,
         display: `${ownerRepo} · ${path}`,
         href: `https://github.com/${ownerRepo}/blob/${sha}/${path}`,
       };
     }
-    return { recipe, display: tail, href: null };
+    return { display: tail, href: null };
+  }
+
+  // gh-release:owner/repo:tag — link to the GitHub release page.
+  if (s.startsWith("gh-release:")) {
+    const tail = s.slice("gh-release:".length);
+    const colon = tail.lastIndexOf(":");
+    if (colon > 0) {
+      const ownerRepo = tail.slice(0, colon);
+      const tag = tail.slice(colon + 1);
+      return {
+        display: `${ownerRepo} · ${tag}`,
+        href: `https://github.com/${ownerRepo}/releases/tag/${tag}`,
+      };
+    }
+    return { display: tail, href: null };
   }
 
   // Plain URL.
-  if (/^https?:\/\//.test(rest)) {
-    return { recipe, display: rest, href: rest };
+  if (/^https?:\/\//.test(s)) {
+    return { display: s, href: s };
   }
-
-  return { recipe, display: rest, href: null };
+  return { display: s, href: null };
 }
