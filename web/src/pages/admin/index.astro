@@ -1,6 +1,7 @@
 ---
 import Newspaper from "@/layouts/Newspaper.astro";
 import { corpusOverview, topSources } from "@/lib/admin";
+import { parseSource } from "@/lib/source-display";
 
 export const prerender = false;
 
@@ -64,24 +65,45 @@ function pct(num: number, denom: number): string {
 
   <section>
     <h3 class="font-display text-2xl mb-4">Top sources by chunk count</h3>
-    <table class="w-full text-sm font-serif">
+    <table class="w-full text-sm">
       <thead>
-        <tr class="text-left border-b-2 border-rule font-mono uppercase tracking-flag text-xs">
-          <th class="py-2">Source</th>
-          <th class="py-2 w-24 text-right">Chunks</th>
-          <th class="py-2 w-44">Last ingest</th>
-          <th class="py-2 w-32">Earliest</th>
+        <tr class="text-left border-b-2 border-rule uppercase tracking-[0.15em] text-xs text-muted">
+          <th class="py-3 pr-4">Source</th>
+          <th class="py-3 px-3 w-20 text-right">Chunks</th>
+          <th class="py-3 px-3 w-44">Last ingest</th>
+          <th class="py-3 pl-3 w-28">Earliest</th>
         </tr>
       </thead>
       <tbody>
-        {sources.map((s) => (
-          <tr class="border-b border-rule">
-            <td class="py-1.5 break-all">{s.source}</td>
-            <td class="py-1.5 text-right tabular-nums">{Number(s.chunks).toLocaleString()}</td>
-            <td class="py-1.5 text-muted">{s.last_ingest ? new Date(s.last_ingest).toISOString().slice(0, 19).replace("T", " ") : "—"}</td>
-            <td class="py-1.5 text-muted">{s.earliest_published ? new Date(s.earliest_published).toISOString().slice(0, 10) : "—"}</td>
-          </tr>
-        ))}
+        {sources.map((s) => {
+          const p = parseSource(s.source);
+          return (
+            <tr class="border-b border-rule align-top">
+              <td class="py-3 pr-4 min-w-0">
+                <div class="text-xs uppercase tracking-[0.12em] text-champagne/85 mb-0.5">
+                  {p.recipe}
+                </div>
+                {p.href ? (
+                  <a href={p.href} target="_blank" rel="noopener noreferrer"
+                     class="text-mist/85 text-sm [overflow-wrap:anywhere]">
+                    {p.display}
+                  </a>
+                ) : (
+                  <div class="text-mist/85 text-sm [overflow-wrap:anywhere]">{p.display}</div>
+                )}
+              </td>
+              <td class="py-3 px-3 text-right tabular-nums">
+                {Number(s.chunks).toLocaleString()}
+              </td>
+              <td class="py-3 px-3 text-muted text-xs tabular-nums">
+                {s.last_ingest ? new Date(s.last_ingest).toISOString().slice(0, 19).replace("T", " ") : "—"}
+              </td>
+              <td class="py-3 pl-3 text-muted text-xs tabular-nums">
+                {s.earliest_published ? new Date(s.earliest_published).toISOString().slice(0, 10) : "—"}
+              </td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   </section>
