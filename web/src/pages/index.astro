@@ -8,6 +8,7 @@ import ChunkCard from "@/components/ChunkCard.astro";
 export const prerender = false;
 
 import { API_BASE } from "@/lib/api-base";
+import { cached } from "@/lib/cache";
 
 interface Hit {
   node_id: string;
