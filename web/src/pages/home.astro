@@ -1,5 +1,5 @@
 ---
-import Newspaper from "@/layouts/Newspaper.astro";
+import Site from "@/layouts/Site.astro";
 import { effectiveTier } from "@/lib/users";
 import { LIMITS } from "@/lib/usage";
 
@@ -25,7 +25,7 @@ const dailyCap = LIMITS[tier];
 const firstName = (user.name ?? user.email).split(/[ @]/)[0];
 ---
 
-<Newspaper title="Home — Lighthouse" section="HOME"
+<Site title="Home — Lighthouse"
            pageHeading={`Welcome, ${firstName}.`}
            pageSubhead="Hook your agent up to the lighthouse and stop relying on training-data recall.">
 
@@ -137,4 +137,4 @@ const firstName = (user.name ?? user.email).split(/[ @]/)[0];
     <li><a href="/about">About the project</a> — what's indexed, how it's built</li>
     <li><a href="/pricing">Pricing</a> — upgrade or comp a teammate</li>
   </ul>
-</Newspaper>
+</Site>

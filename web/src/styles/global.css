@@ -103,11 +103,11 @@
   input[type="text"]::placeholder {
     color: rgba(232, 244, 255, 0.35);
   }
+  /* Buttons stay default-cased for the Harbor Gang aesthetic — the
+     old all-caps rule was for the newspaper layout. Specific
+     uppercase buttons opt in via Tailwind utility classes. */
   button {
     font-family: theme("fontFamily.sans");
-    font-size: 0.8rem;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
     font-weight: 600;
   }
   code {
@@ -122,26 +122,18 @@
 }
 
 @layer components {
-  .newspaper-grid {
-    column-rule: 1px solid theme("colors.rule");
-    column-rule-style: solid;
-  }
-  .byline {
+  /* Harbor Gang kicker — small uppercase champagne label above a
+     section heading or stat. Replaces .kicker / .byline / .section-
+     flag from the newspaper era; the old classes stay as aliases so
+     legacy markup keeps rendering. */
+  .section-kicker, .kicker, .byline, .section-flag {
     font-family: theme("fontFamily.sans");
-    font-size: 0.75rem;
-    color: theme("colors.muted");
+    font-size: 0.7rem;
+    color: rgba(207, 169, 107, 0.85);
     text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-weight: 500;
-  }
-  .kicker {
-    font-family: theme("fontFamily.sans");
-    font-size: 0.72rem;
-    color: theme("colors.champagne");
-    text-transform: uppercase;
-    letter-spacing: theme("letterSpacing.flag");
+    letter-spacing: 0.22em;
     font-weight: 700;
-    margin-bottom: 0.5rem;
+    display: inline-block;
     display: inline-block;
   }
   /* Harbor Gang pill button — primary action. */

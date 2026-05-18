@@ -1,5 +1,5 @@
 ---
-import Newspaper from "@/layouts/Newspaper.astro";
+import Site from "@/layouts/Site.astro";
 import { recentPaddleEvents } from "@/lib/admin";
 
 export const prerender = false;
@@ -18,7 +18,7 @@ try {
 }
 ---
 
-<Newspaper title="Billing — Lighthouse Admin" section="ADMIN" pageHeading="Paddle ledger">
+<Site title="Billing — Lighthouse Admin" pageHeading="Paddle ledger">
   <nav class="font-mono text-xs uppercase tracking-flag mb-6 flex gap-x-6">
     <a href="/admin">Corpus</a>
     <a href="/admin/users">Users</a>
@@ -56,4 +56,4 @@ try {
       ))}
     </tbody>
   </table>
-</Newspaper>
+</Site>

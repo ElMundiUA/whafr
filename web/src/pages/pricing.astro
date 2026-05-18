@@ -1,5 +1,5 @@
 ---
-import Newspaper from "@/layouts/Newspaper.astro";
+import Site from "@/layouts/Site.astro";
 
 export const prerender = false;
 
@@ -26,7 +26,7 @@ const paddleConfig = {
 };
 ---
 
-<Newspaper title="Subscribe — Lighthouse" section="SUBSCRIBE" pageHeading="Pick a tier">
+<Site title="Subscribe — Lighthouse" pageHeading="Pick a tier">
   <p class="text-muted text-base max-w-2xl mb-10">
     All tiers see the same corpus — IETF RFCs, OWASP, NIST SP-800, framework
     docs, methodology, post-cutoff release streams. Daily search caps differ.
@@ -146,7 +146,7 @@ const paddleConfig = {
       <a href="mailto:lighthouse@harborgang.com">lighthouse@harborgang.com</a>.
     </p>
   </section>
-</Newspaper>
+</Site>
 
 <script id="paddle-config" type="application/json" set:html={JSON.stringify(paddleConfig)}></script>
 <script src="https://cdn.paddle.com/paddle/v2/paddle.js" is:inline></script>

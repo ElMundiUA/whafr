@@ -1,5 +1,5 @@
 ---
-import Newspaper from "@/layouts/Newspaper.astro";
+import Site from "@/layouts/Site.astro";
 import { corpusOverview, topSources } from "@/lib/admin";
 import { parseSource } from "@/lib/source-display";
 
@@ -25,7 +25,7 @@ function pct(num: number, denom: number): string {
 }
 ---
 
-<Newspaper title="Admin — Lighthouse" section="ADMIN" pageHeading="Corpus desk">
+<Site title="Admin — Lighthouse" pageHeading="Corpus desk">
   {dbError && (
     <p class="text-accent border-2 border-accent p-3 font-mono text-xs mb-6">
       {dbError}
@@ -110,4 +110,4 @@ function pct(num: number, denom: number): string {
       </tbody>
     </table>
   </section>
-</Newspaper>
+</Site>

@@ -1,5 +1,5 @@
 ---
-import Newspaper from "@/layouts/Newspaper.astro";
+import Site from "@/layouts/Site.astro";
 import SearchBar from "@/components/SearchBar.astro";
 import { corpusStats, recentRepos, timeAgo } from "@/lib/stats";
 
@@ -16,113 +16,117 @@ try {
 }
 ---
 
-<Newspaper>
-  <section class="max-w-3xl mx-auto py-4">
-    <SearchBar placeholder="Ask Lighthouse — RFC, framework, pattern…" />
-    <p class="text-muted text-sm text-center mt-3 [text-wrap:balance]">
-      Canonical SDLC reference for AI agents — point your MCP client at
-      <code>{MCP_URL}</code>, or search above. Each result links to the
-      original source.
+<Site>
+  <!-- Hero -->
+  <section class="relative pt-16 pb-12 text-center">
+    <div class="pointer-events-none absolute inset-x-0 -top-10 -z-10 mx-auto h-[400px] w-[800px] max-w-full opacity-50"
+         style="background: radial-gradient(ellipse at center, rgba(207,169,107,0.18) 0%, transparent 65%);"></div>
+    <p class="section-kicker mb-4">Knowledge base for AI agents</p>
+    <h1 class="font-display text-5xl md:text-6xl font-extrabold tracking-tight text-mist leading-[1.05] max-w-3xl mx-auto">
+      Find the canonical doc <span class="text-champagne">in one search.</span>
+    </h1>
+    <p class="mt-5 text-mist/65 text-lg max-w-xl mx-auto leading-relaxed">
+      RFCs, OWASP, framework docs, methodology, release streams — indexed,
+      ranked, and pointed back to the original. Plug it into your agent over MCP.
     </p>
+    <div class="mt-8 max-w-2xl mx-auto">
+      <SearchBar placeholder="Ask Lighthouse — RFC, framework, pattern…" />
+    </div>
   </section>
 
-  <section class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-10 mb-8 max-w-broadsheet mx-auto">
-    <article class="glass p-4">
-      <p class="byline">Indexed chunks</p>
-      <p class="font-display text-3xl font-extrabold mt-1">
-        {stats.total_chunks.toLocaleString()}
-      </p>
+  <!-- Stats grid -->
+  <section class="grid grid-cols-2 md:grid-cols-4 gap-4 my-8">
+    <article class="glass p-5">
+      <p class="section-kicker">Indexed chunks</p>
+      <p class="font-display text-3xl font-extrabold mt-2 tabular-nums">{stats.total_chunks.toLocaleString()}</p>
     </article>
-    <article class="glass p-4">
-      <p class="byline">Distinct sources</p>
-      <p class="font-display text-3xl font-extrabold mt-1">
-        {stats.total_sources.toLocaleString()}
-      </p>
+    <article class="glass p-5">
+      <p class="section-kicker">Distinct sources</p>
+      <p class="font-display text-3xl font-extrabold mt-2 tabular-nums">{stats.total_sources.toLocaleString()}</p>
     </article>
-    <article class="glass p-4">
-      <p class="byline">Role recipes</p>
-      <p class="font-display text-3xl font-extrabold mt-1">
-        {stats.total_recipes}
-      </p>
+    <article class="glass p-5">
+      <p class="section-kicker">Role recipes</p>
+      <p class="font-display text-3xl font-extrabold mt-2 tabular-nums">{stats.total_recipes}</p>
     </article>
-    <article class="glass p-4">
-      <p class="byline">MCP endpoint</p>
-      <p class="font-mono text-xs mt-1 break-all">{MCP_URL}</p>
+    <article class="glass p-5">
+      <p class="section-kicker">MCP endpoint</p>
+      <p class="font-mono text-xs mt-3 break-all text-mist/85">{MCP_URL}</p>
     </article>
   </section>
 
-  <hr class="my-6" />
-
-  <section class="max-w-broadsheet mx-auto">
-    <h3 class="font-display text-2xl mb-4">Recently indexed</h3>
+  <!-- Recently indexed -->
+  <section class="mt-14">
+    <div class="flex items-baseline justify-between mb-4">
+      <h2 class="font-display text-2xl font-bold">Recently indexed</h2>
+      <span class="text-xs text-mist/55">live · refreshed every 2 min</span>
+    </div>
     {recent.length === 0 ? (
-      <p class="text-muted text-sm italic">No recent activity.</p>
+      <p class="text-mist/55 text-sm italic">No recent activity.</p>
     ) : (
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="text-left border-b border-rule uppercase tracking-[0.15em] text-xs text-muted">
-            <th class="py-2 pr-4">Source</th>
-            <th class="py-2 px-3 w-44">Recipes</th>
-            <th class="py-2 px-3 w-20 text-right">Chunks</th>
-            <th class="py-2 pl-3 w-28 text-right">Last ingest</th>
-          </tr>
-        </thead>
-        <tbody>
-          {recent.map((r) => {
-            const isRepo = r.repo.includes("/") && !r.repo.includes(".");
-            const href = isRepo
-              ? `https://github.com/${r.repo}`
-              : `https://${r.repo}`;
-            return (
-              <tr class="border-b border-rule align-top">
-                <td class="py-2 pr-4">
-                  <a href={href} target="_blank" rel="noopener noreferrer"
-                     class="text-mist/85 [overflow-wrap:anywhere]">
-                    {r.repo}
-                  </a>
-                </td>
-                <td class="py-2 px-3 text-xs text-champagne/85 uppercase tracking-[0.1em]">
-                  {(r.recipes ?? []).slice(0, 3).join(" · ")}
-                </td>
-                <td class="py-2 px-3 text-right tabular-nums">{r.chunks.toLocaleString()}</td>
-                <td class="py-2 pl-3 text-right text-muted text-xs">{timeAgo(r.last_ingest)}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div class="glass overflow-hidden">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left border-b border-white/10 uppercase tracking-[0.15em] text-xs text-mist/55">
+              <th class="py-3 px-5">Source</th>
+              <th class="py-3 px-3 w-56">Recipes</th>
+              <th class="py-3 px-3 w-20 text-right">Chunks</th>
+              <th class="py-3 px-5 w-32 text-right">Last ingest</th>
+            </tr>
+          </thead>
+          <tbody>
+            {recent.map((r) => {
+              const isRepo = r.repo.includes("/") && !r.repo.includes(".");
+              const href = isRepo
+                ? `https://github.com/${r.repo}`
+                : `https://${r.repo}`;
+              return (
+                <tr class="border-b border-white/5 last:border-b-0 align-top hover:bg-white/[0.02]">
+                  <td class="py-3 px-5">
+                    <a href={href} target="_blank" rel="noopener noreferrer"
+                       class="text-mist/90 hover:text-champagne no-underline [overflow-wrap:anywhere]">
+                      {r.repo}
+                    </a>
+                  </td>
+                  <td class="py-3 px-3 text-xs text-champagne/85 uppercase tracking-[0.1em]">
+                    {(r.recipes ?? []).slice(0, 3).join(" · ")}
+                  </td>
+                  <td class="py-3 px-3 text-right tabular-nums text-mist/75">{r.chunks.toLocaleString()}</td>
+                  <td class="py-3 px-5 text-right text-mist/55 text-xs">{timeAgo(r.last_ingest)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     )}
   </section>
 
-  <hr class="my-10" />
-
-  <aside class="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-4 text-sm max-w-broadsheet mx-auto">
-    <div>
-      <h4 class="font-display text-xl mb-2">What is Lighthouse?</h4>
-      <p class="text-muted">
-        A retrieval engine over canonical SDLC reference content — RFCs,
-        OWASP, NIST SP-800, framework docs, methodology, post-cutoff
-        release streams. Indexed under permissive licenses; results link
-        to originals.
+  <!-- Three-up blurbs -->
+  <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16">
+    <article>
+      <p class="section-kicker mb-3">What is Lighthouse</p>
+      <p class="text-mist/70 leading-relaxed">
+        A retrieval engine over canonical SDLC reference. Indexed under
+        permissive licenses; results link out to the original publisher.
+        We're a finder, not a republisher.
       </p>
-    </div>
-    <div>
-      <h4 class="font-display text-xl mb-2">For agents</h4>
-      <p class="text-muted">
-        Point any MCP-capable client (Claude Desktop, Cursor, the official
-        CLI) at <code class="font-mono text-xs">{MCP_URL}</code>. Wire
-        <code class="font-mono text-xs">search</code> and
-        <code class="font-mono text-xs">fetch_source</code> into your tool
-        surface. <a href="/home">Quick-start →</a>
+    </article>
+    <article>
+      <p class="section-kicker mb-3">For agents</p>
+      <p class="text-mist/70 leading-relaxed">
+        Point Claude Desktop, Cursor, the official CLI, or any MCP client at
+        <code class="font-mono text-xs">{MCP_URL}</code>. Wire
+        <code class="font-mono text-xs">search</code> +
+        <code class="font-mono text-xs">fetch_source</code> into your toolset.
+        <a href="/home" class="text-champagne">Quick-start →</a>
       </p>
-    </div>
-    <div>
-      <h4 class="font-display text-xl mb-2">For readers</h4>
-      <p class="text-muted">
-        Use the search above to find the canonical doc for a question. We
-        surface the right paragraph and link you to the original; we don't
-        try to be the publisher.
+    </article>
+    <article>
+      <p class="section-kicker mb-3">For readers</p>
+      <p class="text-mist/70 leading-relaxed">
+        Use search to find the canonical doc for any SDLC question. We
+        surface the right paragraph and link you to the original. <a href="/sections" class="text-champagne">Browse by role →</a>
       </p>
-    </div>
-  </aside>
-</Newspaper>
+    </article>
+  </section>
+</Site>

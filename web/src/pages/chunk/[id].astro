@@ -1,5 +1,5 @@
 ---
-import Newspaper from "@/layouts/Newspaper.astro";
+import Site from "@/layouts/Site.astro";
 import { prettifyChunkName, renderMarkdown } from "@/lib/chunk-display";
 
 export const prerender = false;
@@ -61,7 +61,7 @@ const dateStr = src?.valid_at
   : null;
 ---
 
-<Newspaper title={title} section={src ? "DISPATCH" : "ARCHIVE"}>
+<Site title={title} section={src ? "DISPATCH" : "ARCHIVE"}>
   {notFound && (
     <section>
       <h2 class="font-display text-3xl mb-3">Dispatch not in the archive</h2>
@@ -103,4 +103,4 @@ const dateStr = src?.valid_at
       </p>
     </article>
   )}
-</Newspaper>
+</Site>

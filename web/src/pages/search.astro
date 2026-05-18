@@ -1,5 +1,5 @@
 ---
-import Newspaper from "@/layouts/Newspaper.astro";
+import Site from "@/layouts/Site.astro";
 import SearchBar from "@/components/SearchBar.astro";
 import ChunkCard from "@/components/ChunkCard.astro";
 import { bumpAndCheck, clientIp, subjectFor, tierForUser, LIMITS } from "@/lib/usage";
@@ -81,9 +81,9 @@ if (q) {
 const title = q ? `${q} — Lighthouse` : "Search — Lighthouse";
 ---
 
-<Newspaper
+<Site
   title={title}
-  section="SEARCH"
+ 
   pageHeading={q ? `“${q}”` : "Search the lighthouse"}
   pageSubhead={q ? `${hits.length} matching dispatches` : "Cite by canonical source, not by memory."}
 >
@@ -175,4 +175,4 @@ const title = q ? `${q} — Lighthouse` : "Search — Lighthouse";
       ))}
     </section>
   )}
-</Newspaper>
+</Site>

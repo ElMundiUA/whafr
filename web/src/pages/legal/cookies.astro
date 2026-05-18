@@ -1,12 +1,12 @@
 ---
-import Newspaper from "@/layouts/Newspaper.astro";
+import Site from "@/layouts/Site.astro";
 
 export const prerender = false;
 
 const EFFECTIVE = "May 18, 2026";
 ---
 
-<Newspaper title="Cookies — Lighthouse" section="LEGAL"
+<Site title="Cookies — Lighthouse"
            pageHeading="Cookie notice"
            pageSubhead={`Effective ${EFFECTIVE}.`}>
   <article class="max-w-3xl mx-auto chunk-prose">
@@ -69,4 +69,4 @@ const EFFECTIVE = "May 18, 2026";
       Questions: <a href="mailto:hello@harborgang.com">hello@harborgang.com</a>.
     </p>
   </article>
-</Newspaper>
+</Site>

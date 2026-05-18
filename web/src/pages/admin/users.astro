@@ -1,5 +1,5 @@
 ---
-import Newspaper from "@/layouts/Newspaper.astro";
+import Site from "@/layouts/Site.astro";
 import { recentUsers } from "@/lib/admin";
 
 export const prerender = false;
@@ -18,7 +18,7 @@ try {
 }
 ---
 
-<Newspaper title="Users — Lighthouse Admin" section="ADMIN" pageHeading="Roll-call">
+<Site title="Users — Lighthouse Admin" pageHeading="Roll-call">
   <nav class="font-mono text-xs uppercase tracking-flag mb-6 flex gap-x-6">
     <a href="/admin">Corpus</a>
     <a href="/admin/users">Users</a>
@@ -68,4 +68,4 @@ try {
       ))}
     </tbody>
   </table>
-</Newspaper>
+</Site>
