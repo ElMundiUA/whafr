@@ -50,6 +50,7 @@ spec:
                   MD=/var/audits/audit-$RUN_ID.md
                   lighthouse coverage-audit \
                     --queries /etc/lighthouse-eval/queries.yaml \
+                    --backend flat \
                     --top-k 5 \
                     --out "$JSON" \
                     --summary "$MD"
