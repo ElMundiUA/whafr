@@ -3,7 +3,8 @@ import Site from "@/layouts/Site.astro";
 import SearchBar from "@/components/SearchBar.astro";
 import ChunkCard from "@/components/ChunkCard.astro";
 import CodeBlock from "@/components/CodeBlock.astro";
-import { corpusStats, recentRepos, timeAgo } from "@/lib/stats";
+import { corpusStats, recentRepos, recentEvents, timeAgo } from "@/lib/stats";
+import IndexedPulse from "@/components/IndexedPulse.astro";
 import { API_BASE } from "@/lib/api-base";
 import { bumpAndCheck, clientIp, subjectFor, tierForUser, LIMITS } from "@/lib/usage";
 import { effectiveTier } from "@/lib/users";
@@ -77,10 +78,10 @@ if (q) {
 }
 
 let stats = { total_chunks: 0, total_sources: 0, total_recipes: 0 };
-let recent: Awaited<ReturnType<typeof recentRepos>> = [];
+let events: Awaited<ReturnType<typeof recentEvents>> = [];
 if (!q) {
   try {
-    [stats, recent] = await Promise.all([corpusStats(), recentRepos(8)]);
+    [stats, events] = await Promise.all([corpusStats(), recentEvents(30)]);
   } catch {}
 }
 
@@ -132,8 +133,8 @@ url = "${MCP_URL}"
         </p>
       </section>
 
-      <!-- ─────────────── Side-by-side: Plug an agent ↔ Search ─────────────── -->
-      <section class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <!-- ─────────────── Side-by-side: Plug an agent ↔ Search ─ Live pulse ─────────────── -->
+      <section class="mt-8 grid grid-cols-1 lg:grid-cols-[1fr_1fr_18rem] gap-5">
         <!-- ─ Left: plug an agent in ─ -->
         <div class="glass p-6 md:p-8 flex flex-col">
           <p class="section-kicker mb-2">Plug an agent in</p>
@@ -224,6 +225,9 @@ url = "${MCP_URL}"
             Free 30/day per IP · sign in for 200/day · Pro 1,500/day at <a href="/pricing" class="text-champagne hover:text-mist">$12/mo</a>.
           </p>
         </div>
+
+        <!-- ─ Right column: live pulse strip (lg only sits inline; stacks under at md) ─ -->
+        <IndexedPulse events={events} totalChunks={stats.total_chunks} totalRecipes={stats.total_recipes} />
       </section>
     </>
   )}
@@ -292,52 +296,6 @@ url = "${MCP_URL}"
   <!-- ─────────────── Home-only after-hero blocks ─────────────── -->
   {!q && (
     <>
-      <!-- Recently indexed -->
-      <section class="mt-20">
-        <div class="flex items-baseline justify-between mb-4">
-          <h2 class="font-display text-2xl font-bold">Recently indexed</h2>
-          <span class="text-xs text-mist/55">live · refreshed every 2 min</span>
-        </div>
-        {recent.length === 0 ? (
-          <p class="text-mist/55 text-sm italic">No recent activity.</p>
-        ) : (
-          <div class="glass overflow-hidden">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="text-left border-b border-white/10 uppercase tracking-[0.15em] text-xs text-mist/55">
-                  <th class="py-3 px-5">Source</th>
-                  <th class="py-3 px-3 w-56">Recipes</th>
-                  <th class="py-3 px-3 w-20 text-right">Chunks</th>
-                  <th class="py-3 px-5 w-32 text-right">Last ingest</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recent.map((r) => {
-                  const isRepo = r.repo.includes("/") && !r.repo.includes(".");
-                  const href = isRepo
-                    ? `https://github.com/${r.repo}`
-                    : `https://${r.repo}`;
-                  return (
-                    <tr class="border-b border-white/5 last:border-b-0 align-top hover:bg-white/[0.02]">
-                      <td class="py-3 px-5">
-                        <a href={href} target="_blank" rel="noopener noreferrer"
-                           class="text-mist/90 hover:text-champagne no-underline [overflow-wrap:anywhere]">
-                          {r.repo}
-                        </a>
-                      </td>
-                      <td class="py-3 px-3 text-xs text-champagne/85 uppercase tracking-[0.1em]">
-                        {(r.recipes ?? []).slice(0, 3).join(" · ")}
-                      </td>
-                      <td class="py-3 px-3 text-right tabular-nums text-mist/75">{r.chunks.toLocaleString()}</td>
-                      <td class="py-3 px-5 text-right text-mist/55 text-xs">{timeAgo(r.last_ingest)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
 
       <!-- Plans -->
       <section class="mt-16">

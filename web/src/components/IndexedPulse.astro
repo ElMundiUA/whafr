@@ -1,0 +1,141 @@
+---
+// Activity-feed strip — "indexers never sleep" widget. Anonymised
+// rows (chunks + recipe slug + relative time) slide in from the top
+// every few seconds, oldest fades off the bottom. Animation pauses
+// when the tab is hidden.
+
+import type { IndexedEvent } from "@/lib/stats";
+
+interface Props {
+  events: IndexedEvent[];
+  totalChunks: number;
+  totalRecipes: number;
+}
+const { events, totalChunks, totalRecipes } = Astro.props;
+
+const SLOTS = 5;
+// Pre-render the first SLOTS so the page paints fully on first byte
+// even before JS hydrates the animation.
+const initial = events.slice(0, SLOTS);
+function fmtMinutes(n: number): string {
+  if (n < 1) return "now";
+  if (n < 60) return `${n}m ago`;
+  const h = Math.round(n / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.round(h / 24)}d ago`;
+}
+
+// Serialise the rotation buffer onto the element as JSON so the
+// vanilla script can rehydrate without an API call.
+const buffer = JSON.stringify(events);
+---
+
+<aside class="glass p-5 flex flex-col min-w-0">
+  <div class="flex items-center justify-between mb-3">
+    <p class="section-kicker">Live pulse</p>
+    <span class="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.18em] text-mist/55">
+      <span class="h-1.5 w-1.5 rounded-full bg-champagne animate-pulse"></span>
+      indexers
+    </span>
+  </div>
+
+  <div class="border-t border-white/10 pt-3 flex-1">
+    <ul id="indexed-feed" data-buffer={buffer}
+        class="space-y-2.5 text-xs font-mono tabular-nums overflow-hidden">
+      {initial.map((e) => (
+        <li class="feed-row flex items-baseline justify-between gap-3 transition-all duration-500">
+          <span class="text-mist/85">
+            <span class="text-champagne">+ {e.chunks}</span> chunks
+          </span>
+          <span class="text-champagne/85 uppercase tracking-[0.1em] truncate">{e.recipe}</span>
+          <span class="text-mist/45 shrink-0">{fmtMinutes(e.minutes_ago)}</span>
+        </li>
+      ))}
+    </ul>
+  </div>
+
+  <div class="mt-4 pt-3 border-t border-white/10 text-[11px] text-mist/55 font-mono">
+    <p>{totalChunks.toLocaleString()} chunks · {totalRecipes} recipes indexed</p>
+  </div>
+</aside>
+
+<script is:inline>
+(() => {
+  const feed = document.getElementById("indexed-feed");
+  if (!feed) return;
+  let buffer;
+  try {
+    buffer = JSON.parse(feed.dataset.buffer || "[]");
+  } catch {
+    return;
+  }
+  if (!Array.isArray(buffer) || buffer.length === 0) return;
+
+  const SLOT_COUNT = feed.children.length || 5;
+  let cursor = SLOT_COUNT; // index of next event to push from `buffer`
+
+  function fmtMinutes(n) {
+    if (n < 1) return "now";
+    if (n < 60) return n + "m ago";
+    const h = Math.round(n / 60);
+    if (h < 24) return h + "h ago";
+    return Math.round(h / 24) + "d ago";
+  }
+
+  function jitter(n) {
+    // ±15% wobble so the sequence doesn't repeat verbatim once we loop.
+    const f = 1 + (Math.random() * 0.3 - 0.15);
+    return Math.max(1, Math.round(n * f));
+  }
+
+  function renderRow(ev) {
+    const li = document.createElement("li");
+    li.className = "feed-row flex items-baseline justify-between gap-3 transition-all duration-500";
+    li.style.opacity = "0";
+    li.style.transform = "translateY(-8px)";
+    li.innerHTML =
+      '<span class="text-mist/85">' +
+      '<span class="text-champagne">+ ' + jitter(ev.chunks) + '</span> chunks' +
+      '</span>' +
+      '<span class="text-champagne/85 uppercase tracking-[0.1em] truncate">' + ev.recipe + '</span>' +
+      '<span class="text-mist/45 shrink-0">' + fmtMinutes(ev.minutes_ago) + '</span>';
+    return li;
+  }
+
+  let timer = null;
+  function tick() {
+    if (cursor >= buffer.length) cursor = 0;
+    const ev = buffer[cursor++];
+    if (!ev) return;
+    const li = renderRow(ev);
+    feed.insertBefore(li, feed.firstChild);
+    // Allow next paint, then animate in.
+    requestAnimationFrame(() => {
+      li.style.opacity = "1";
+      li.style.transform = "translateY(0)";
+    });
+    // Drop the overflow row.
+    while (feed.children.length > SLOT_COUNT) {
+      const last = feed.lastElementChild;
+      if (!last) break;
+      last.style.opacity = "0";
+      setTimeout(() => last.remove(), 400);
+      break;
+    }
+  }
+
+  function start() {
+    if (timer) return;
+    // First tick fires after the interval; the SSR'd rows are already up.
+    timer = setInterval(tick, 4000);
+  }
+  function stop() {
+    if (timer) { clearInterval(timer); timer = null; }
+  }
+
+  start();
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stop(); else start();
+  });
+})();
+</script>

@@ -71,6 +71,30 @@ export async function recentRepos(limit = 8): Promise<RecentRepo[]> {
   });
 }
 
+// Anonymised activity feed for the home page "live pulse" widget.
+// Returns up to N most-recent ingest events as
+// {chunks, recipe, minutes_ago} triples — no upstream URLs, no repo
+// names. The repo field is stripped server-side; only the recipe
+// slug and the chunk count leave the server.
+export interface IndexedEvent {
+  chunks: number;
+  recipe: string;
+  minutes_ago: number;
+}
+
+export async function recentEvents(limit = 30): Promise<IndexedEvent[]> {
+  const rows = await recentRepos(limit);
+  const now = Date.now();
+  return rows
+    .map((r) => {
+      const recipe = (r.recipes ?? [])[0] ?? "";
+      const ts = r.last_ingest ? new Date(r.last_ingest).getTime() : now;
+      const minutes = Math.max(0, Math.round((now - ts) / 60_000));
+      return { chunks: r.chunks, recipe, minutes_ago: minutes };
+    })
+    .filter((e) => e.recipe.length > 0);
+}
+
 // Pretty "5 min ago" / "2 hours ago" / "3 days ago".
 export function timeAgo(d: Date | null): string {
   if (!d) return "—";
