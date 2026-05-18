@@ -15,8 +15,10 @@ const paddleConfig = {
   token: process.env.PADDLE_CLIENT_TOKEN ?? "",
   environment: process.env.PADDLE_ENVIRONMENT ?? "sandbox",
   prices: {
-    monthly: process.env.PADDLE_PRICE_PRO_MONTHLY ?? "",
-    annual: process.env.PADDLE_PRICE_PRO_ANNUAL ?? "",
+    proMonthly: process.env.PADDLE_PRICE_PRO_MONTHLY ?? "",
+    proAnnual: process.env.PADDLE_PRICE_PRO_ANNUAL ?? "",
+    teamMonthly: process.env.PADDLE_PRICE_TEAM_MONTHLY ?? "",
+    teamAnnual: process.env.PADDLE_PRICE_TEAM_ANNUAL ?? "",
   },
   signedIn: !!user,
   user: user ? { sub: user.sub, email: user.email } : null,
@@ -102,19 +104,35 @@ const paddleConfig = {
     <article class="glass p-5 min-w-0">
       <p class="section-flag inline-block mb-3">Team</p>
       <div class="mb-1 flex items-baseline gap-1">
-        <span class="font-display text-3xl font-extrabold">$9</span>
-        <span class="text-sm text-muted">/ seat / month</span>
+        <span id="team-price" class="font-display text-3xl font-extrabold">$9</span>
+        <span id="team-cadence" class="text-sm text-muted">/ seat / month</span>
       </div>
-      <p class="byline mb-4">Min 3 seats</p>
-      <ul class="text-sm space-y-2 text-mist/80">
+      <div class="flex gap-1 text-xs uppercase tracking-[0.15em] mb-3">
+        <button data-team-billing="monthly"
+          class="team-toggle px-2 py-1 rounded-full border border-champagne/40 bg-champagne/15 text-champagne">
+          Monthly
+        </button>
+        <button data-team-billing="annual"
+          class="team-toggle px-2 py-1 rounded-full border border-white/15 text-mist/60 hover:text-mist">
+          Annual <span class="text-champagne/70">−25%</span>
+        </button>
+      </div>
+      <label class="block text-xs uppercase tracking-[0.15em] text-muted mb-1">
+        Seats
+        <input id="team-seats" type="number" min="3" max="200" value="3"
+          class="ml-2 w-20 !border-b-2 !border-rule !text-mist text-base text-center" />
+      </label>
+      <ul class="text-sm space-y-2 text-mist/80 mt-3">
         <li>Everything in Pro</li>
-        <li>1,500 searches / seat / day, pooled</li>
-        <li>GitHub-org SSO</li>
+        <li>1,500 searches / seat / day</li>
+        <li>GitHub-org SSO (rolling out)</li>
         <li>Shared bookmarks + usage dashboard</li>
         <li>Org-scoped private corpus (opt-in)</li>
       </ul>
-      <a href="mailto:lighthouse@harborgang.com?subject=Lighthouse%20Team%20plan"
-         class="btn-secondary mt-5">Contact us</a>
+      <button id="team-checkout" class="btn-primary mt-5 w-full justify-center">
+        Subscribe team
+      </button>
+      <p id="team-checkout-hint" class="text-muted text-xs mt-2 hidden"></p>
     </article>
   </section>
 
@@ -167,32 +185,65 @@ const paddleConfig = {
     b.addEventListener("click", () => setBilling(b.dataset.billing));
   });
 
+  // ---- Team billing toggle ----
+  let teamBilling = "monthly";
+  const teamPrice = document.getElementById("team-price");
+  const teamCadence = document.getElementById("team-cadence");
+  const teamButton = document.getElementById("team-checkout");
+  const teamHint = document.getElementById("team-checkout-hint");
+  const teamSeats = document.getElementById("team-seats");
+
+  function setTeamBilling(next) {
+    teamBilling = next;
+    document.querySelectorAll(".team-toggle").forEach((b) => {
+      const active = b.dataset.teamBilling === next;
+      b.classList.toggle("bg-champagne/15", active);
+      b.classList.toggle("border-champagne/40", active);
+      b.classList.toggle("text-champagne", active);
+      b.classList.toggle("border-white/15", !active);
+      b.classList.toggle("text-mist/60", !active);
+    });
+    if (next === "annual") {
+      teamPrice.textContent = "$7";
+      teamCadence.textContent = "/ seat / month, billed annually";
+    } else {
+      teamPrice.textContent = "$9";
+      teamCadence.textContent = "/ seat / month";
+    }
+  }
+  document.querySelectorAll(".team-toggle").forEach((b) => {
+    b.addEventListener("click", () => setTeamBilling(b.dataset.teamBilling));
+  });
+
   // ---- Checkout ----
-  if (!cfg.token || !window.Paddle) {
-    // Misconfig — just point at sign-in (if anonymous) or hide CTA.
-    proButton.addEventListener("click", (e) => {
+  function fallbackClick(btn) {
+    btn.addEventListener("click", (e) => {
       e.preventDefault();
       window.location.href = cfg.signedIn ? "/home" : cfg.loginUrl;
     });
+  }
+
+  if (!cfg.token || !window.Paddle) {
+    fallbackClick(proButton);
+    fallbackClick(teamButton);
     return;
   }
 
   window.Paddle.Environment.set(cfg.environment);
   window.Paddle.Initialize({ token: cfg.token });
 
-  proButton.addEventListener("click", () => {
+  function openCheckout(priceId, quantity, hintEl) {
     if (!cfg.signedIn) {
       window.location.href = cfg.loginUrl;
       return;
     }
-    const priceId = billing === "annual" ? cfg.prices.annual : cfg.prices.monthly;
     if (!priceId) {
-      proHint.textContent = "This plan isn't fully wired yet. Contact lighthouse@harborgang.com.";
-      proHint.classList.remove("hidden");
+      hintEl.textContent = "This plan isn't fully wired yet. Contact lighthouse@harborgang.com.";
+      hintEl.classList.remove("hidden");
       return;
     }
     window.Paddle.Checkout.open({
-      items: [{ priceId, quantity: 1 }],
+      items: [{ priceId, quantity }],
       customer: { email: cfg.user.email },
       customData: { auth0_sub: cfg.user.sub, email: cfg.user.email },
       settings: {
@@ -201,6 +252,18 @@ const paddleConfig = {
         successUrl: window.location.origin + "/home?from=checkout",
       },
     });
+  }
+
+  proButton.addEventListener("click", () => {
+    const priceId = billing === "annual" ? cfg.prices.proAnnual : cfg.prices.proMonthly;
+    openCheckout(priceId, 1, proHint);
+  });
+
+  teamButton.addEventListener("click", () => {
+    const priceId = teamBilling === "annual" ? cfg.prices.teamAnnual : cfg.prices.teamMonthly;
+    const seats = Math.max(3, Math.min(200, parseInt(teamSeats.value, 10) || 3));
+    teamSeats.value = String(seats);
+    openCheckout(priceId, seats, teamHint);
   });
 })();
 </script>

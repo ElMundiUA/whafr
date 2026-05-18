@@ -25,6 +25,8 @@ interface ImportMetaEnv {
   readonly PADDLE_PRODUCT_PRO: string;
   readonly PADDLE_PRICE_PRO_MONTHLY: string;
   readonly PADDLE_PRICE_PRO_ANNUAL: string;
+  readonly PADDLE_PRICE_TEAM_MONTHLY: string;
+  readonly PADDLE_PRICE_TEAM_ANNUAL: string;
   readonly PADDLE_ENVIRONMENT: string;
   readonly LIGHTHOUSE_DATABASE_URL: string;
 }
