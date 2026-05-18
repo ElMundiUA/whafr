@@ -32,12 +32,14 @@ export const GET: APIRoute = async ({ request }) => {
   }
   const session = await issueSessionCookie(user);
 
-  // returnTo must be same-origin to defeat open-redirect; default
-  // to "/" otherwise.
-  let returnTo = "/";
+  // returnTo must be same-origin to defeat open-redirect. If the
+  // login was kicked off without an explicit destination (state
+  // encodes "/"), drop the user on /home so they see MCP setup +
+  // tier status instead of the public front page.
+  let returnTo = "/home";
   try {
     const decoded = decodeURIComponent(state);
-    if (decoded.startsWith("/") && !decoded.startsWith("//")) {
+    if (decoded.startsWith("/") && !decoded.startsWith("//") && decoded !== "/") {
       returnTo = decoded;
     }
   } catch {

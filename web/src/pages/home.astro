@@ -1,0 +1,140 @@
+---
+import Newspaper from "@/layouts/Newspaper.astro";
+import { effectiveTier } from "@/lib/users";
+import { LIMITS } from "@/lib/usage";
+
+export const prerender = false;
+
+const user = Astro.locals.user;
+if (!user) {
+  return Astro.redirect("/api/auth/login?return_to=/home");
+}
+
+// DB-side tier is the source of truth — the Auth0 claim might lag.
+let tier: "free" | "pro" = user.tier === "pro" ? "pro" : "free";
+try {
+  const dbTier = await effectiveTier(user);
+  if (dbTier === "pro" || dbTier === "free") tier = dbTier;
+} catch (err) {
+  console.warn("home: tier lookup failed; falling back to cookie", err);
+}
+
+const MCP_URL = "https://lighthouse.harborgang.com/mcp/";
+const dailyCap = LIMITS[tier];
+
+const firstName = (user.name ?? user.email).split(/[ @]/)[0];
+---
+
+<Newspaper title="Home — Lighthouse" section="HOME"
+           pageHeading={`Welcome, ${firstName}.`}
+           pageSubhead="Hook your agent up to the lighthouse and stop relying on training-data recall.">
+
+  <div class="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-x-10 mb-10">
+    <section>
+      <h3 class="font-display text-2xl mb-3">Your access</h3>
+      <p class="text-mist/80 mb-2">
+        Signed in as <code>{user.email}</code> on the{" "}
+        <span class={tier === "pro" ? "section-flag" : "byline"}>{tier}</span>{" "}
+        tier — {dailyCap.toLocaleString()} searches per day.
+        {tier === "free" && (
+          <>
+            {" "}<a href="/pricing">Upgrade to Pro</a> for 5,000 / day, broader
+            top-k, watch-on-update notifications, and a team-shareable MCP
+            token (when we ship them).
+          </>
+        )}
+      </p>
+    </section>
+    <aside class="border-l border-rule pl-6 text-sm">
+      <h4 class="byline mb-2">MCP endpoint</h4>
+      <p class="font-mono text-xs break-all">{MCP_URL}</p>
+      <p class="text-mist/60 mt-2 text-xs">
+        No personal token required today — Pro / Free / anon limits enforce
+        per-IP. Per-user tokens land with the team-share feature.
+      </p>
+    </aside>
+  </div>
+
+  <hr class="mb-8" />
+
+  <h3 class="font-display text-2xl mb-1">Plug it into your agent</h3>
+  <p class="text-mist/70 mb-8 max-w-2xl">
+    Lighthouse speaks the Model Context Protocol — any MCP-capable client can
+    pull <code>search</code> and <code>fetch_source</code> into the agent's
+    tool surface. Three configs to copy.
+  </p>
+
+  <!-- Claude Desktop -->
+  <section class="mb-10">
+    <span class="kicker">Claude Desktop</span>
+    <h4 class="font-display text-xl mb-2">~/Library/Application Support/Claude/claude_desktop_config.json</h4>
+    <pre class="bg-black/40 border border-white/10 rounded-xl p-4 overflow-x-auto text-sm leading-relaxed text-mist/90 font-mono"><code>{`{
+  "mcpServers": {
+    "lighthouse": {
+      "type": "http",
+      "url": "${MCP_URL}"
+    }
+  }
+}`}</code></pre>
+    <p class="text-mist/60 text-sm mt-2">
+      Restart Claude. The lighthouse tools appear in the tool picker —{" "}
+      <code>search</code> for ranked facts, <code>fetch_source</code> for the
+      original paragraph.
+    </p>
+  </section>
+
+  <!-- Claude Code (CLI) -->
+  <section class="mb-10">
+    <span class="kicker">Claude Code</span>
+    <h4 class="font-display text-xl mb-2">One-line install</h4>
+    <pre class="bg-black/40 border border-white/10 rounded-xl p-4 overflow-x-auto text-sm leading-relaxed text-mist/90 font-mono"><code>{`claude mcp add lighthouse --transport http --url ${MCP_URL}`}</code></pre>
+    <p class="text-mist/60 text-sm mt-2">
+      Scope is per-project by default. Pass <code>--scope user</code> for a
+      global install so every project sees the lighthouse.
+    </p>
+  </section>
+
+  <!-- Cursor -->
+  <section class="mb-10">
+    <span class="kicker">Cursor</span>
+    <h4 class="font-display text-xl mb-2">~/.cursor/mcp.json</h4>
+    <pre class="bg-black/40 border border-white/10 rounded-xl p-4 overflow-x-auto text-sm leading-relaxed text-mist/90 font-mono"><code>{`{
+  "mcpServers": {
+    "lighthouse": {
+      "url": "${MCP_URL}"
+    }
+  }
+}`}</code></pre>
+    <p class="text-mist/60 text-sm mt-2">
+      Cursor → Settings → MCP picks the server up after a reload. The "Search
+      the lighthouse" tool shows up in the composer's tool list.
+    </p>
+  </section>
+
+  <hr class="my-10" />
+
+  <h3 class="font-display text-2xl mb-3">What to ask</h3>
+  <p class="text-mist/70 mb-4 max-w-2xl">
+    The corpus is canonical SDLC reference — RFCs, OWASP, framework docs,
+    methodology, post-cutoff release notes. Phrase queries like you'd ask a
+    senior IC; the reranker is good at routing fuzzy questions to the right
+    paragraph.
+  </p>
+  <ul class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-2 text-mist/80 text-sm">
+    <li><a href="/search?q=OAuth%202.0%20PKCE%20S256">OAuth 2.0 PKCE S256 — what does the verifier protect against?</a></li>
+    <li><a href="/search?q=Kubernetes%20readiness%20vs%20liveness">Kubernetes readiness vs liveness — when does each fire?</a></li>
+    <li><a href="/search?q=RAG%20chunking%20strategies%20overlap">RAG chunking strategies — overlap, size tradeoffs</a></li>
+    <li><a href="/search?q=CRDT%20vs%20OT%20collaborative">CRDT vs OT for collaborative editing</a></li>
+    <li><a href="/search?q=Conventional%20Comments%20code%20review">Conventional Comments for code review</a></li>
+    <li><a href="/search?q=Postgres%20EXPLAIN%20analyze%20cost">Postgres EXPLAIN ANALYZE — reading cost rows</a></li>
+  </ul>
+
+  <hr class="my-10" />
+
+  <h3 class="font-display text-2xl mb-3">More</h3>
+  <ul class="text-sm space-y-1">
+    <li><a href="/sections">Section directory</a> — one curated query per role</li>
+    <li><a href="/about">About the project</a> — what's indexed, how it's built</li>
+    <li><a href="/pricing">Pricing</a> — upgrade or comp a teammate</li>
+  </ul>
+</Newspaper>

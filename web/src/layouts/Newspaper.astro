@@ -79,9 +79,9 @@ const currentPath = Astro.url.pathname + Astro.url.search;
                 {user.is_admin && (
                   <a href="/admin" class="no-underline hover:text-accent">Admin</a>
                 )}
-                <span class="text-muted normal-case tracking-normal">
+                <a href="/home" class="text-muted normal-case tracking-normal no-underline hover:text-champagne">
                   {user.tier === "pro" ? "Pro" : "Reader"} · {user.email}
-                </span>
+                </a>
                 <a href="/api/auth/logout" class="no-underline hover:text-accent">Sign out</a>
               </>
             ) : (
