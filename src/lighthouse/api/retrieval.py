@@ -41,6 +41,9 @@ class SearchHit(BaseModel):
 
     node_id: str
     summary: str
+    source: str | None = None
+    """Upstream identifier — a URL or github-tree ref. Lets clients
+    link to the original. ``None`` for legacy graphiti hits."""
     source_node_id: str | None = None
     target_node_id: str | None = None
     valid_from: str | None = None
@@ -93,6 +96,7 @@ async def search(
             SearchHit(
                 node_id=h.node_id,
                 summary=h.summary,
+                source=getattr(h, "source", None),
                 source_node_id=getattr(h, "source_node_uuid", None) or None,
                 target_node_id=getattr(h, "target_node_uuid", None) or None,
                 valid_from=_iso_or_none(

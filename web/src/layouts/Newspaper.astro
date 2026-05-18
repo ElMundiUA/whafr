@@ -35,6 +35,17 @@ const edition = "Vol. I · Edition 001";
 
 const user = Astro.locals.user;
 const currentPath = Astro.url.pathname + Astro.url.search;
+
+import { LIMITS, tierForUser, subjectFor, currentUsage, clientIp } from "@/lib/usage";
+
+const tier = tierForUser(user);
+const limit = LIMITS[tier];
+let usedToday = 0;
+try {
+  usedToday = await currentUsage(subjectFor(user, clientIp(Astro.request)));
+} catch {
+  /* keep 0 */
+}
 ---
 
 <!doctype html>
@@ -74,6 +85,10 @@ const currentPath = Astro.url.pathname + Astro.url.search;
             <a href="/pricing" class="no-underline hover:text-accent">Subscribe</a>
           </div>
           <div class="flex gap-x-4 items-center">
+            <span class="normal-case tracking-normal text-muted text-[11px]"
+                  title={`Daily search cap on the ${tier} tier`}>
+              {usedToday} / {limit.toLocaleString()} today
+            </span>
             {user ? (
               <>
                 {user.is_admin && (

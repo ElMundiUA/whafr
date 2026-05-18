@@ -1,165 +1,127 @@
 ---
 import Newspaper from "@/layouts/Newspaper.astro";
 import SearchBar from "@/components/SearchBar.astro";
-import ChunkCard from "@/components/ChunkCard.astro";
+import { corpusStats, recentRepos, timeAgo } from "@/lib/stats";
 
-// SSR-rendered so the front-page roster reflects current corpus.
-// Cached on Astro's default 5-min CDN TTL when running behind a CDN.
 export const prerender = false;
 
-import { API_BASE } from "@/lib/api-base";
-import { cached } from "@/lib/cache";
+const MCP_URL = "https://lighthouse.harborgang.com/mcp/";
 
-interface Hit {
-  node_id: string;
-  summary: string;
-  episode_ids?: string[];
-  valid_from?: string | null;
-}
-
-// "Front page" picks: a small curated set of high-signal queries
-// covering different sections. Each fetches a top hit independently
-// so a slow / failing source doesn't blank the page.
-const FEATURE_QUERIES: { section: string; query: string }[] = [
-  { section: "Security", query: "OAuth 2.0 PKCE S256 code challenge" },
-  { section: "Architecture", query: "CRDT vs OT collaborative editing" },
-  { section: "DevOps", query: "Kubernetes readiness probe httpGet" },
-  { section: "ML / AI", query: "RAG chunking strategies retrieval" },
-  { section: "Performance", query: "Core Web Vitals LCP CLS INP" },
-  { section: "Mobile", query: "React Native Fabric architecture" },
-];
-
-async function fetchHit(q: string): Promise<Hit | null> {
-  // 5s budget. Per page-view we're inside the teaser cache (10 min
-  // TTL) so this is amortised — bumping from 3s to 5s makes the
-  // refresh path more resilient to OpenAI tail-latency without
-  // costing every visitor.
-  const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), 5000);
-  try {
-    const r = await fetch(
-      `${API_BASE}/search?q=${encodeURIComponent(q)}&top_k=1`,
-      { headers: { Accept: "application/json" } , signal: ac.signal },
-    );
-    if (!r.ok) return null;
-    const data = await r.json();
-    return data.hits?.[0] ?? null;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-const CACHE_KEY = `front:teasers:v1:${FEATURE_QUERIES.map((f) => f.section).join(",")}`;
-
-async function refreshFeatures() {
-  return Promise.all(
-    FEATURE_QUERIES.map(async (f) => ({ ...f, hit: await fetchHit(f.query) })),
-  );
-}
-
-// Cache the fan-out — every visitor was triggering 6 parallel
-// embed+rerank calls; OpenAI rate-limit + tail-latency blanked
-// cards. Refresh once per 10 min.
-let features = await cached(CACHE_KEY, 600, refreshFeatures);
-
-// Self-heal: if the cached payload happened to land all-null
-// (API was sick at refresh time), retry once uncached so a bad
-// moment doesn't blank the page for the next 10 minutes.
-if (features.every((f) => f.hit === null)) {
-  const fresh = await refreshFeatures();
-  if (fresh.some((f) => f.hit !== null)) {
-    await cached(CACHE_KEY, 0, async () => fresh);
-    features = fresh;
-  }
-}
-
-// Corpus size for the "Today's tally" box — live from the DB.
-// Same 10-min cache as the teasers so we don't query per visitor.
-let corpusSize = "—";
+let stats = { total_chunks: 0, total_sources: 0, total_recipes: 0 };
+let recent: Awaited<ReturnType<typeof recentRepos>> = [];
 try {
-  const count = await cached("front:corpus_size:v1", 600, async () => {
-    const { one } = await import("@/lib/db");
-    const row = await one<{ count: string }>("SELECT COUNT(*)::text AS count FROM chunks");
-    return row?.count ?? "0";
-  });
-  corpusSize = `${Number(count).toLocaleString()} chunks`;
+  [stats, recent] = await Promise.all([corpusStats(), recentRepos(8)]);
 } catch {
-  corpusSize = "—";
+  /* show placeholders on db hiccup */
 }
 ---
 
 <Newspaper>
-  <!-- Search prominent above the fold -->
-  <div class="mb-8 max-w-2xl mx-auto">
+  <section class="max-w-3xl mx-auto py-4">
     <SearchBar placeholder="Ask Lighthouse — RFC, framework, pattern…" />
-  </div>
+    <p class="text-muted text-sm text-center mt-3 [text-wrap:balance]">
+      Canonical SDLC reference for AI agents — point your MCP client at
+      <code>{MCP_URL}</code>, or search above. Each result links to the
+      original source.
+    </p>
+  </section>
 
-  <!-- Top story: first feature, full-width -->
-  {features[0]?.hit && (
-    <section class="mb-10">
-      <span class="kicker">{features[0].section}</span>
-      <ChunkCard hit={features[0].hit} variant="feature" />
-    </section>
-  )}
+  <section class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-10 mb-8 max-w-broadsheet mx-auto">
+    <article class="glass p-4">
+      <p class="byline">Indexed chunks</p>
+      <p class="font-display text-3xl font-extrabold mt-1">
+        {stats.total_chunks.toLocaleString()}
+      </p>
+    </article>
+    <article class="glass p-4">
+      <p class="byline">Distinct sources</p>
+      <p class="font-display text-3xl font-extrabold mt-1">
+        {stats.total_sources.toLocaleString()}
+      </p>
+    </article>
+    <article class="glass p-4">
+      <p class="byline">Role recipes</p>
+      <p class="font-display text-3xl font-extrabold mt-1">
+        {stats.total_recipes}
+      </p>
+    </article>
+    <article class="glass p-4">
+      <p class="byline">MCP endpoint</p>
+      <p class="font-mono text-xs mt-1 break-all">{MCP_URL}</p>
+    </article>
+  </section>
 
-  <!-- Three-column second row -->
-  <section class="grid grid-cols-1 md:grid-cols-3 gap-x-8 mb-12 newspaper-grid">
-    {features.slice(1, 4).map((f) =>
-      f.hit ? (
-        <div class="min-w-0">
-          <span class="kicker">{f.section}</span>
-          <ChunkCard hit={f.hit} />
-        </div>
-      ) : null
+  <hr class="my-6" />
+
+  <section class="max-w-broadsheet mx-auto">
+    <h3 class="font-display text-2xl mb-4">Recently indexed</h3>
+    {recent.length === 0 ? (
+      <p class="text-muted text-sm italic">No recent activity.</p>
+    ) : (
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left border-b border-rule uppercase tracking-[0.15em] text-xs text-muted">
+            <th class="py-2 pr-4">Source</th>
+            <th class="py-2 px-3 w-44">Recipes</th>
+            <th class="py-2 px-3 w-20 text-right">Chunks</th>
+            <th class="py-2 pl-3 w-28 text-right">Last ingest</th>
+          </tr>
+        </thead>
+        <tbody>
+          {recent.map((r) => {
+            const isRepo = r.repo.includes("/") && !r.repo.includes(".");
+            const href = isRepo
+              ? `https://github.com/${r.repo}`
+              : `https://${r.repo}`;
+            return (
+              <tr class="border-b border-rule align-top">
+                <td class="py-2 pr-4">
+                  <a href={href} target="_blank" rel="noopener noreferrer"
+                     class="text-mist/85 [overflow-wrap:anywhere]">
+                    {r.repo}
+                  </a>
+                </td>
+                <td class="py-2 px-3 text-xs text-champagne/85 uppercase tracking-[0.1em]">
+                  {(r.recipes ?? []).slice(0, 3).join(" · ")}
+                </td>
+                <td class="py-2 px-3 text-right tabular-nums">{r.chunks.toLocaleString()}</td>
+                <td class="py-2 pl-3 text-right text-muted text-xs">{timeAgo(r.last_ingest)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     )}
   </section>
 
-  <hr class="double mb-6" />
+  <hr class="my-10" />
 
-  <!-- Briefs strip -->
-  <section class="mb-12">
-    <h3 class="font-display text-2xl mb-4">Other dispatches</h3>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10">
-      {features.slice(4).map((f) =>
-        f.hit ? (
-          <div class="min-w-0">
-            <span class="kicker">{f.section}</span>
-            <ChunkCard hit={f.hit} variant="brief" />
-          </div>
-        ) : null
-      )}
-    </div>
-  </section>
-
-  <hr class="mb-6" />
-
-  <!-- Stats / what's-in-the-paper box -->
-  <aside class="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-4 text-sm">
+  <aside class="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-4 text-sm max-w-broadsheet mx-auto">
     <div>
-      <h4 class="font-display text-xl mb-2">In today's edition</h4>
+      <h4 class="font-display text-xl mb-2">What is Lighthouse?</h4>
       <p class="text-muted">
-        Lighthouse indexes canonical SDLC reference content — IETF
-        RFCs, OWASP cheat sheets, NIST SP-800, framework docs, blog
-        archives — and serves a single search endpoint to AI agents
-        over MCP. {corpusSize} ingested.
+        A retrieval engine over canonical SDLC reference content — RFCs,
+        OWASP, NIST SP-800, framework docs, methodology, post-cutoff
+        release streams. Indexed under permissive licenses; results link
+        to originals.
       </p>
     </div>
     <div>
       <h4 class="font-display text-xl mb-2">For agents</h4>
       <p class="text-muted">
-        Point any MCP-capable client (Claude Desktop, Cursor, the
-        official CLI) at <code class="font-mono text-xs">https://lighthouse.harborgang.com/mcp/</code> and
-        wire `search` / `fetch_source` into your tool surface.
+        Point any MCP-capable client (Claude Desktop, Cursor, the official
+        CLI) at <code class="font-mono text-xs">{MCP_URL}</code>. Wire
+        <code class="font-mono text-xs">search</code> and
+        <code class="font-mono text-xs">fetch_source</code> into your tool
+        surface. <a href="/home">Quick-start →</a>
       </p>
     </div>
     <div>
       <h4 class="font-display text-xl mb-2">For readers</h4>
       <p class="text-muted">
-        The newspaper format is a UI for browsing what's in the
-        corpus. Search above. Section pages roll up role-specific
-        rosters. <a href="/about">About the project →</a>
+        Use the search above to find the canonical doc for a question. We
+        surface the right paragraph and link you to the original; we don't
+        try to be the publisher.
       </p>
     </div>
   </aside>

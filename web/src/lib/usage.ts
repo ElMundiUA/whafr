@@ -30,6 +30,22 @@ interface UsageRow {
   count: number;
 }
 
+// Read-only counter — for the masthead "X of Y used today" chip.
+// Doesn't bump. Returns 0 on lookup error so the chip never blocks
+// the layout.
+export async function currentUsage(subject: string): Promise<number> {
+  try {
+    const row = await one<{ count: number }>(
+      `SELECT count FROM usage_daily
+        WHERE subject = $1 AND day = CURRENT_DATE`,
+      [subject],
+    );
+    return row?.count ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
 export async function bumpAndCheck(subject: string, limit: number): Promise<{
   count: number;
   allowed: boolean;
