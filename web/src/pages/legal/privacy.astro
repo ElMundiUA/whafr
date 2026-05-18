@@ -1,0 +1,130 @@
+---
+import Newspaper from "@/layouts/Newspaper.astro";
+
+export const prerender = false;
+
+const EFFECTIVE = "May 18, 2026";
+---
+
+<Newspaper title="Privacy policy — Lighthouse" section="LEGAL"
+           pageHeading="Privacy policy"
+           pageSubhead={`Effective ${EFFECTIVE}.`}>
+  <article class="max-w-3xl mx-auto chunk-prose">
+    <p>
+      This page explains what personal data Harbor Gang ("we", "us") collects
+      when you use Lighthouse at lighthouse.harborgang.com or via the MCP
+      endpoint at <code>/mcp/</code>. Harbor Gang is based in Kyiv with a
+      remote EU footprint; processing is governed by the EU General Data
+      Protection Regulation (GDPR).
+    </p>
+
+    <h2>What we collect</h2>
+    <ul>
+      <li>
+        <strong>Account data.</strong> When you sign in via Auth0, we receive
+        your email address, display name, and (when available) profile
+        picture from your identity provider. We store these in our database
+        keyed by your Auth0 subject identifier so we can recognise you on
+        return visits.
+      </li>
+      <li>
+        <strong>Subscription data.</strong> If you upgrade to Pro or Team,
+        Paddle.com Market Limited acts as our Merchant of Record. Paddle
+        processes your payment details, handles tax, and issues invoices —
+        we never see your card number. We store the Paddle customer and
+        subscription identifiers plus your current tier and renewal date.
+      </li>
+      <li>
+        <strong>Search usage.</strong> Each call to <code>/search</code> is
+        counted toward your daily rate-limit. The counter is keyed by your
+        user identifier (signed-in users) or IP address (anonymous), with the
+        UTC date. We do not log or retain the query text itself.
+      </li>
+      <li>
+        <strong>Operational logs.</strong> Our servers log request paths,
+        HTTP status codes, and approximate latency for ~14 days for
+        debugging. These logs are not personally indexed.
+      </li>
+    </ul>
+
+    <h2>What we don't do</h2>
+    <ul>
+      <li>We don't sell personal data.</li>
+      <li>We don't place advertising cookies or third-party trackers.</li>
+      <li>We don't share query content with third parties for training.</li>
+      <li>
+        We don't log the contents of your search queries beyond the
+        anonymised aggregate counters described above.
+      </li>
+    </ul>
+
+    <h2>Cookies</h2>
+    <p>
+      Lighthouse sets a single session cookie (<code>lh_session</code>) on
+      sign-in. It carries a signed JWT identifying you to the server. See
+      our <a href="/legal/cookies">cookie notice</a> for details.
+    </p>
+
+    <h2>Where data lives</h2>
+    <p>
+      User profiles and subscription state are stored in a Neon Postgres
+      instance hosted in the European Union. Authentication is handled by
+      Auth0 (Okta, Inc., US-based; standard contractual clauses cover the
+      transfer). Payment processing happens at Paddle (UK/EU). Hosting and
+      compute run on DigitalOcean's Frankfurt region.
+    </p>
+
+    <h2>Retention</h2>
+    <ul>
+      <li>
+        <strong>Account data:</strong> kept while your account is active and
+        for up to 90 days after the last sign-in, then deleted unless legal
+        retention applies.
+      </li>
+      <li>
+        <strong>Subscription records:</strong> retained for 7 years to
+        satisfy accounting and tax obligations.
+      </li>
+      <li>
+        <strong>Daily usage counters:</strong> rolled up monthly; raw daily
+        rows are kept 90 days.
+      </li>
+      <li>
+        <strong>Operational logs:</strong> 14 days.
+      </li>
+    </ul>
+
+    <h2>Your rights</h2>
+    <p>
+      Under GDPR you have the right to access, correct, port, restrict, or
+      delete personal data we hold about you, and to object to processing.
+      Email <a href="mailto:hello@harborgang.com">hello@harborgang.com</a>{" "}
+      with your request and we'll respond within 30 days. You also have the
+      right to lodge a complaint with the supervisory authority in your
+      country of residence.
+    </p>
+
+    <h2>Sub-processors</h2>
+    <p>The processors we rely on, by purpose:</p>
+    <ul>
+      <li><strong>Auth0 (Okta, Inc.)</strong> — authentication</li>
+      <li><strong>Paddle.com Market Limited</strong> — billing &amp; tax (Merchant of Record)</li>
+      <li><strong>Neon, Inc.</strong> — managed Postgres database</li>
+      <li><strong>DigitalOcean, LLC</strong> — compute &amp; networking</li>
+      <li><strong>OpenAI, LLC</strong> — embeddings and reranker for search</li>
+    </ul>
+
+    <h2>Changes</h2>
+    <p>
+      We'll post material changes to this notice on this page with an updated
+      effective date. For substantive changes, signed-in users will receive
+      an email notice in advance.
+    </p>
+
+    <h2>Contact</h2>
+    <p>
+      Questions about this notice or to exercise your rights:{" "}
+      <a href="mailto:hello@harborgang.com">hello@harborgang.com</a>.
+    </p>
+  </article>
+</Newspaper>

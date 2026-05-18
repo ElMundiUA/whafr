@@ -1,0 +1,142 @@
+---
+import Newspaper from "@/layouts/Newspaper.astro";
+
+export const prerender = false;
+
+const EFFECTIVE = "May 18, 2026";
+---
+
+<Newspaper title="Terms of service — Lighthouse" section="LEGAL"
+           pageHeading="Terms of service"
+           pageSubhead={`Effective ${EFFECTIVE}.`}>
+  <article class="max-w-3xl mx-auto chunk-prose">
+    <p>
+      These terms govern your use of Lighthouse at lighthouse.harborgang.com
+      and the MCP endpoint at <code>/mcp/</code> ("the Service"). The Service
+      is operated by Harbor Gang ("we", "us"). By creating an account or
+      using the Service you agree to these terms.
+    </p>
+
+    <h2>The Service</h2>
+    <p>
+      Lighthouse is a retrieval engine over canonical SDLC reference content —
+      RFCs, OWASP, NIST SP-800, framework documentation, practitioner
+      writing, and post-cutoff release streams. It exposes a search API
+      consumable over HTTP and Model Context Protocol. The corpus is
+      assembled from public sources; we make a best effort to keep it
+      current and accurate but make no warranty as to completeness or
+      correctness.
+    </p>
+
+    <h2>Accounts</h2>
+    <p>
+      You may use Lighthouse anonymously within the anonymous-tier daily
+      limit. Higher tiers require an account, created by signing in with an
+      identity provider through Auth0. You're responsible for activity under
+      your account; keep your credentials confidential.
+    </p>
+
+    <h2>Subscriptions and payment</h2>
+    <ul>
+      <li>
+        Paddle.com Market Limited is the Merchant of Record for paid
+        subscriptions. Paddle's terms and refund policy apply to the
+        transaction; Paddle handles VAT and other applicable taxes.
+      </li>
+      <li>
+        Subscriptions renew automatically until cancelled. Cancel any time
+        from your account; access continues until the end of the paid
+        period.
+      </li>
+      <li>
+        We may change prices for new subscriptions. Existing subscribers
+        will receive at least 30 days notice before a renewal at a higher
+        price.
+      </li>
+      <li>
+        Refunds outside Paddle's standard policy are at our discretion —
+        write to <a href="mailto:hello@harborgang.com">hello@harborgang.com</a>{" "}
+        if you have a reason.
+      </li>
+    </ul>
+
+    <h2>Acceptable use</h2>
+    <ul>
+      <li>
+        Respect the daily search caps for your tier. Automated mass-scraping
+        of the corpus, or attempts to circumvent caps, are not permitted.
+      </li>
+      <li>
+        Don't use the Service to do anything illegal, to harass anyone, or
+        to attack other systems.
+      </li>
+      <li>
+        Don't share MCP tokens publicly. Tokens are tied to your account and
+        we treat misuse as your responsibility.
+      </li>
+      <li>
+        We may rate-limit, suspend, or terminate accounts that violate
+        these rules. For abuse that affects service stability we may act
+        without prior notice.
+      </li>
+    </ul>
+
+    <h2>Content and intellectual property</h2>
+    <p>
+      The ingested corpus consists of public material under its original
+      licences. We surface excerpts with attribution to the original source;
+      we don't claim ownership over the underlying content. The selection,
+      curation, summaries, keywords, and ranking model are our own work —
+      © {new Date().getFullYear()} Harbor Gang. The "Lighthouse" and
+      "Harbor Gang" word marks belong to Harbor Gang.
+    </p>
+
+    <h2>No warranty; limitation of liability</h2>
+    <p>
+      The Service is provided "as is", without warranty of any kind. We take
+      care with what we publish but cannot guarantee that every result is
+      accurate, current, or fit for a particular purpose — including any
+      use to ground LLM responses. To the maximum extent permitted by law,
+      our aggregate liability for any claim arising out of these terms is
+      capped at the amount you paid us for the Service in the 12 months
+      before the claim.
+    </p>
+
+    <h2>Service availability</h2>
+    <p>
+      We aim for high availability but do not commit to a specific uptime
+      SLA on the public tiers. Scheduled maintenance and unplanned
+      incidents will sometimes interrupt the Service.
+    </p>
+
+    <h2>Termination</h2>
+    <p>
+      You can delete your account at any time by emailing us. We may
+      terminate or suspend access for material breach of these terms,
+      non-payment, or as required by law. On termination we'll delete or
+      anonymise your data per the timelines in our{" "}
+      <a href="/legal/privacy">privacy policy</a>.
+    </p>
+
+    <h2>Governing law</h2>
+    <p>
+      These terms are governed by the laws of Ukraine, without regard to
+      conflict-of-laws principles. Any dispute that cannot be resolved
+      amicably will be submitted to the competent courts at our place of
+      establishment. Mandatory consumer-protection rights under your local
+      law are not affected.
+    </p>
+
+    <h2>Changes</h2>
+    <p>
+      We may update these terms. Material changes will be posted here with
+      an updated effective date and emailed to signed-in users at least 30
+      days before they take effect.
+    </p>
+
+    <h2>Contact</h2>
+    <p>
+      Questions: <a href="mailto:hello@harborgang.com">hello@harborgang.com</a>.
+    </p>
+  </article>
+</Newspaper>

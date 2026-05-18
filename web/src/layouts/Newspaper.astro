@@ -119,14 +119,15 @@ const currentPath = Astro.url.pathname + Astro.url.search;
 
     <!-- ─────────────── Footer ─────────────── -->
     <footer class="border-t-2 border-rule mt-12">
-      <div class="max-w-broadsheet mx-auto px-6 py-6 flex flex-wrap justify-between items-baseline gap-y-3 text-xs font-mono uppercase tracking-flag text-muted">
+      <div class="max-w-broadsheet mx-auto px-6 py-6 flex flex-wrap justify-between items-baseline gap-y-3 text-xs uppercase tracking-flag text-muted">
         <span>© {new Date().getFullYear()} Harbor Gang. Built in the open.</span>
-        <span>
-          <a href="https://github.com/ElMundiUA/lighthouse" class="hover:text-accent">Source</a>
-          &nbsp;·&nbsp;
-          <a href="/mcp/" class="hover:text-accent">MCP endpoint</a>
-          &nbsp;·&nbsp;
-          <a href="/about" class="hover:text-accent">About</a>
+        <span class="flex flex-wrap gap-x-4 gap-y-1">
+          <a href="https://github.com/ElMundiUA/lighthouse" class="hover:text-champagne">Source</a>
+          <a href="/mcp/" class="hover:text-champagne">MCP</a>
+          <a href="/about" class="hover:text-champagne">About</a>
+          <a href="/legal/privacy" class="hover:text-champagne">Privacy</a>
+          <a href="/legal/terms" class="hover:text-champagne">Terms</a>
+          <a href="/legal/cookies" class="hover:text-champagne">Cookies</a>
         </span>
       </div>
     </footer>
