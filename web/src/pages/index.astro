@@ -75,16 +75,22 @@ if (features.every((f) => f.hit === null)) {
   }
 }
 
-// Pull the corpus size for the "Today's tally" stat box. Cheap-ish.
+// Corpus size for the "Today's tally" box — live from the DB.
+// Same 10-min cache as the teasers so we don't query per visitor.
 let corpusSize = "—";
 try {
-  // /health doesn't return size yet; placeholder for a future
-  // /v1/stats endpoint. For now hardcode the last known value.
-  corpusSize = "20,920 chunks";
-} catch {}
+  const count = await cached("front:corpus_size:v1", 600, async () => {
+    const { one } = await import("@/lib/db");
+    const row = await one<{ count: string }>("SELECT COUNT(*)::text AS count FROM chunks");
+    return row?.count ?? "0";
+  });
+  corpusSize = `${Number(count).toLocaleString()} chunks`;
+} catch {
+  corpusSize = "—";
+}
 ---
 
-<Newspaper section="FRONT PAGE">
+<Newspaper>
   <!-- Search prominent above the fold -->
   <div class="mb-8 max-w-2xl mx-auto">
     <SearchBar placeholder="Ask Lighthouse — RFC, framework, pattern…" />
