@@ -6,6 +6,7 @@ import {
   setSessionCookieHeader,
 } from "@/lib/auth";
 import { upsertFromAuth, effectiveTier } from "@/lib/users";
+import { publicOrigin } from "@/lib/origin";
 
 export const prerender = false;
 
@@ -15,7 +16,7 @@ export const GET: APIRoute = async ({ request }) => {
   const state = url.searchParams.get("state") ?? "";
   if (!code) return new Response("missing code", { status: 400 });
 
-  const redirectUri = `${url.origin}/api/auth/callback`;
+  const redirectUri = `${publicOrigin(request)}/api/auth/callback`;
   const tokens = await exchangeCode(code, redirectUri);
   const user = await verifyIdToken(tokens.id_token);
 

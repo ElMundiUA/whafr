@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { buildAuthorizeUrl, isAuthConfigured } from "@/lib/auth";
+import { publicOrigin } from "@/lib/origin";
 
 export const prerender = false;
 
@@ -9,11 +10,7 @@ export const GET: APIRoute = ({ request, redirect }) => {
   }
   const url = new URL(request.url);
   const returnTo = url.searchParams.get("return_to") ?? "/";
-  // State doubles as the post-login redirect target; signed/HMAC
-  // would be stricter, but for an open-internet return-path this
-  // is acceptable since the callback validates returnTo is same-
-  // origin before honoring it.
   const state = encodeURIComponent(returnTo);
-  const redirectUri = `${url.origin}/api/auth/callback`;
+  const redirectUri = `${publicOrigin(request)}/api/auth/callback`;
   return redirect(buildAuthorizeUrl(state, redirectUri));
 };
