@@ -4,66 +4,65 @@ import Site from "@/layouts/Site.astro";
 export const prerender = false;
 ---
 
-<Site title="About — Lighthouse" pageHeading="What is Lighthouse?">
-  <article class="max-w-column mx-auto font-serif text-[1.05rem] leading-[1.65]">
+<Site title="About — Lighthouse" pageHeading="What is Lighthouse?"
+      pageSubhead="A canonical reference for AI agents — find the right doc, fast, then jump to the original.">
+  <article class="max-w-2xl mt-8 chunk-prose">
     <p>
-      <strong>Lighthouse is a knowledge base for AI agents.</strong> Public
-      reference material — IETF RFCs, OWASP cheat sheets, NIST SP-800,
-      framework documentation, recognised practitioner writing — is
-      crawled, chunked, embedded, summarised, and indexed in a
-      Postgres + pgvector store. An MCP endpoint exposes a single
-      <code>search</code> tool that any MCP-capable agent can wire up.
+      Lighthouse is a retrieval engine over public reference material — IETF
+      RFCs, OWASP, NIST SP-800, framework documentation, and recognised
+      practitioner writing. Sources are crawled under permissive licences,
+      chunked, embedded, summarised, and indexed in a Postgres + pgvector
+      store. An MCP endpoint exposes a single <code>search</code> tool any
+      agent can wire up; search results link out to the original publisher.
     </p>
 
-    <h3 class="font-display text-2xl mt-8 mb-2">Why a newspaper layout?</h3>
+    <h2>Why a finder, not a republisher</h2>
     <p>
-      Agents are the primary consumer, but humans need a way to see
-      what's in the corpus, what's freshly ingested, and what's
-      missing. The broadsheet layout treats each chunk as a dispatch,
-      sections as the corpus's roles, and the masthead as the daily
-      snapshot. It's a UI for content auditing as much as discovery.
+      Even on permissive licences, hosting full text behind a subscription
+      makes us a content middleman. We don't want that. We retrieve
+      enough text to identify the right doc — title, summary, topic
+      keywords, a few lines of context — and send you to the source.
+      The AI agent gets a precise pointer; the original publisher keeps
+      the traffic.
     </p>
 
-    <h3 class="font-display text-2xl mt-8 mb-2">How does retrieval work?</h3>
+    <h2>How retrieval works</h2>
     <p>
-      Each chunk has three text fields beyond the body: a Qwen-7B
+      Every chunk has three text fields beyond the body: a Qwen-7B
       one-sentence summary, 3–5 topic tags, and 6–12 search-relevant
-      keywords (synonyms and alternative phrasings). Search runs
-      BM25 over a weighted tsvector (summary &amp; keywords A,
-      tags B, content C), and cosine similarity over the chunk
-      embedding. A reciprocal-rank-fusion merge passes the top
-      candidates through a gpt-4o-mini reranker that scores each
-      against the query directly.
+      keywords (synonyms and alternative phrasings). Search runs BM25
+      over a weighted tsvector (summary &amp; keywords A, tags B,
+      content C) and cosine similarity over the chunk embedding.
+      A reciprocal-rank-fusion merge passes the top candidates through
+      a gpt-4o-mini reranker that scores each against the query
+      directly. The winner is what you see at top of /search.
     </p>
 
-    <h3 class="font-display text-2xl mt-8 mb-2">How does it differ from Context7?</h3>
+    <h2>How it differs from Context7</h2>
     <p>
-      Context7 ships a wide library-doc snapshot (hundreds of
-      framework docs, thousands of snippets each). Lighthouse is
-      narrower at Tier 1 — the most-used frameworks per role — and
-      adds three layers Context7 doesn't index: canonical standards
-      (RFCs, OWASP, NIST), practitioner literature (Fowler, Schneier,
-      Cagan, Brendan Gregg), and post-cutoff streams (RSS feeds,
-      release notes). Where the two overlap on library docs, our
-      bet is depth via summarisation; where they don't overlap,
-      we're the only place.
+      Context7 ships a wide library-doc snapshot — hundreds of framework
+      docs, thousands of snippets each. Lighthouse is narrower on
+      library docs (the most-used per role) and adds three layers
+      Context7 doesn't index: canonical standards (RFCs, OWASP, NIST),
+      practitioner literature, and post-cutoff streams (RSS feeds,
+      release notes). Where the two overlap, our bet is depth via
+      summarisation; where they don't, we're the only place to find it.
     </p>
 
-    <h3 class="font-display text-2xl mt-8 mb-2">Built in the open</h3>
+    <h2>Built in the open</h2>
     <p>
       The code lives at
-      <a href="https://github.com/ElMundiUA/lighthouse">github.com/ElMundiUA/lighthouse</a>
-      under Apache 2.0. The corpus is private (we pay for ingest);
-      the retrieval engine is open. Run your own copy if you want
-      a self-hosted reference for your team.
+      <a href="https://github.com/ElMundiUA/lighthouse" target="_blank" rel="noopener">github.com/ElMundiUA/lighthouse</a>
+      under Apache 2.0. The corpus index is hosted; the retrieval
+      engine is open. Self-host a copy for your team if you'd rather
+      run your own.
     </p>
 
-    <h3 class="font-display text-2xl mt-8 mb-2">Subscribing</h3>
+    <h2>Subscribing</h2>
     <p>
-      Anonymous access has a small daily query budget. Registered
-      readers get more. A paid tier (Pro) lifts the cap and adds
-      access to <code>fetch_source</code> for the full article body.
-      See <a href="/pricing">subscribe</a>.
+      Anonymous access has a small daily query budget so you can
+      evaluate. Signed-in readers get more. A paid tier (Pro) lifts the
+      cap meaningfully and unlocks per-team features. See <a href="/pricing">pricing</a>.
     </p>
   </article>
 </Site>
