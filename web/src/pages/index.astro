@@ -133,7 +133,7 @@ url = "${MCP_URL}"
       <IndexedPulse events={events} />
 
       <!-- ─────────────── Search ─────────────── -->
-      <section class="mt-8 max-w-2xl mx-auto text-center">
+      <section class="mt-8 max-w-3xl mx-auto text-center">
         <p class="section-kicker mb-3">Search the corpus</p>
         <SearchBar placeholder="OAuth PKCE S256, Kubernetes readiness probe, RAG chunking…" />
         <ul class="mt-4 flex flex-wrap justify-center gap-x-3 gap-y-1.5 text-sm">
@@ -238,7 +238,7 @@ url = "${MCP_URL}"
   <!-- ─────────────── Search-results mode ─────────────── -->
   {q && (
     <>
-      <section class="pt-6 max-w-2xl mx-auto">
+      <section class="pt-6 max-w-3xl mx-auto">
         <SearchBar initial={q} placeholder="Ask Lighthouse…" />
         {!rateLimited && !errored && (
           <div class="flex items-center justify-center gap-3 mt-4 text-xs uppercase tracking-[0.18em] text-mist/55">
@@ -255,7 +255,7 @@ url = "${MCP_URL}"
       </section>
 
       {rateLimited && (
-        <section class="max-w-2xl mx-auto my-8">
+        <section class="max-w-3xl mx-auto my-8">
           <p class="rounded-2xl border-2 border-coral/40 bg-coral/5 p-5 text-coral">
             Daily search limit reached ({usageCount} of {LIMITS[tier]} as a{" "}
             {tier === "anon" ? "guest" : `${tier} reader`}).
@@ -271,7 +271,7 @@ url = "${MCP_URL}"
       )}
 
       {errored && !rateLimited && (
-        <section class="max-w-2xl mx-auto my-8">
+        <section class="max-w-3xl mx-auto my-8">
           <p class="rounded-2xl border border-coral/40 bg-coral/5 p-5 text-coral">
             Couldn't reach the search backend. Try again in a moment.
           </p>
@@ -279,7 +279,7 @@ url = "${MCP_URL}"
       )}
 
       {!errored && !rateLimited && hits.length === 0 && (
-        <section class="max-w-2xl mx-auto my-12 text-center text-mist/55">
+        <section class="max-w-3xl mx-auto my-12 text-center text-mist/55">
           <p>No results for <strong class="text-mist">"{q}"</strong>. Try fewer or more specific terms.</p>
         </section>
       )}
@@ -301,7 +301,7 @@ url = "${MCP_URL}"
     <>
 
       <!-- Plans -->
-      <section class="mt-16">
+      <section class="mt-16 max-w-3xl mx-auto">
         <div class="text-center mb-5">
           <h2 class="font-display text-xl md:text-2xl font-semibold tracking-tight text-mist mb-1.5">
             Two plans, one corpus.
@@ -310,7 +310,7 @@ url = "${MCP_URL}"
             Same retrieval on every tier. Caps reset 00:00 UTC.
           </p>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl mx-auto">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
           <article class="glass p-6">
             <p class="section-kicker mb-2">Free</p>
             <p class="font-display text-2xl font-bold mb-1">$0</p>
@@ -334,8 +334,8 @@ url = "${MCP_URL}"
       </section>
 
       <!-- Engine block -->
-      <section class="mt-16 mb-16">
-        <div class="glass p-8 md:p-10 max-w-4xl mx-auto">
+      <section class="mt-16 mb-16 max-w-3xl mx-auto">
+        <div class="glass p-8 md:p-10">
           <div class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6 md:gap-10 items-center">
             <div class="min-w-0">
               <h2 class="font-display text-xl md:text-2xl font-semibold tracking-tight mb-2">
