@@ -28,8 +28,7 @@ export async function corpusOverview(): Promise<{
         COUNT(*) AS total,
         COUNT(DISTINCT source) AS sources,
         COUNT(*) FILTER (WHERE COALESCE(summary, '') <> '') AS summary,
-        COUNT(*) FILTER (WHERE keywords IS NOT NULL
-                          AND array_length(keywords, 1) > 0) AS keywords,
+        COUNT(*) FILTER (WHERE COALESCE(keywords, '') <> '') AS keywords,
         COUNT(*) FILTER (WHERE embedding IS NOT NULL) AS embedding
        FROM chunks`,
   );
