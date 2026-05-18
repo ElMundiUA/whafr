@@ -8,7 +8,6 @@ COPY package.json package-lock.json* ./
 RUN npm ci --no-audit --no-fund
 
 COPY astro.config.mjs tailwind.config.mjs postcss.config.* tsconfig.json ./
-COPY public ./public
 COPY src ./src
 RUN npm run build
 

@@ -11,6 +11,7 @@ const API_BASE =
   "https://lighthouse.harborgang.com";
 
 const q = Astro.url.searchParams.get("q")?.trim() ?? "";
+const sort = Astro.url.searchParams.get("sort") === "newest" ? "newest" : "relevance";
 const user = Astro.locals.user;
 const tier = tierForUser(user);
 // Pro gets a richer top-k by default; anon/free capped at 10.
@@ -58,6 +59,16 @@ if (q) {
       if (r.ok) {
         const data = await r.json();
         hits = data.hits || [];
+        if (sort === "newest") {
+          // Resort client-side. Relevance ranking still picks the
+          // top-k; the user sees them dated-newest-first. Hits
+          // without a date fall to the bottom.
+          hits = [...hits].sort((a, b) => {
+            const ad = a.valid_from ? Date.parse(a.valid_from) : -Infinity;
+            const bd = b.valid_from ? Date.parse(b.valid_from) : -Infinity;
+            return bd - ad;
+          });
+        }
       } else {
         errored = true;
       }
@@ -78,9 +89,24 @@ const title = q ? `${q} — Lighthouse` : "Search — Lighthouse";
   pageHeading={q ? `“${q}”` : "Search the lighthouse"}
   pageSubhead={q ? `${hits.length} matching dispatches` : "Cite by canonical source, not by memory."}
 >
-  <div class="max-w-2xl mb-10">
+  <div class="max-w-2xl mb-6">
     <SearchBar initial={q} />
   </div>
+
+  {q && !rateLimited && (
+    <div class="flex items-center gap-3 mb-8 text-xs uppercase tracking-[0.18em] text-muted">
+      <span>Sort:</span>
+      <a href={`/search?q=${encodeURIComponent(q)}`}
+         class={`no-underline ${sort === "relevance" ? "text-champagne" : "hover:text-mist"}`}>
+        Relevance
+      </a>
+      <span class="opacity-30">·</span>
+      <a href={`/search?q=${encodeURIComponent(q)}&sort=newest`}
+         class={`no-underline ${sort === "newest" ? "text-champagne" : "hover:text-mist"}`}>
+        Newest
+      </a>
+    </div>
+  )}
 
   {!q && (
     <section class="text-muted text-base max-w-broadsheet">

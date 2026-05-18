@@ -33,10 +33,14 @@ spec:
             - name: PUBLIC_LIGHTHOUSE_API_BASE
               value: http://lighthouse-api.lighthouse.svc.cluster.local
           envFrom:
-            # Carries AUTH0_*, SESSION_SECRET, ADMIN_EMAIL, PADDLE_*,
-            # LIGHTHOUSE_DATABASE_URL.
+            # AUTH0_*, SESSION_SECRET, ADMIN_EMAIL, PADDLE_*.
             - secretRef:
                 name: lighthouse-web-env
+            # Reuse LIGHTHOUSE_PG_URL from the existing API secret —
+            # web/src/lib/db.ts accepts either env name. Saves having
+            # to mirror the Neon DSN into a second secret.
+            - secretRef:
+                name: lighthouse-env
           readinessProbe:
             httpGet: { path: /, port: http }
             initialDelaySeconds: 5
