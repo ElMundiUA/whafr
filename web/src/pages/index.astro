@@ -117,9 +117,9 @@ url = "${MCP_URL}"
   {!q && (
     <>
       <!-- ─────────────── Hero ─────────────── -->
+      <!-- No inline glow — body aurora (lilac dome + champagne right +
+           coral left) carries the hero atmosphere on its own. -->
       <section class="relative pt-10 pb-2 text-center">
-        <div class="pointer-events-none absolute inset-x-0 -top-10 -z-10 mx-auto h-[500px] w-[1100px] max-w-full opacity-40"
-             style="background: radial-gradient(ellipse at center, rgba(207,169,107,0.18) 0%, transparent 65%);"></div>
         <p class="section-kicker mb-3">Grounding for coding agents</p>
         <h1 class="font-display text-4xl md:text-5xl font-bold tracking-tight text-mist leading-[1.1] max-w-3xl mx-auto">
           {stats.total_chunks.toLocaleString()} canonical docs your agent <span class="text-champagne">can cite.</span>

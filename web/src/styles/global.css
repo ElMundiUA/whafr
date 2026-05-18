@@ -20,11 +20,14 @@
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
   }
+  /* Aurora background — three layered radial gradients matching Ship.
+     The lilac top dome is the dominant tone, champagne pulls warm-right,
+     coral anchors the left edge. Fixed attachment so it doesn't scroll. */
   body {
     background-image:
-      radial-gradient(ellipse 110% 55% at 50% -5%, rgba(207, 169, 107, 0.10), transparent 55%),
-      radial-gradient(ellipse 70% 40% at 95% 0%, rgba(91, 184, 255, 0.06), transparent 50%),
-      radial-gradient(ellipse 50% 35% at 0% 15%, rgba(180, 195, 255, 0.04), transparent 45%);
+      radial-gradient(ellipse 120% 80% at 50% -20%, rgba(179, 136, 255, 0.35), transparent 55%),
+      radial-gradient(ellipse 80% 50% at 100% 0%, rgba(207, 169, 107, 0.20), transparent 45%),
+      radial-gradient(ellipse 60% 40% at 0% 20%, rgba(255, 92, 108, 0.18), transparent 40%);
     background-attachment: fixed;
   }
   h1, h2, h3, h4 {
@@ -136,20 +139,36 @@
     display: inline-block;
     display: inline-block;
   }
-  /* Harbor Gang pill button — primary action. */
+  /* Primary CTA — Ship's signature tri-colour gradient pill
+     (coral → lilac → aqua/champagne). The gradient is the brand mark;
+     keep it for the loudest action on a page. */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-full bg-champagne px-6 py-3 text-sm font-semibold text-ink shadow-glow-sm transition hover:brightness-110 hover:shadow-glow active:scale-[0.99];
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-coral via-lilac to-champagne px-8 py-3.5 text-sm font-semibold text-ink shadow-glow transition hover:brightness-110 active:scale-[0.99];
     text-transform: none;
     letter-spacing: 0;
   }
+  /* Secondary CTA — translucent white pill with backdrop blur.
+     Reads as a peer of the gradient pill, not a downgrade. */
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-transparent px-6 py-3 text-sm font-semibold text-mist/80 transition hover:border-white/35 hover:bg-white/5 hover:text-mist;
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-white/20 bg-white/[0.06] px-6 py-3 text-sm font-semibold text-mist/90 backdrop-blur transition hover:border-white/35 hover:bg-white/10 hover:text-mist;
     text-transform: none;
     letter-spacing: 0;
   }
-  /* Glass card — for chunk cards, pricing tiles, admin stats. */
+  /* Tertiary / ghost — bare outline, lowest weight. */
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-white/15 bg-transparent px-6 py-3 text-sm font-semibold text-mist/70 transition hover:border-white/40 hover:bg-white/5 hover:text-mist;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+  /* Glass card — Ship's `.glass-panel` treatment: deeper blur, softer
+     drop-shadow, and an inset top highlight that gives the panel a
+     thin liquid-metal edge. Used for pricing tiles, the engine block,
+     chunk cards. */
   .glass {
-    @apply rounded-2xl border border-white/[0.08] bg-white/[0.025] backdrop-blur-sm transition hover:border-champagne/25 hover:bg-white/[0.04];
+    @apply rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-xl transition hover:border-champagne/25;
+    box-shadow:
+      0 4px 24px rgba(0, 0, 0, 0.25),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
   }
   /* Long-form chunk body — only used on /chunk/[id]. */
   .chunk-prose {
