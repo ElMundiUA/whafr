@@ -27,7 +27,7 @@ const firstName = (user.name ?? user.email).split(/[ @]/)[0];
 
 <Site title="Home — Lighthouse"
            pageHeading={`Welcome, ${firstName}.`}
-           pageSubhead="Hook your agent up to the lighthouse and stop relying on training-data recall.">
+           pageSubhead="Plug your agent into Lighthouse and stop relying on training-data recall.">
 
   <div class="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-x-10 mb-10">
     <section>
@@ -90,7 +90,7 @@ const firstName = (user.name ?? user.email).split(/[ @]/)[0];
     <pre class="bg-black/40 border border-white/10 rounded-xl p-4 overflow-x-auto text-sm leading-relaxed text-mist/90 font-mono"><code>{`claude mcp add lighthouse --transport http --url ${MCP_URL}`}</code></pre>
     <p class="text-mist/60 text-sm mt-2">
       Scope is per-project by default. Pass <code>--scope user</code> for a
-      global install so every project sees the lighthouse.
+      global install so every project sees Lighthouse.
     </p>
   </section>
 
@@ -107,7 +107,7 @@ const firstName = (user.name ?? user.email).split(/[ @]/)[0];
 }`}</code></pre>
     <p class="text-mist/60 text-sm mt-2">
       Cursor → Settings → MCP picks the server up after a reload. The "Search
-      the lighthouse" tool shows up in the composer's tool list.
+      Lighthouse" tool shows up in the composer's tool list.
     </p>
   </section>
 
@@ -133,8 +133,8 @@ const firstName = (user.name ?? user.email).split(/[ @]/)[0];
 
   <h3 class="font-display text-2xl mb-3">More</h3>
   <ul class="text-sm space-y-1">
-    <li><a href="/sections">Section directory</a> — one curated query per role</li>
     <li><a href="/about">About the project</a> — what's indexed, how it's built</li>
     <li><a href="/pricing">Pricing</a> — upgrade or comp a teammate</li>
+    <li><a href="/engine">Lighthouse Engine</a> — the OSS stack this dashboard runs on</li>
   </ul>
 </Site>

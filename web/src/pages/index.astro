@@ -96,16 +96,14 @@ const title = q ? `${q} — Lighthouse` : "Lighthouse — grounding layer for co
     )}
     {!q && (
       <>
-        <p class="section-kicker mb-4">Grounding layer for coding agents</p>
+        <p class="section-kicker mb-4">Grounding for coding agents</p>
         <h1 class="font-display text-5xl md:text-6xl font-extrabold tracking-tight text-mist leading-[1.05] max-w-3xl mx-auto">
           Stop your agent inventing <span class="text-champagne">RFC numbers.</span>
         </h1>
         <p class="mt-5 text-mist/70 text-lg max-w-2xl mx-auto leading-relaxed">
-          Lighthouse indexes the canonical SDLC corpus — IETF RFCs, OWASP, NIST SP-800,
-          framework docs, practitioner literature, post-cutoff release streams — and
-          serves it to your agent over MCP. Search returns a one-line fact plus a
-          link to the original.
-          <span class="text-mist/55">Apache-2.0. Self-host or use the hosted index.</span>
+          Lighthouse plugs into Claude Code, Claude Desktop, Cursor, and any other
+          MCP-capable agent, and answers retrieval queries from {stats.total_chunks.toLocaleString()} chunks of
+          canonical SDLC reference. Cited answers, not confident paraphrases.
         </p>
       </>
     )}
@@ -113,9 +111,14 @@ const title = q ? `${q} — Lighthouse` : "Lighthouse — grounding layer for co
       <SearchBar initial={q} placeholder="Ask Lighthouse — RFC, framework, pattern…" />
     </div>
     {!q && (
-      <p class="mt-3 text-xs text-mist/45 font-mono">
-        {stats.total_chunks.toLocaleString()} chunks · {stats.total_sources.toLocaleString()} sources · {stats.total_recipes} recipes · 30 free searches/day · no card
-      </p>
+      <div class="mt-3 text-xs text-mist/45 font-mono leading-relaxed">
+        <p>
+          {stats.total_chunks.toLocaleString()} chunks · {stats.total_sources.toLocaleString()} sources · {stats.total_recipes} recipes · 30 free searches/day · no card
+        </p>
+        <p>
+          Engine is open source — <a href="https://github.com/ElMundiUA/lighthouse" target="_blank" rel="noopener" class="text-mist/65 hover:text-champagne no-underline">github.com/ElMundiUA/lighthouse</a> · <a href="/engine" class="text-mist/65 hover:text-champagne no-underline">/engine →</a>
+        </p>
+      </div>
     )}
     {q && !rateLimited && !errored && (
       <div class="flex items-center justify-center gap-3 mt-4 text-xs uppercase tracking-[0.18em] text-mist/55">
@@ -179,7 +182,7 @@ const title = q ? `${q} — Lighthouse` : "Lighthouse — grounding layer for co
   <!-- Home-only stats + recently indexed -->
   {!q && (
     <>
-      <section class="grid grid-cols-2 md:grid-cols-4 gap-4 my-8">
+      <section class="grid grid-cols-1 md:grid-cols-3 gap-4 my-8">
         <article class="glass p-5">
           <p class="section-kicker">Indexed chunks</p>
           <p class="font-display text-3xl font-extrabold mt-2 tabular-nums">{stats.total_chunks.toLocaleString()}</p>
@@ -192,47 +195,33 @@ const title = q ? `${q} — Lighthouse` : "Lighthouse — grounding layer for co
           <p class="section-kicker">Role recipes</p>
           <p class="font-display text-3xl font-extrabold mt-2 tabular-nums">{stats.total_recipes}</p>
         </article>
-        <a href="https://github.com/ElMundiUA/lighthouse" target="_blank" rel="noopener"
-           class="glass p-5 no-underline group">
-          <p class="section-kicker">Apache-2.0</p>
-          <p class="font-display text-xl font-extrabold mt-2 text-mist group-hover:text-champagne break-all">
-            github.com/ElMundiUA/<wbr/>lighthouse
-          </p>
-        </a>
       </section>
 
-      <!-- Three ways to run -->
+      <!-- Two plans, one corpus -->
       <section class="mt-14">
-        <p class="section-kicker text-center mb-6">Three ways to run Lighthouse</p>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <p class="section-kicker text-center mb-6">Two plans, one corpus</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
           <article class="glass p-6">
-            <p class="font-display text-xl font-bold mb-1">Hosted, free</p>
+            <p class="font-display text-xl font-bold mb-1">Free</p>
             <p class="text-sm text-mist/55 mb-4">200 searches/day signed in · 30/day anon</p>
             <p class="text-mist/70 text-sm leading-relaxed">
               Same corpus, same MCP endpoint, no card. Sign in with GitHub or email.
             </p>
             <a href="/api/auth/login?return_to=/home" class="inline-flex mt-5 text-champagne text-sm font-semibold hover:text-mist no-underline">Sign in →</a>
           </article>
-          <article class="glass p-6 border-champagne/30">
-            <p class="font-display text-xl font-bold mb-1">Hosted, Pro</p>
+          <article class="glass p-6 border-champagne/30 ring-1 ring-champagne/30">
+            <p class="font-display text-xl font-bold mb-1">Pro <span class="text-sm font-normal text-mist/55">· $12/mo</span></p>
             <p class="text-sm text-mist/55 mb-4">1,500 searches/day · top-30 · watch-on-update</p>
             <p class="text-mist/70 text-sm leading-relaxed">
               Lifts the cap meaningfully, opens cross-encoder rerank, notifies on
-              changes to sources you bookmark. $12/mo or $9/seat for teams.
+              changes to sources you bookmark. $9/seat for teams.
             </p>
-            <a href="/pricing" class="inline-flex mt-5 text-champagne text-sm font-semibold hover:text-mist no-underline">Pricing →</a>
-          </article>
-          <article class="glass p-6">
-            <p class="font-display text-xl font-bold mb-1">Self-host <span class="text-champagne/85 text-sm font-normal">· Apache-2.0</span></p>
-            <p class="text-sm text-mist/55 mb-4">Your hardware, your corpus, your admin</p>
-            <p class="text-mist/70 text-sm leading-relaxed">
-              The full retrieval engine, MCP server, ingest pipeline, admin panel —
-              all in one repo. Bring your own sources and role recipes.
-            </p>
-            <a href="https://github.com/ElMundiUA/lighthouse" target="_blank" rel="noopener"
-               class="inline-flex mt-5 text-champagne text-sm font-semibold hover:text-mist no-underline">github.com/ElMundiUA/lighthouse ↗</a>
+            <a href="/pricing" class="inline-flex mt-5 text-champagne text-sm font-semibold hover:text-mist no-underline">See pricing →</a>
           </article>
         </div>
+        <p class="mt-6 text-center text-sm text-mist/55">
+          Building your own knowledge layer? <strong class="text-mist/85 font-normal">Lighthouse Engine</strong> is the same retrieval stack, Apache-2.0, with your corpus instead of ours. <a href="/engine" class="text-champagne hover:text-mist">→ /engine</a>
+        </p>
       </section>
 
       <section class="mt-10">

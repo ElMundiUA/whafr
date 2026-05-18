@@ -22,8 +22,8 @@ const paddleConfig = {
 };
 ---
 
-<Site title="Lighthouse pricing — $12/mo Pro, free anon, free self-host" pageHeading="Pick a tier"
-      pageSubhead="Same corpus on every tier — IETF RFCs, OWASP, NIST SP-800, framework docs, methodology, post-cutoff release streams. Caps reset 00:00 UTC. Cancel anytime, prorated. Self-host for free if you'd rather run your own index.">
+<Site title="Lighthouse pricing — $12/mo Pro" pageHeading="Pick a tier"
+      pageSubhead="Same corpus on every tier — IETF RFCs, OWASP, NIST SP-800, framework docs, methodology, post-cutoff release streams. Caps reset 00:00 UTC. Cancel anytime, prorated.">
 
   <!-- Single global Monthly / Annual toggle drives both Pro and Team -->
   <div class="flex justify-center my-8">
@@ -39,7 +39,7 @@ const paddleConfig = {
     </div>
   </div>
 
-  <section class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-5">
+  <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
     <!-- Anonymous -->
     <article class="glass p-5 min-w-0">
       <p class="section-kicker mb-3">Anonymous</p>
@@ -119,25 +119,14 @@ const paddleConfig = {
       <p id="team-checkout-hint" class="text-mist/55 text-xs mt-2 hidden"></p>
     </article>
 
-    <!-- Self-host -->
-    <article class="glass p-5 min-w-0">
-      <p class="section-kicker mb-3">Self-host</p>
-      <p class="font-display text-3xl font-extrabold mb-1">Free</p>
-      <p class="text-xs text-champagne/85 italic mb-4">Your hardware, your corpus, your admin.</p>
-      <ul class="text-sm space-y-2 text-mist/80">
-        <li>Full retrieval engine — open source</li>
-        <li>MCP server + admin panel included</li>
-        <li>Bring your own corpus + role recipes</li>
-        <li>Apache-2.0 licensed</li>
-      </ul>
-      <a href="https://github.com/ElMundiUA/lighthouse" target="_blank" rel="noopener"
-         class="btn-secondary mt-5 !text-champagne !border-champagne/40 hover:!border-champagne">
-        Read the repo ↗
-      </a>
-      <p class="text-mist/45 text-xs mt-3">
-        Need quarterly source curation? <a href="mailto:lighthouse@harborgang.com" class="text-champagne">Talk to us</a>.
-      </p>
-    </article>
+  </section>
+
+  <!-- Engine teaser strip (explanatory variant) -->
+  <section class="mt-14 max-w-2xl mx-auto border-y border-white/5 py-6 text-center text-mist/65 text-sm leading-relaxed">
+    The pricing above buys access to <strong class="text-mist/85 font-normal">our hosted corpus</strong>.
+    If you want the engine instead — same retrieval stack, your own sources,
+    your own hardware, Apache-2.0 — that's a different product.
+    <a href="/engine" class="text-champagne hover:text-mist">See /engine →</a>
   </section>
 </Site>
 

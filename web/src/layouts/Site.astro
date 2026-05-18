@@ -17,15 +17,28 @@ interface Props {
   pageSubhead?: string;
   fullBleed?: boolean;
   ogImage?: string;
+  productScope?: "saas" | "engine";
+  hideUsagePill?: boolean;
 }
 
+const isEngine = Astro.url.pathname.startsWith("/engine");
+const inferredScope: "saas" | "engine" = isEngine ? "engine" : "saas";
+
 const {
-  title = "Lighthouse — grounding layer for coding agents",
-  description = "Lighthouse indexes 71K chunks of canonical SDLC reference — RFCs, OWASP, NIST, framework docs — and serves them to coding agents over MCP. Apache-2.0. Hosted free, hosted paid, or self-host.",
+  productScope = inferredScope,
+  hideUsagePill = isEngine,
+  title = productScope === "engine"
+    ? "Lighthouse Engine — open-source retrieval for grounded coding agents"
+    : "Lighthouse — grounding layer for coding agents",
+  description = productScope === "engine"
+    ? "Lighthouse Engine is the open-source retrieval stack behind Lighthouse. Ingest pipeline, chunker, summariser, BM25 + pgvector, cross-encoder rerank, MCP server. Apache-2.0. Bring your own corpus."
+    : "Lighthouse indexes 71K chunks of canonical SDLC reference — RFCs, OWASP, NIST, framework docs — served to coding agents over MCP. Free 200/day, Pro $12/mo.",
   pageHeading,
   pageSubhead,
   fullBleed = false,
-  ogImage = "https://lighthouse.harborgang.com/og.png",
+  ogImage = productScope === "engine"
+    ? "https://lighthouse.harborgang.com/og-engine.png"
+    : "https://lighthouse.harborgang.com/og-saas.png",
 } = Astro.props;
 
 const user = Astro.locals.user;
@@ -50,8 +63,8 @@ try {
 }
 
 const nav = [
-  { href: "/",          label: "Home" },
   { href: "/pricing",   label: "Pricing" },
+  { href: "/engine",    label: "Engine" },
   { href: "/about",     label: "About" },
 ];
 const path = Astro.url.pathname;
@@ -86,8 +99,12 @@ function isActive(href: string): boolean {
     <header class="sticky top-0 z-50 border-b border-white/10 bg-ink/80 backdrop-blur-xl">
       <div class="mx-auto flex h-16 max-w-[80rem] items-center px-4 sm:px-6">
         <div class="flex flex-1 justify-start">
-          <a href="/" class="shrink-0 font-display text-base font-bold tracking-tight text-mist">
-            Lighthouse<span class="text-champagne">.</span>
+          <a href={isEngine ? "/engine" : "/"} class="shrink-0 font-display text-base font-bold tracking-tight text-mist">
+            {isEngine ? (
+              <>Lighthouse<span class="text-mist/55 font-normal ml-1">Engine</span></>
+            ) : (
+              <>Lighthouse<span class="text-champagne">.</span></>
+            )}
           </a>
         </div>
 
@@ -108,7 +125,7 @@ function isActive(href: string): boolean {
         </nav>
 
         <div class="flex flex-1 items-center justify-end gap-2 text-sm">
-          {(() => {
+          {!hideUsagePill && (() => {
             const pct = Math.min(100, Math.round((usedToday / limit) * 100));
             const danger = pct >= 80;
             const warn = pct >= 50 && pct < 80;
@@ -142,6 +159,11 @@ function isActive(href: string): boolean {
                 Sign out
               </a>
             </>
+          ) : isEngine ? (
+            <a href="https://github.com/ElMundiUA/lighthouse" target="_blank" rel="noopener"
+               class="rounded-full border border-white/15 px-4 py-1.5 font-semibold text-mist hover:border-champagne/40 hover:bg-white/[0.04] no-underline">
+              View on GitHub <span aria-hidden="true">↗</span>
+            </a>
           ) : (
             <a href={`/api/auth/login?return_to=${encodeURIComponent(currentPath)}`}
                class="rounded-full bg-champagne px-4 py-1.5 font-semibold text-ink hover:brightness-110 no-underline">
@@ -180,36 +202,35 @@ function isActive(href: string): boolean {
     <!-- ─────────────── Footer ─────────────── -->
     <footer class="mt-16 border-t border-white/10">
       <div class="mx-auto max-w-[80rem] px-4 sm:px-6 py-10">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-sm">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-10 text-sm">
           <div>
-            <p class="section-kicker mb-3">Build</p>
-            <ul class="space-y-1.5 text-mist/65">
-              <li><a href="https://github.com/ElMundiUA/lighthouse" target="_blank" rel="noopener" class="hover:text-champagne no-underline">GitHub · Apache-2.0</a></li>
-              <li><a href="/mcp/" class="hover:text-champagne no-underline">MCP endpoint</a></li>
-              <li><a href="/v1/search" class="hover:text-champagne no-underline">REST API</a></li>
-            </ul>
-          </div>
-          <div>
-            <p class="section-kicker mb-3">Read</p>
-            <ul class="space-y-1.5 text-mist/65">
-              <li><a href="/about" class="hover:text-champagne no-underline">About</a></li>
+            <p class="section-kicker mb-3">Lighthouse</p>
+            <p class="text-mist/45 text-xs mb-3">Hosted SaaS · curated SDLC corpus</p>
+            <ul class="space-y-1.5 text-mist/70">
+              <li><a href="/" class="hover:text-champagne no-underline">Search the corpus</a></li>
               <li><a href="/pricing" class="hover:text-champagne no-underline">Pricing</a></li>
               <li><a href="/home" class="hover:text-champagne no-underline">MCP quick-start</a></li>
+              <li><a href="/about" class="hover:text-champagne no-underline">About</a></li>
             </ul>
           </div>
           <div>
-            <p class="section-kicker mb-3">Legal</p>
-            <ul class="space-y-1.5 text-mist/65">
+            <p class="section-kicker mb-3">Engine</p>
+            <p class="text-mist/45 text-xs mb-3">Open source · Apache-2.0 · BYO corpus</p>
+            <ul class="space-y-1.5 text-mist/70">
+              <li><a href="/engine" class="hover:text-champagne no-underline">What is Lighthouse Engine</a></li>
+              <li><a href="https://github.com/ElMundiUA/lighthouse" target="_blank" rel="noopener" class="hover:text-champagne no-underline">GitHub repo ↗</a></li>
+              <li><a href="https://github.com/ElMundiUA/lighthouse#deploy" target="_blank" rel="noopener" class="hover:text-champagne no-underline">Deployment guide ↗</a></li>
+              <li><a href="/mcp/" class="hover:text-champagne no-underline">MCP transport</a></li>
+            </ul>
+          </div>
+          <div>
+            <p class="section-kicker mb-3">Harbor Gang</p>
+            <p class="text-mist/45 text-xs mb-3">Kyiv &amp; remote EU</p>
+            <ul class="space-y-1.5 text-mist/70">
+              <li><a href="mailto:hello@harborgang.com" class="hover:text-champagne no-underline">hello@harborgang.com</a></li>
               <li><a href="/legal/privacy" class="hover:text-champagne no-underline">Privacy</a></li>
               <li><a href="/legal/terms" class="hover:text-champagne no-underline">Terms</a></li>
               <li><a href="/legal/cookies" class="hover:text-champagne no-underline">Cookies</a></li>
-            </ul>
-          </div>
-          <div>
-            <p class="section-kicker mb-3">Contact</p>
-            <ul class="space-y-1.5 text-mist/65">
-              <li><a href="mailto:hello@harborgang.com" class="hover:text-champagne no-underline">hello@harborgang.com</a></li>
-              <li class="text-mist/45 text-xs pt-1">Harbor Gang · Kyiv & remote EU</li>
             </ul>
           </div>
         </div>

@@ -1,0 +1,161 @@
+---
+import Site from "@/layouts/Site.astro";
+
+export const prerender = false;
+
+const GITHUB = "https://github.com/ElMundiUA/lighthouse";
+const DEPLOY = "https://github.com/ElMundiUA/lighthouse#deploy";
+---
+
+<Site productScope="engine">
+  <!-- Hero -->
+  <section class="relative pt-16 pb-10 text-center">
+    <p class="section-kicker mb-4">Open-source retrieval engine</p>
+    <h1 class="font-display text-5xl md:text-6xl font-extrabold tracking-tight text-mist leading-[1.05] max-w-3xl mx-auto">
+      Run your own <span class="text-champagne">grounding layer.</span>
+    </h1>
+    <p class="mt-5 text-mist/70 text-lg max-w-2xl mx-auto leading-relaxed">
+      Lighthouse Engine is the retrieval stack behind <a href="/" class="text-mist hover:text-champagne">lighthouse.harborgang.com</a> —
+      ingest pipeline, chunker, summariser, BM25 + pgvector retrieval, cross-encoder
+      reranker, MCP server, admin panel. Apache-2.0. Bring your own corpus.
+    </p>
+    <div class="mt-8 flex justify-center gap-3 flex-wrap">
+      <a href={GITHUB} target="_blank" rel="noopener" class="btn-primary">
+        View on GitHub <span aria-hidden="true">↗</span>
+      </a>
+      <a href={DEPLOY} target="_blank" rel="noopener" class="btn-secondary">
+        Deployment guide →
+      </a>
+    </div>
+    <p class="mt-5 text-xs text-mist/45 font-mono">
+      ~50 MB image · runs on a $20/mo VPS · Postgres + pgvector required
+    </p>
+  </section>
+
+  <!-- What's in the box -->
+  <section class="mt-10">
+    <p class="section-kicker text-center mb-6">What's in the box</p>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+      <article class="glass p-5">
+        <p class="section-kicker">Ingest pipeline</p>
+        <p class="mt-3 text-mist/75 text-sm leading-relaxed">
+          Sitemap + trafilatura crawler, hash-based delta-ingest, role-tagged
+          chunkers. YAML source manifests; one cron per role.
+        </p>
+      </article>
+      <article class="glass p-5">
+        <p class="section-kicker">Indexer</p>
+        <p class="mt-3 text-mist/75 text-sm leading-relaxed">
+          BM25 over weighted tsvector (summary + keywords A, tags B, content C)
+          plus pgvector cosine on chunk embeddings. Async summary worker via
+          OpenRouter or local LFM2.
+        </p>
+      </article>
+      <article class="glass p-5">
+        <p class="section-kicker">Reranker</p>
+        <p class="mt-3 text-mist/75 text-sm leading-relaxed">
+          Cross-encoder rerank on top-N candidates. Reciprocal-rank-fusion merge.
+          Pluggable model.
+        </p>
+      </article>
+      <article class="glass p-5">
+        <p class="section-kicker">MCP server</p>
+        <p class="mt-3 text-mist/75 text-sm leading-relaxed">
+          <code class="font-mono text-xs">search</code> and <code class="font-mono text-xs">fetch_source</code>
+          tools out of the box. Token-gated, rate-limited per subject. Admin
+          panel for source review.
+        </p>
+      </article>
+    </div>
+  </section>
+
+  <!-- Engine vs SaaS contrast -->
+  <section class="mt-16 max-w-3xl mx-auto">
+    <p class="section-kicker mb-3">Engine vs. SaaS</p>
+    <p class="text-mist/75 leading-relaxed">
+      The hosted Lighthouse at <a href="/" class="text-champagne hover:text-mist">lighthouse.harborgang.com</a> is the engine plus
+      <strong class="text-mist font-normal">our</strong> corpus — 71K chunks of canonical SDLC reference,
+      14K sources, 21 role recipes, refreshed by our ingest crons. The engine
+      itself ships empty. You bring sources, you bring recipes, you run the
+      crons. If you want the curated corpus, that's the SaaS — see
+      <a href="/pricing" class="text-champagne hover:text-mist">/pricing</a>.
+    </p>
+  </section>
+
+  <!-- Deploy in 3 steps -->
+  <section class="mt-16">
+    <p class="section-kicker text-center mb-6">Deploy</p>
+    <div class="space-y-6 max-w-3xl mx-auto">
+      <div class="flex gap-5 items-start">
+        <div class="text-champagne text-3xl font-display font-extrabold w-10 shrink-0 text-right tabular-nums">1</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-mist/85 mb-2">Clone the repo and pull the image.</p>
+          <pre class="bg-black/40 border border-white/10 rounded-xl p-4 overflow-x-auto text-sm leading-relaxed text-mist/90 font-mono"><code>git clone https://github.com/ElMundiUA/lighthouse
+docker pull ghcr.io/elmundiua/lighthouse:latest</code></pre>
+        </div>
+      </div>
+      <div class="flex gap-5 items-start">
+        <div class="text-champagne text-3xl font-display font-extrabold w-10 shrink-0 text-right tabular-nums">2</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-mist/85 mb-2">Provision Postgres with pgvector, point the engine at it.</p>
+          <pre class="bg-black/40 border border-white/10 rounded-xl p-4 overflow-x-auto text-sm leading-relaxed text-mist/90 font-mono"><code>export DATABASE_URL=postgres://...
+docker run -e DATABASE_URL -p 8000:8000 ghcr.io/elmundiua/lighthouse</code></pre>
+        </div>
+      </div>
+      <div class="flex gap-5 items-start">
+        <div class="text-champagne text-3xl font-display font-extrabold w-10 shrink-0 text-right tabular-nums">3</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-mist/85 mb-2">Drop YAML source manifests into <code class="font-mono text-xs">./recipes/</code> and run the ingest.</p>
+          <pre class="bg-black/40 border border-white/10 rounded-xl p-4 overflow-x-auto text-sm leading-relaxed text-mist/90 font-mono"><code>docker exec lighthouse python -m lighthouse.ingest --role security</code></pre>
+        </div>
+      </div>
+    </div>
+    <p class="mt-6 text-center text-sm">
+      <a href={DEPLOY} target="_blank" rel="noopener" class="text-champagne hover:text-mist">Full guide →</a>
+    </p>
+  </section>
+
+  <!-- BYO corpus -->
+  <section class="mt-16 max-w-3xl mx-auto">
+    <p class="section-kicker mb-3">Bring your own corpus</p>
+    <p class="text-mist/75 leading-relaxed">
+      The engine doesn't pick what's canonical for your team — you do.
+      A "recipe" is a YAML manifest listing sources (URLs, sitemaps, RSS feeds,
+      GitHub repos), a role tag, and a refresh cadence. The ingest cron crawls
+      each source, hashes the result, chunks new content, embeds and summarises,
+      writes to Postgres. Your private repos, internal runbooks, vendor docs —
+      whatever you'd want a coding agent grounded on. Recipes are versioned with
+      the engine; the SaaS uses the same format internally.
+    </p>
+  </section>
+
+  <!-- License + Support -->
+  <section class="mt-16 grid grid-cols-1 md:grid-cols-2 gap-5">
+    <article class="glass p-5">
+      <p class="section-kicker">Apache-2.0</p>
+      <p class="mt-3 text-mist/75 text-sm leading-relaxed">
+        Use commercially, modify, redistribute, sublicense. No
+        patent-grant gotchas.
+      </p>
+      <a href={`${GITHUB}/blob/main/LICENSE`} target="_blank" rel="noopener"
+         class="inline-flex mt-4 text-champagne text-sm font-semibold hover:text-mist no-underline">
+        LICENSE on GitHub ↗
+      </a>
+    </article>
+    <article class="glass p-5">
+      <p class="section-kicker">Community + by-arrangement</p>
+      <p class="mt-3 text-mist/75 text-sm leading-relaxed">
+        Issues and PRs on GitHub. For stand-up help, source curation, or
+        private-corpus consulting, email us — we'll quote a one-off engagement.
+      </p>
+      <a href="mailto:lighthouse@harborgang.com"
+         class="inline-flex mt-4 text-champagne text-sm font-semibold hover:text-mist no-underline">
+        lighthouse@harborgang.com
+      </a>
+    </article>
+  </section>
+
+  <p class="text-center text-xs text-mist/45 mt-16">
+    Looking for the hosted product? → <a href="/" class="text-champagne hover:text-mist">lighthouse.harborgang.com</a>
+  </p>
+</Site>
