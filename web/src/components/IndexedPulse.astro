@@ -9,9 +9,10 @@ import type { IndexedEvent } from "@/lib/stats";
 interface Props {
   events: IndexedEvent[];
   totalChunks: number;
-  totalRecipes: number;
+  totalRecipes: number;   // ignored — 21 role recipes is the user-facing constant
 }
-const { events, totalChunks, totalRecipes } = Astro.props;
+const { events, totalChunks } = Astro.props;
+const ROLE_RECIPE_COUNT = 21;
 
 const SLOTS = 5;
 // Pre-render the first SLOTS so the page paints fully on first byte
@@ -41,21 +42,21 @@ const buffer = JSON.stringify(events);
 
   <div class="border-t border-white/10 pt-3 flex-1">
     <ul id="indexed-feed" data-buffer={buffer}
-        class="space-y-2.5 text-xs font-mono tabular-nums overflow-hidden">
+        class="space-y-3 text-xs font-mono tabular-nums overflow-hidden">
       {initial.map((e) => (
-        <li class="feed-row flex items-baseline justify-between gap-3 transition-all duration-500">
-          <span class="text-mist/85">
-            <span class="text-champagne">+ {e.chunks}</span> chunks
-          </span>
-          <span class="text-champagne/85 uppercase tracking-[0.1em] truncate">{e.recipe}</span>
-          <span class="text-mist/45 shrink-0">{fmtMinutes(e.minutes_ago)}</span>
+        <li class="feed-row flex flex-col gap-0.5 transition-all duration-500">
+          <div class="flex items-baseline justify-between gap-2">
+            <span class="text-mist/85"><span class="text-champagne">+ {e.chunks}</span> chunks</span>
+            <span class="text-mist/45 shrink-0 text-[10px]">{fmtMinutes(e.minutes_ago)}</span>
+          </div>
+          <span class="text-champagne/75 uppercase tracking-[0.1em] text-[10px] truncate">{e.recipe}</span>
         </li>
       ))}
     </ul>
   </div>
 
   <div class="mt-4 pt-3 border-t border-white/10 text-[11px] text-mist/55 font-mono">
-    <p>{totalChunks.toLocaleString()} chunks · {totalRecipes} recipes indexed</p>
+    <p>{totalChunks.toLocaleString()} chunks · {ROLE_RECIPE_COUNT} role recipes</p>
   </div>
 </aside>
 
@@ -90,15 +91,15 @@ const buffer = JSON.stringify(events);
 
   function renderRow(ev) {
     const li = document.createElement("li");
-    li.className = "feed-row flex items-baseline justify-between gap-3 transition-all duration-500";
+    li.className = "feed-row flex flex-col gap-0.5 transition-all duration-500";
     li.style.opacity = "0";
     li.style.transform = "translateY(-8px)";
     li.innerHTML =
-      '<span class="text-mist/85">' +
-      '<span class="text-champagne">+ ' + jitter(ev.chunks) + '</span> chunks' +
-      '</span>' +
-      '<span class="text-champagne/85 uppercase tracking-[0.1em] truncate">' + ev.recipe + '</span>' +
-      '<span class="text-mist/45 shrink-0">' + fmtMinutes(ev.minutes_ago) + '</span>';
+      '<div class="flex items-baseline justify-between gap-2">' +
+        '<span class="text-mist/85"><span class="text-champagne">+ ' + jitter(ev.chunks) + '</span> chunks</span>' +
+        '<span class="text-mist/45 shrink-0 text-[10px]">' + fmtMinutes(ev.minutes_ago) + '</span>' +
+      '</div>' +
+      '<span class="text-champagne/75 uppercase tracking-[0.1em] text-[10px] truncate">' + ev.recipe + '</span>';
     return li;
   }
 
