@@ -85,7 +85,7 @@ try {
   <section class="grid grid-cols-1 md:grid-cols-3 gap-x-8 mb-12 newspaper-grid">
     {features.slice(1, 4).map((f) =>
       f.hit ? (
-        <div>
+        <div class="min-w-0">
           <span class="kicker">{f.section}</span>
           <ChunkCard hit={f.hit} />
         </div>
@@ -101,7 +101,7 @@ try {
     <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10">
       {features.slice(4).map((f) =>
         f.hit ? (
-          <div>
+          <div class="min-w-0">
             <span class="kicker">{f.section}</span>
             <ChunkCard hit={f.hit} variant="brief" />
           </div>

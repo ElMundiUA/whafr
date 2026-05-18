@@ -159,4 +159,39 @@
   .glass {
     @apply rounded-2xl border border-white/[0.08] bg-white/[0.025] backdrop-blur-sm transition hover:border-champagne/25 hover:bg-white/[0.04];
   }
+  /* Long-form chunk body — only used on /chunk/[id]. */
+  .chunk-prose {
+    @apply text-[1.05rem] leading-[1.7] text-mist/85;
+  }
+  .chunk-prose > * + * { margin-top: 1rem; }
+  .chunk-prose h1 { @apply font-display text-3xl md:text-4xl font-extrabold mt-12 mb-4 text-mist; }
+  .chunk-prose h2 { @apply font-display text-2xl md:text-3xl font-bold mt-10 mb-3 text-mist; }
+  .chunk-prose h3 { @apply font-display text-xl font-bold mt-8 mb-2 text-mist; }
+  .chunk-prose h4 { @apply font-display text-base font-bold mt-6 mb-2 text-mist; }
+  .chunk-prose p { @apply leading-[1.7]; }
+  .chunk-prose strong { @apply font-semibold text-mist; }
+  .chunk-prose em { @apply italic; }
+  .chunk-prose a { @apply text-champagne; }
+  .chunk-prose ul { @apply list-disc pl-6 space-y-1 marker:text-champagne/60; }
+  .chunk-prose ol { @apply list-decimal pl-6 space-y-1 marker:text-champagne/70; }
+  .chunk-prose blockquote {
+    @apply border-l-2 border-champagne/40 pl-4 italic text-mist/70 my-4;
+  }
+  .chunk-prose code {
+    /* Inline code uses the global `code` rule already. */
+  }
+  .chunk-prose pre {
+    @apply my-4 overflow-x-auto rounded-xl border border-white/10 bg-black/40 p-4 text-sm leading-relaxed text-mist/90;
+  }
+  .chunk-prose pre code {
+    @apply bg-transparent border-0 text-inherit p-0;
+    color: inherit;
+  }
+  .chunk-prose table { @apply w-full text-sm my-4 border-collapse; }
+  .chunk-prose th, .chunk-prose td {
+    @apply border-b border-white/10 px-3 py-2 text-left;
+  }
+  .chunk-prose th { @apply font-semibold text-mist; }
+  .chunk-prose img { @apply max-w-full h-auto rounded-lg my-4; }
+  .chunk-prose hr { @apply my-8 border-t border-white/10; }
 }

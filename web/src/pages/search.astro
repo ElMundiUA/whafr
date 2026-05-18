@@ -33,35 +33,39 @@ let rateLimited = false;
 let usageRemaining: number = LIMITS[tier];
 let usageCount = 0;
 if (q) {
+  // Rate-limit is fail-open: if the DB is unreachable (dev with a
+  // stub DSN, brief Neon hiccup) we still serve the search rather
+  // than blank-banner the page. Counter accuracy matters less than
+  // availability.
   try {
     const subject = subjectFor(user, clientIp(Astro.request));
     const check = await bumpAndCheck(subject, LIMITS[tier]);
     usageRemaining = check.remaining;
     usageCount = check.count;
-    if (!check.allowed) {
-      rateLimited = true;
-    } else {
-      // 5s budget — a real query should be under a second; longer
-      // means the API is sick and we want to show the banner.
-      const ac = new AbortController();
-      const timer = setTimeout(() => ac.abort(), 5000);
-      try {
-        const r = await fetch(
-          `${API_BASE}/search?q=${encodeURIComponent(q)}&top_k=${topK}`,
-          { headers: { Accept: "application/json" }, signal: ac.signal },
-        );
-        if (r.ok) {
-          const data = await r.json();
-          hits = data.hits || [];
-        } else {
-          errored = true;
-        }
-      } finally {
-        clearTimeout(timer);
+    if (!check.allowed) rateLimited = true;
+  } catch (err) {
+    console.warn("rate-limit check failed; allowing through", err);
+  }
+
+  if (!rateLimited) {
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 5000);
+    try {
+      const r = await fetch(
+        `${API_BASE}/search?q=${encodeURIComponent(q)}&top_k=${topK}`,
+        { headers: { Accept: "application/json" }, signal: ac.signal },
+      );
+      if (r.ok) {
+        const data = await r.json();
+        hits = data.hits || [];
+      } else {
+        errored = true;
       }
+    } catch {
+      errored = true;
+    } finally {
+      clearTimeout(timer);
     }
-  } catch {
-    errored = true;
   }
 }
 
@@ -140,7 +144,11 @@ const title = q ? `${q} — Lighthouse` : "Search — Lighthouse";
 
   {q && hits.length > 0 && (
     <section class="grid grid-cols-1 md:grid-cols-2 gap-x-10">
-      {hits.map((hit, i) => <ChunkCard hit={hit} rank={i + 1} />)}
+      {hits.map((hit, i) => (
+        <div class="min-w-0">
+          <ChunkCard hit={hit} rank={i + 1} />
+        </div>
+      ))}
     </section>
   )}
 </Newspaper>

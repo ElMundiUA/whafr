@@ -20,12 +20,14 @@ interface Props {
 
 const { hit, rank, variant = "column" } = Astro.props;
 
-// Pull a section name + title from the summary header convention
-// the corpus writes: "# <name>\n<body>". Front of the chunk usually
-// reads like a headline.
+import { prettifyChunkName, cleanChunkContent } from "@/lib/chunk-display";
+
+// Headline = first markdown H1 line. Body teaser = remainder, with
+// YAML / shortcodes stripped so the card preview reads as prose
+// rather than ingest scaffolding.
 const firstLine = hit.summary.split("\n", 2)[0] || "";
-const title = firstLine.replace(/^#+\s*/, "");
-const restBody = hit.summary.replace(firstLine, "").trim();
+const title = prettifyChunkName(firstLine.replace(/^#+\s*/, "").trim());
+const restBody = cleanChunkContent(hit.summary.replace(firstLine, ""));
 
 const detailHref = hit.episode_ids?.[0]
   ? `/chunk/${hit.episode_ids[0]}`
@@ -45,13 +47,15 @@ const dateStr = hit.valid_from
     <span class="kicker">#{rank}</span>
   )}
   <h3 class={
-    variant === "feature"
-      ? "font-display font-black text-4xl md:text-5xl leading-tight mb-2"
-      : variant === "brief"
-        ? "font-display font-semibold text-lg leading-snug mb-1"
-        : "font-display font-bold text-2xl leading-snug mb-1.5"
+    `font-display [overflow-wrap:anywhere] hyphens-auto ${
+      variant === "feature"
+        ? "font-extrabold text-3xl md:text-4xl leading-tight mb-2 line-clamp-3"
+        : variant === "brief"
+          ? "font-semibold text-base leading-snug mb-1 line-clamp-2"
+          : "font-bold text-xl leading-snug mb-1.5 line-clamp-3"
+    }`
   }>
-    <a href={detailHref} class="no-underline hover:text-accent">{title || "Untitled chunk"}</a>
+    <a href={detailHref} class="no-underline hover:text-champagne">{title || "Untitled chunk"}</a>
   </h3>
   {dateStr && (
     <p class="byline mb-2">Filed {dateStr}</p>
@@ -64,8 +68,11 @@ const dateStr = hit.valid_from
     }>{restBody}</p>
   )}
   {variant !== "brief" && (
-    <p class="mt-2 text-sm">
-      <a href={detailHref} class="font-mono uppercase tracking-flag text-xs">Read full →</a>
+    <p class="mt-3 text-sm">
+      <a href={detailHref}
+         class="inline-flex items-center gap-1 text-champagne text-xs font-semibold uppercase tracking-[0.12em] no-underline hover:text-mist">
+        Read full <span aria-hidden="true">→</span>
+      </a>
     </p>
   )}
 </article>

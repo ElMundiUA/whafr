@@ -1,5 +1,6 @@
 ---
 import Newspaper from "@/layouts/Newspaper.astro";
+import { prettifyChunkName, renderMarkdown } from "@/lib/chunk-display";
 
 export const prerender = false;
 
@@ -41,7 +42,9 @@ if (!id) {
   }
 }
 
-const title = src ? `${src.name} — Lighthouse` : "Chunk — Lighthouse";
+const prettyName = src ? prettifyChunkName(src.name) : "";
+const contentHtml = src ? renderMarkdown(src.content) : "";
+const title = src ? `${prettyName} — Lighthouse` : "Chunk — Lighthouse";
 
 // Pull origin URL out of source_description if it looks URL-shaped.
 let sourceLabel = src?.source ?? "";
@@ -79,27 +82,26 @@ const dateStr = src?.valid_at
   )}
 
   {src && (
-    <article class="max-w-column mx-auto dropcap">
+    <article class="max-w-3xl mx-auto dropcap">
       <p class="byline mb-2">
         {sourceLabel.split(":", 1)[0]}{dateStr ? ` · Filed ${dateStr}` : ""}
       </p>
-      <h2 class="font-display font-black text-4xl md:text-5xl leading-tight mb-3">
-        {src.name}
+      <h2 class="font-display font-extrabold text-3xl md:text-5xl leading-tight mb-3 [overflow-wrap:anywhere]">
+        {prettyName}
       </h2>
       {sourceUrl && (
-        <p class="text-sm font-mono mb-6 text-muted">
+        <p class="text-sm mb-6 text-muted [overflow-wrap:anywhere]">
           <a href={sourceUrl} target="_blank" rel="noopener nofollow noreferrer">
             {sourceUrl} ↗
           </a>
         </p>
       )}
-      <div class="font-serif text-[1.07rem] leading-[1.65] whitespace-pre-wrap">
-        {src.content}
-      </div>
+      <div class="chunk-prose" set:html={contentHtml}></div>
       <hr class="mt-10 mb-3" />
-      <p class="text-xs font-mono uppercase tracking-flag text-muted">
-        Episode <span class="normal-case">{src.episode_id}</span> ·
-        <a href={`/search?q=${encodeURIComponent(src.name)}`} class="hover:text-accent">More like this</a>
+      <p class="text-xs uppercase tracking-[0.18em] text-muted">
+        Episode <span class="normal-case tracking-normal">{src.episode_id}</span> ·
+        <a href={`/search?q=${encodeURIComponent(prettyName)}`}
+           class="hover:text-champagne">More like this</a>
       </p>
     </article>
   )}
