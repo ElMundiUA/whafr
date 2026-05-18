@@ -1,4 +1,8 @@
 ---
+# Path-routing: API surface stays on lighthouse-api (FastAPI), the
+# rest goes to lighthouse-web (Astro SSR). nginx ingress picks the
+# longest-prefix match, but listing API paths first keeps the
+# intent obvious.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -16,10 +20,66 @@ spec:
     - host: lighthouse.harborgang.com
       http:
         paths:
-          - path: /
+          - path: /search
             pathType: Prefix
             backend:
               service:
                 name: lighthouse-api
+                port:
+                  number: 80
+          - path: /fetch_source
+            pathType: Prefix
+            backend:
+              service:
+                name: lighthouse-api
+                port:
+                  number: 80
+          - path: /fetch_entity
+            pathType: Prefix
+            backend:
+              service:
+                name: lighthouse-api
+                port:
+                  number: 80
+          - path: /health
+            pathType: Exact
+            backend:
+              service:
+                name: lighthouse-api
+                port:
+                  number: 80
+          - path: /openapi.json
+            pathType: Exact
+            backend:
+              service:
+                name: lighthouse-api
+                port:
+                  number: 80
+          - path: /docs
+            pathType: Prefix
+            backend:
+              service:
+                name: lighthouse-api
+                port:
+                  number: 80
+          - path: /mcp
+            pathType: Prefix
+            backend:
+              service:
+                name: lighthouse-api
+                port:
+                  number: 80
+          - path: /v1
+            pathType: Prefix
+            backend:
+              service:
+                name: lighthouse-api
+                port:
+                  number: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: lighthouse-web
                 port:
                   number: 80
