@@ -13,14 +13,22 @@ interface PaddleEvent {
     custom_data?: { auth0_sub?: string; email?: string };
     status?: string;
     current_billing_period?: { ends_at?: string };
-    items?: { price?: { id?: string } }[];
+    items?: { price?: { id?: string; product_id?: string } }[];
   };
 }
 
 // Server-only — read at runtime. See note in lib/auth.ts.
+//
+// Paddle Billing v2 separates products from prices: a single
+// product (pro_...) can have multiple prices (pri_...; monthly,
+// annual, …). The webhook payload carries both — item.price.id +
+// item.price.product_id — so we accept either form in env and
+// match against whichever side is present.
 const PRO_PRICE_MONTHLY = process.env.PADDLE_PRICE_PRO_MONTHLY ?? "";
 const PRO_PRICE_ANNUAL = process.env.PADDLE_PRICE_PRO_ANNUAL ?? "";
+const PRO_PRODUCT = process.env.PADDLE_PRODUCT_PRO ?? "";
 const PRO_PRICE_IDS = [PRO_PRICE_MONTHLY, PRO_PRICE_ANNUAL].filter(Boolean);
+const PRO_PRODUCT_IDS = [PRO_PRODUCT].filter(Boolean);
 
 export async function recordEvent(evt: PaddleEvent): Promise<void> {
   await query(
@@ -64,12 +72,15 @@ export async function applyEvent(evt: PaddleEvent): Promise<void> {
     return;
   }
 
-  // Verify the item matches one of our Pro prices (defence-in-
-  // depth — a future second product shouldn't accidentally
-  // upgrade everyone).
-  if (isPro && PRO_PRICE_IDS.length > 0) {
-    const priceIds = (data.items ?? []).map((i) => i.price?.id).filter(Boolean);
-    if (priceIds.length > 0 && !priceIds.some((p) => PRO_PRICE_IDS.includes(p as string))) {
+  // Verify the item belongs to the Pro tier — match by price OR
+  // product. Whichever the operator put in env, we honour. If both
+  // are empty the filter is skipped (dev convenience).
+  if (isPro && (PRO_PRICE_IDS.length > 0 || PRO_PRODUCT_IDS.length > 0)) {
+    const itemPriceIds = (data.items ?? []).map((i) => i.price?.id).filter(Boolean) as string[];
+    const itemProductIds = (data.items ?? []).map((i) => i.price?.product_id).filter(Boolean) as string[];
+    const priceMatch = itemPriceIds.some((p) => PRO_PRICE_IDS.includes(p));
+    const productMatch = itemProductIds.some((p) => PRO_PRODUCT_IDS.includes(p));
+    if (!priceMatch && !productMatch) {
       await markProcessed(evt.event_id);
       return;
     }

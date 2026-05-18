@@ -22,6 +22,7 @@ interface ImportMetaEnv {
   readonly PADDLE_CLIENT_TOKEN: string;
   readonly PADDLE_API_KEY: string;
   readonly PADDLE_WEBHOOK_SECRET: string;
+  readonly PADDLE_PRODUCT_PRO: string;
   readonly PADDLE_PRICE_PRO_MONTHLY: string;
   readonly PADDLE_PRICE_PRO_ANNUAL: string;
   readonly PADDLE_ENVIRONMENT: string;
