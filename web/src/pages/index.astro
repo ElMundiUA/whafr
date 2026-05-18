@@ -1,132 +1,268 @@
 ---
 import Site from "@/layouts/Site.astro";
 import SearchBar from "@/components/SearchBar.astro";
+import ChunkCard from "@/components/ChunkCard.astro";
 import { corpusStats, recentRepos, timeAgo } from "@/lib/stats";
+import { API_BASE } from "@/lib/api-base";
+import { bumpAndCheck, clientIp, subjectFor, tierForUser, LIMITS } from "@/lib/usage";
+import { effectiveTier } from "@/lib/users";
 
 export const prerender = false;
 
 const MCP_URL = "https://lighthouse.harborgang.com/mcp/";
 
+const q = Astro.url.searchParams.get("q")?.trim() ?? "";
+const sort = Astro.url.searchParams.get("sort") === "newest" ? "newest" : "relevance";
+const user = Astro.locals.user;
+let tier = tierForUser(user);
+try { tier = await effectiveTier(user); } catch {}
+const userMax = tier === "pro" ? 30 : 10;
+const topK = Math.min(
+  Math.max(parseInt(Astro.url.searchParams.get("k") || "10", 10) || 10, 1),
+  userMax,
+);
+
+interface Hit {
+  node_id: string;
+  summary: string;
+  source?: string | null;
+  episode_ids?: string[];
+  valid_from?: string | null;
+}
+
+let hits: Hit[] = [];
+let errored = false;
+let rateLimited = false;
+let usageCount = 0;
+let usageRemaining = LIMITS[tier];
+
+if (q) {
+  try {
+    const subject = subjectFor(user, clientIp(Astro.request));
+    const check = await bumpAndCheck(subject, LIMITS[tier]);
+    usageCount = check.count;
+    usageRemaining = check.remaining;
+    if (!check.allowed) rateLimited = true;
+  } catch (err) {
+    console.warn("rate-limit check failed; allowing through", err);
+  }
+  if (!rateLimited) {
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 5000);
+    try {
+      const r = await fetch(
+        `${API_BASE}/search?q=${encodeURIComponent(q)}&top_k=${topK}`,
+        { headers: { Accept: "application/json" }, signal: ac.signal },
+      );
+      if (r.ok) {
+        const data = await r.json();
+        hits = data.hits || [];
+        if (sort === "newest") {
+          hits = [...hits].sort((a, b) => {
+            const ad = a.valid_from ? Date.parse(a.valid_from) : -Infinity;
+            const bd = b.valid_from ? Date.parse(b.valid_from) : -Infinity;
+            return bd - ad;
+          });
+        }
+      } else {
+        errored = true;
+      }
+    } catch {
+      errored = true;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+
+// Only show home-stats when not in a search.
 let stats = { total_chunks: 0, total_sources: 0, total_recipes: 0 };
 let recent: Awaited<ReturnType<typeof recentRepos>> = [];
-try {
-  [stats, recent] = await Promise.all([corpusStats(), recentRepos(8)]);
-} catch {
-  /* show placeholders on db hiccup */
+if (!q) {
+  try {
+    [stats, recent] = await Promise.all([corpusStats(), recentRepos(8)]);
+  } catch { /* placeholders on db hiccup */ }
 }
+
+const title = q ? `${q} — Lighthouse` : "Lighthouse — Knowledge for AI Agents";
 ---
 
-<Site>
-  <!-- Hero -->
-  <section class="relative pt-16 pb-12 text-center">
-    <div class="pointer-events-none absolute inset-x-0 -top-10 -z-10 mx-auto h-[400px] w-[800px] max-w-full opacity-50"
-         style="background: radial-gradient(ellipse at center, rgba(207,169,107,0.18) 0%, transparent 65%);"></div>
-    <p class="section-kicker mb-4">Knowledge base for AI agents</p>
-    <h1 class="font-display text-5xl md:text-6xl font-extrabold tracking-tight text-mist leading-[1.05] max-w-3xl mx-auto">
-      Find the canonical doc <span class="text-champagne">in one search.</span>
-    </h1>
-    <p class="mt-5 text-mist/65 text-lg max-w-xl mx-auto leading-relaxed">
-      RFCs, OWASP, framework docs, methodology, release streams — indexed,
-      ranked, and pointed back to the original. Plug it into your agent over MCP.
-    </p>
-    <div class="mt-8 max-w-2xl mx-auto">
-      <SearchBar placeholder="Ask Lighthouse — RFC, framework, pattern…" />
+<Site title={title}>
+  <!-- Hero / search bar -->
+  <section class="relative pt-12 pb-6 text-center">
+    {!q && (
+      <div class="pointer-events-none absolute inset-x-0 -top-10 -z-10 mx-auto h-[400px] w-[800px] max-w-full opacity-50"
+           style="background: radial-gradient(ellipse at center, rgba(207,169,107,0.18) 0%, transparent 65%);"></div>
+    )}
+    {!q && (
+      <>
+        <p class="section-kicker mb-4">Knowledge base for AI agents</p>
+        <h1 class="font-display text-5xl md:text-6xl font-extrabold tracking-tight text-mist leading-[1.05] max-w-3xl mx-auto">
+          Find the canonical doc <span class="text-champagne">in one search.</span>
+        </h1>
+        <p class="mt-5 text-mist/65 text-lg max-w-xl mx-auto leading-relaxed">
+          RFCs, OWASP, framework docs, methodology, release streams — indexed,
+          ranked, and pointed back to the original. Plug it into your agent over MCP.
+        </p>
+      </>
+    )}
+    <div class={`mt-${q ? "0" : "8"} max-w-2xl mx-auto`}>
+      <SearchBar initial={q} placeholder="Ask Lighthouse — RFC, framework, pattern…" />
     </div>
-  </section>
-
-  <!-- Stats grid -->
-  <section class="grid grid-cols-2 md:grid-cols-4 gap-4 my-8">
-    <article class="glass p-5">
-      <p class="section-kicker">Indexed chunks</p>
-      <p class="font-display text-3xl font-extrabold mt-2 tabular-nums">{stats.total_chunks.toLocaleString()}</p>
-    </article>
-    <article class="glass p-5">
-      <p class="section-kicker">Distinct sources</p>
-      <p class="font-display text-3xl font-extrabold mt-2 tabular-nums">{stats.total_sources.toLocaleString()}</p>
-    </article>
-    <article class="glass p-5">
-      <p class="section-kicker">Role recipes</p>
-      <p class="font-display text-3xl font-extrabold mt-2 tabular-nums">{stats.total_recipes}</p>
-    </article>
-    <article class="glass p-5">
-      <p class="section-kicker">MCP endpoint</p>
-      <p class="font-mono text-xs mt-3 break-all text-mist/85">{MCP_URL}</p>
-    </article>
-  </section>
-
-  <!-- Recently indexed -->
-  <section class="mt-14">
-    <div class="flex items-baseline justify-between mb-4">
-      <h2 class="font-display text-2xl font-bold">Recently indexed</h2>
-      <span class="text-xs text-mist/55">live · refreshed every 2 min</span>
-    </div>
-    {recent.length === 0 ? (
-      <p class="text-mist/55 text-sm italic">No recent activity.</p>
-    ) : (
-      <div class="glass overflow-hidden">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="text-left border-b border-white/10 uppercase tracking-[0.15em] text-xs text-mist/55">
-              <th class="py-3 px-5">Source</th>
-              <th class="py-3 px-3 w-56">Recipes</th>
-              <th class="py-3 px-3 w-20 text-right">Chunks</th>
-              <th class="py-3 px-5 w-32 text-right">Last ingest</th>
-            </tr>
-          </thead>
-          <tbody>
-            {recent.map((r) => {
-              const isRepo = r.repo.includes("/") && !r.repo.includes(".");
-              const href = isRepo
-                ? `https://github.com/${r.repo}`
-                : `https://${r.repo}`;
-              return (
-                <tr class="border-b border-white/5 last:border-b-0 align-top hover:bg-white/[0.02]">
-                  <td class="py-3 px-5">
-                    <a href={href} target="_blank" rel="noopener noreferrer"
-                       class="text-mist/90 hover:text-champagne no-underline [overflow-wrap:anywhere]">
-                      {r.repo}
-                    </a>
-                  </td>
-                  <td class="py-3 px-3 text-xs text-champagne/85 uppercase tracking-[0.1em]">
-                    {(r.recipes ?? []).slice(0, 3).join(" · ")}
-                  </td>
-                  <td class="py-3 px-3 text-right tabular-nums text-mist/75">{r.chunks.toLocaleString()}</td>
-                  <td class="py-3 px-5 text-right text-mist/55 text-xs">{timeAgo(r.last_ingest)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+    {q && !rateLimited && !errored && (
+      <div class="flex items-center justify-center gap-3 mt-4 text-xs uppercase tracking-[0.18em] text-mist/55">
+        <span>Sort:</span>
+        <a href={`/?q=${encodeURIComponent(q)}`}
+           class={`no-underline ${sort === "relevance" ? "text-champagne" : "hover:text-mist"}`}>
+          Relevance
+        </a>
+        <span class="opacity-30">·</span>
+        <a href={`/?q=${encodeURIComponent(q)}&sort=newest`}
+           class={`no-underline ${sort === "newest" ? "text-champagne" : "hover:text-mist"}`}>
+          Newest
+        </a>
+        <span class="opacity-30">·</span>
+        <span>{hits.length} hits · {usageRemaining} of {LIMITS[tier]} left today</span>
       </div>
     )}
   </section>
 
-  <!-- Three-up blurbs -->
-  <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16">
-    <article>
-      <p class="section-kicker mb-3">What is Lighthouse</p>
-      <p class="text-mist/70 leading-relaxed">
-        A retrieval engine over canonical SDLC reference. Indexed under
-        permissive licenses; results link out to the original publisher.
-        We're a finder, not a republisher.
+  <!-- Search results -->
+  {q && rateLimited && (
+    <section class="max-w-2xl mx-auto my-8">
+      <p class="rounded-2xl border-2 border-coral/40 bg-coral/5 p-5 text-coral">
+        Daily search limit reached ({usageCount} of {LIMITS[tier]} as a{" "}
+        {tier === "anon" ? "guest" : `${tier} reader`}).
+        {tier === "anon" && (
+          <> <a href="/api/auth/login?return_to=/" class="underline">Sign in</a> for 200 / day, or <a href="/pricing" class="underline">upgrade to Pro</a> for 1,500.</>
+        )}
+        {tier === "free" && (
+          <> <a href="/pricing" class="underline">Upgrade to Pro</a> for 1,500 / day.</>
+        )}
+        {" "}Counter resets at 00:00 UTC.
       </p>
-    </article>
-    <article>
-      <p class="section-kicker mb-3">For agents</p>
-      <p class="text-mist/70 leading-relaxed">
-        Point Claude Desktop, Cursor, the official CLI, or any MCP client at
-        <code class="font-mono text-xs">{MCP_URL}</code>. Wire
-        <code class="font-mono text-xs">search</code> +
-        <code class="font-mono text-xs">fetch_source</code> into your toolset.
-        <a href="/home" class="text-champagne">Quick-start →</a>
+    </section>
+  )}
+
+  {q && errored && !rateLimited && (
+    <section class="max-w-2xl mx-auto my-8">
+      <p class="rounded-2xl border border-coral/40 bg-coral/5 p-5 text-coral">
+        Couldn't reach the search backend. Try again in a moment.
       </p>
-    </article>
-    <article>
-      <p class="section-kicker mb-3">For readers</p>
-      <p class="text-mist/70 leading-relaxed">
-        Use search to find the canonical doc for any SDLC question. We
-        surface the right paragraph and link you to the original. <a href="/sections" class="text-champagne">Browse by role →</a>
-      </p>
-    </article>
-  </section>
+    </section>
+  )}
+
+  {q && !errored && !rateLimited && hits.length === 0 && (
+    <section class="max-w-2xl mx-auto my-12 text-center text-mist/55">
+      <p>No results for <strong class="text-mist">"{q}"</strong>. Try fewer or more specific terms.</p>
+    </section>
+  )}
+
+  {q && hits.length > 0 && (
+    <section class="grid grid-cols-1 md:grid-cols-2 gap-x-10 mt-6">
+      {hits.map((hit, i) => (
+        <div class="min-w-0">
+          <ChunkCard hit={hit} rank={i + 1} />
+        </div>
+      ))}
+    </section>
+  )}
+
+  <!-- Home-only stats + recently indexed -->
+  {!q && (
+    <>
+      <section class="grid grid-cols-2 md:grid-cols-4 gap-4 my-8">
+        <article class="glass p-5">
+          <p class="section-kicker">Indexed chunks</p>
+          <p class="font-display text-3xl font-extrabold mt-2 tabular-nums">{stats.total_chunks.toLocaleString()}</p>
+        </article>
+        <article class="glass p-5">
+          <p class="section-kicker">Distinct sources</p>
+          <p class="font-display text-3xl font-extrabold mt-2 tabular-nums">{stats.total_sources.toLocaleString()}</p>
+        </article>
+        <article class="glass p-5">
+          <p class="section-kicker">Role recipes</p>
+          <p class="font-display text-3xl font-extrabold mt-2 tabular-nums">{stats.total_recipes}</p>
+        </article>
+        <article class="glass p-5">
+          <p class="section-kicker">MCP endpoint</p>
+          <p class="font-mono text-xs mt-3 break-all text-mist/85">{MCP_URL}</p>
+        </article>
+      </section>
+
+      <section class="mt-10">
+        <div class="flex items-baseline justify-between mb-4">
+          <h2 class="font-display text-2xl font-bold">Recently indexed</h2>
+          <span class="text-xs text-mist/55">live · refreshed every 2 min</span>
+        </div>
+        {recent.length === 0 ? (
+          <p class="text-mist/55 text-sm italic">No recent activity.</p>
+        ) : (
+          <div class="glass overflow-hidden">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left border-b border-white/10 uppercase tracking-[0.15em] text-xs text-mist/55">
+                  <th class="py-3 px-5">Source</th>
+                  <th class="py-3 px-3 w-56">Recipes</th>
+                  <th class="py-3 px-3 w-20 text-right">Chunks</th>
+                  <th class="py-3 px-5 w-32 text-right">Last ingest</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recent.map((r) => {
+                  const isRepo = r.repo.includes("/") && !r.repo.includes(".");
+                  const href = isRepo
+                    ? `https://github.com/${r.repo}`
+                    : `https://${r.repo}`;
+                  return (
+                    <tr class="border-b border-white/5 last:border-b-0 align-top hover:bg-white/[0.02]">
+                      <td class="py-3 px-5">
+                        <a href={href} target="_blank" rel="noopener noreferrer"
+                           class="text-mist/90 hover:text-champagne no-underline [overflow-wrap:anywhere]">
+                          {r.repo}
+                        </a>
+                      </td>
+                      <td class="py-3 px-3 text-xs text-champagne/85 uppercase tracking-[0.1em]">
+                        {(r.recipes ?? []).slice(0, 3).join(" · ")}
+                      </td>
+                      <td class="py-3 px-3 text-right tabular-nums text-mist/75">{r.chunks.toLocaleString()}</td>
+                      <td class="py-3 px-5 text-right text-mist/55 text-xs">{timeAgo(r.last_ingest)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16">
+        <article>
+          <p class="section-kicker mb-3">What is Lighthouse</p>
+          <p class="text-mist/70 leading-relaxed">
+            A retrieval engine over canonical SDLC reference. Indexed under
+            permissive licenses; results link out to the original. We're a
+            finder, not a republisher.
+          </p>
+        </article>
+        <article>
+          <p class="section-kicker mb-3">For agents</p>
+          <p class="text-mist/70 leading-relaxed">
+            Point Claude Desktop, Cursor, or any MCP client at
+            <code class="font-mono text-xs">{MCP_URL}</code>. Wire
+            <code class="font-mono text-xs">search</code> +
+            <code class="font-mono text-xs">fetch_source</code> into your toolset.
+            <a href="/home" class="text-champagne">Quick-start →</a>
+          </p>
+        </article>
+        <article>
+          <p class="section-kicker mb-3">For readers</p>
+          <p class="text-mist/70 leading-relaxed">
+            Use search to find the canonical doc for any SDLC question. We
+            surface the right paragraph and link you to the original.
+          </p>
+        </article>
+      </section>
+    </>
+  )}
 </Site>
