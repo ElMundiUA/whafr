@@ -117,14 +117,14 @@ url = "${MCP_URL}"
   {!q && (
     <>
       <!-- ─────────────── Hero ─────────────── -->
-      <section class="relative pt-12 pb-2 text-center">
+      <section class="relative pt-10 pb-2 text-center">
         <div class="pointer-events-none absolute inset-x-0 -top-10 -z-10 mx-auto h-[500px] w-[1100px] max-w-full opacity-40"
              style="background: radial-gradient(ellipse at center, rgba(207,169,107,0.18) 0%, transparent 65%);"></div>
-        <p class="section-kicker mb-4">Grounding for coding agents</p>
-        <h1 class="font-display text-5xl md:text-6xl font-extrabold tracking-tight text-mist leading-[1.05] max-w-3xl mx-auto">
-          {stats.total_chunks.toLocaleString()} canonical docs<br/>your agent <span class="text-champagne">can cite.</span>
+        <p class="section-kicker mb-3">Grounding for coding agents</p>
+        <h1 class="font-display text-4xl md:text-5xl font-bold tracking-tight text-mist leading-[1.1] max-w-3xl mx-auto">
+          {stats.total_chunks.toLocaleString()} canonical docs your agent <span class="text-champagne">can cite.</span>
         </h1>
-        <p class="mt-4 text-mist/65 text-base max-w-xl mx-auto">
+        <p class="mt-3 text-mist/65 text-sm md:text-base max-w-xl mx-auto">
           Plug your MCP client in, or try the same retrieval from the browser.
         </p>
       </section>
@@ -133,7 +133,7 @@ url = "${MCP_URL}"
       <IndexedPulse events={events} />
 
       <!-- ─────────────── Search ─────────────── -->
-      <section class="mt-12 max-w-2xl mx-auto text-center">
+      <section class="mt-8 max-w-2xl mx-auto text-center">
         <p class="section-kicker mb-3">Search the corpus</p>
         <SearchBar placeholder="OAuth PKCE S256, Kubernetes readiness probe, RAG chunking…" />
         <ul class="mt-4 flex flex-wrap justify-center gap-x-3 gap-y-1.5 text-sm">
@@ -150,20 +150,19 @@ url = "${MCP_URL}"
       </section>
 
       <!-- ─────────────── MCP setup (full block) ─────────────── -->
-      <section class="mt-20 max-w-3xl mx-auto">
-        <div class="text-center mb-6">
-          <p class="section-kicker mb-3">Plug your agent in</p>
-          <h2 class="font-display text-3xl md:text-4xl font-extrabold tracking-tight text-mist mb-2">
+      <section class="mt-16 max-w-3xl mx-auto">
+        <div class="text-center mb-5">
+          <h2 class="font-display text-xl md:text-2xl font-semibold tracking-tight text-mist mb-1.5">
             One config block — any MCP client.
           </h2>
-          <p class="text-mist/65 max-w-xl mx-auto">
+          <p class="text-mist/65 text-sm md:text-base max-w-xl mx-auto leading-relaxed">
             Same endpoint on every tier. Lighthouse appears in your tool picker
             with <code class="font-mono text-xs">search</code> and <code class="font-mono text-xs">fetch_source</code>.
           </p>
         </div>
 
         <!-- Endpoint pill -->
-        <div class="rounded-2xl border border-white/10 bg-white/[0.025] p-4 flex flex-wrap items-center gap-3 justify-between mb-6">
+        <div class="rounded-2xl border border-white/10 bg-white/[0.025] p-4 flex flex-wrap items-center gap-3 justify-between mb-5">
           <p class="font-mono text-sm text-mist break-all">{MCP_URL}</p>
           <span class="text-xs text-mist/45">Free anon 30/day · signed-in 200/day · Pro 1,500/day</span>
         </div>
@@ -302,18 +301,19 @@ url = "${MCP_URL}"
     <>
 
       <!-- Plans -->
-      <section class="mt-24">
-        <div class="text-center mb-6">
-          <p class="section-kicker mb-3">Pricing</p>
-          <h2 class="font-display text-3xl md:text-4xl font-extrabold tracking-tight text-mist mb-2">
+      <section class="mt-16">
+        <div class="text-center mb-5">
+          <h2 class="font-display text-xl md:text-2xl font-semibold tracking-tight text-mist mb-1.5">
             Two plans, one corpus.
           </h2>
-          <p class="text-mist/65">Same retrieval on every tier. Caps reset 00:00 UTC.</p>
+          <p class="text-mist/65 text-sm md:text-base max-w-xl mx-auto leading-relaxed">
+            Same retrieval on every tier. Caps reset 00:00 UTC.
+          </p>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl mx-auto">
           <article class="glass p-6">
             <p class="section-kicker mb-2">Free</p>
-            <p class="font-display text-3xl font-extrabold mb-1">$0</p>
+            <p class="font-display text-2xl font-bold mb-1">$0</p>
             <p class="text-sm text-mist/55 mb-4">200/day signed-in · 30/day anon</p>
             <p class="text-mist/70 text-sm leading-relaxed mb-4">
               Same corpus, same MCP endpoint, no card. Sign in with GitHub or email.
@@ -322,7 +322,7 @@ url = "${MCP_URL}"
           </article>
           <article class="glass p-6 border-champagne/40 ring-1 ring-champagne/40">
             <p class="section-kicker mb-2">Pro</p>
-            <p class="font-display text-3xl font-extrabold mb-1">$12<span class="text-sm font-normal text-mist/55"> /mo</span></p>
+            <p class="font-display text-2xl font-bold mb-1">$12<span class="text-sm font-normal text-mist/55"> /mo</span></p>
             <p class="text-sm text-mist/55 mb-4">1,500/day · top-30 · watch-on-update</p>
             <p class="text-mist/70 text-sm leading-relaxed mb-4">
               Lifts the cap, opens cross-encoder rerank, notifies on changes to
@@ -334,21 +334,20 @@ url = "${MCP_URL}"
       </section>
 
       <!-- Engine block -->
-      <section class="mt-24 mb-12">
+      <section class="mt-16 mb-16">
         <div class="glass p-8 md:p-10 max-w-4xl mx-auto">
           <div class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6 md:gap-10 items-center">
             <div class="min-w-0">
-              <p class="section-kicker mb-3">Open-source engine</p>
-              <h2 class="font-display text-2xl md:text-3xl font-bold mb-3">
+              <h2 class="font-display text-xl md:text-2xl font-semibold tracking-tight mb-2">
                 Run your own grounding layer.
               </h2>
-              <p class="text-mist/70 leading-relaxed mb-4">
+              <p class="text-mist/70 text-sm md:text-base leading-relaxed mb-4">
                 Want a private knowledge layer for your team — internal runbooks,
                 vendor docs, private repos? <strong class="text-mist font-normal">Lighthouse Engine</strong> is
                 the same retrieval stack that runs this site: ingest pipeline,
                 BM25 + pgvector, cross-encoder rerank, MCP server, admin panel.
               </p>
-              <p class="text-sm font-mono text-mist/55">
+              <p class="text-xs font-mono text-mist/55">
                 Apache-2.0 · ~50 MB image · Postgres + pgvector required
               </p>
             </div>
