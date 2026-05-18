@@ -5,10 +5,14 @@
 import { one } from "@/lib/db";
 import type { SessionUser } from "@/lib/auth";
 
+// Daily search caps. Numbers tuned for "200 reads as obviously
+// sufficient" on Free and "$12 Pro under the expense-it-without-
+// asking line" on Pro. Anonymous gets enough to evaluate before
+// signing up but bites quickly on a real coding session.
 export const LIMITS = {
-  anon: 20,
-  free: 100,
-  pro: 5000,
+  anon: 30,
+  free: 200,
+  pro: 1500,
 } as const;
 
 export type Tier = keyof typeof LIMITS;

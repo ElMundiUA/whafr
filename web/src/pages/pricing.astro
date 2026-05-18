@@ -1,89 +1,206 @@
 ---
 import Newspaper from "@/layouts/Newspaper.astro";
-import { checkoutUrl } from "@/lib/paddle";
 
 export const prerender = false;
 
 const user = Astro.locals.user;
-const upgradeHref = user
-  ? checkoutUrl(user.sub, user.email)
-  : "/api/auth/login?return_to=/pricing";
-const upgradeLabel = user
-  ? user.tier === "pro" ? "Manage subscription" : "Subscribe"
-  : "Sign in to subscribe";
-const readerHref = user ? "/" : "/api/auth/login?return_to=/";
-const readerLabel = user ? "You're signed in" : "Sign in";
+const readerHref = user ? "/home" : "/api/auth/login?return_to=/home";
+const readerLabel = user ? "You're signed in" : "Sign in (GitHub or email)";
+
+// Client-side Paddle.js needs the public token + environment + the
+// two price IDs to open the checkout overlay. Server-side env reads
+// happen here; the values are inlined into a JSON config block
+// below for the browser script to pick up.
+const paddleConfig = {
+  token: process.env.PADDLE_CLIENT_TOKEN ?? "",
+  environment: process.env.PADDLE_ENVIRONMENT ?? "sandbox",
+  prices: {
+    monthly: process.env.PADDLE_PRICE_PRO_MONTHLY ?? "",
+    annual: process.env.PADDLE_PRICE_PRO_ANNUAL ?? "",
+  },
+  signedIn: !!user,
+  user: user ? { sub: user.sub, email: user.email } : null,
+  loginUrl: "/api/auth/login?return_to=/pricing",
+};
 ---
 
-<Newspaper title="Subscribe — Lighthouse" section="SUBSCRIBE" pageHeading="Three editions">
+<Newspaper title="Subscribe — Lighthouse" section="SUBSCRIBE" pageHeading="Pick a tier">
   <p class="text-muted text-base max-w-2xl mb-10">
-    All tiers see the same corpus. Caps differ. Anonymous and Free
-    tiers are intended to validate that Lighthouse fits your agent's
-    use-case before you upgrade. Limits reset daily at 00:00 UTC.
+    All tiers see the same corpus — IETF RFCs, OWASP, NIST SP-800, framework
+    docs, methodology, post-cutoff release streams. Daily search caps differ.
+    Caps reset at 00:00 UTC.
   </p>
 
-  <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+  <section class="grid grid-cols-1 md:grid-cols-4 gap-5">
     <!-- Anonymous -->
-    <article class="border-2 border-rule p-5">
+    <article class="glass p-5 min-w-0">
       <p class="section-flag inline-block mb-3">Anonymous</p>
-      <p class="font-display text-4xl font-bold mb-2">Free</p>
-      <p class="byline mb-4">No account required</p>
-      <ul class="font-serif text-sm space-y-2">
-        <li>10 searches / day</li>
-        <li>Top-5 results per query</li>
-        <li>Headline + snippet only</li>
-        <li>Public newspaper view</li>
+      <p class="font-display text-3xl font-extrabold mb-1">Free</p>
+      <p class="byline mb-4">No account</p>
+      <ul class="text-sm space-y-2 text-mist/80">
+        <li>30 searches / day per IP</li>
+        <li>Top-10 results</li>
+        <li>Public newspaper + chunk view</li>
+        <li>No MCP token</li>
       </ul>
-      <p class="mt-5 text-xs font-mono uppercase tracking-flag text-muted">
-        Default. Try the lighthouse at <a href="/search">/search</a>.
+      <p class="mt-5 text-xs uppercase tracking-[0.15em] text-muted">
+        Try at <a href="/search">/search</a> first
       </p>
     </article>
 
-    <!-- Free registered -->
-    <article class="border-2 border-rule p-5">
+    <!-- Free reader -->
+    <article class="glass p-5 min-w-0">
       <p class="section-flag inline-block mb-3">Reader</p>
-      <p class="font-display text-4xl font-bold mb-2">Free</p>
-      <p class="byline mb-4">Sign in with GitHub or email</p>
-      <ul class="font-serif text-sm space-y-2">
-        <li>100 searches / day</li>
-        <li>Top-10 results per query</li>
-        <li>Full chunk view (<code class="font-mono text-xs">fetch_source</code>)</li>
-        <li>One MCP token for personal use</li>
+      <p class="font-display text-3xl font-extrabold mb-1">Free</p>
+      <p class="byline mb-4">Sign in</p>
+      <ul class="text-sm space-y-2 text-mist/80">
+        <li>200 searches / day</li>
+        <li>Top-15 results</li>
+        <li>Full <code class="text-xs">fetch_source</code></li>
+        <li>1 personal MCP endpoint</li>
       </ul>
       <a href={readerHref} class="btn-secondary mt-5">
         {readerLabel}
       </a>
     </article>
 
-    <!-- Pro paid -->
-    <article class="border-2 border-accent p-5 bg-soft">
+    <!-- Pro -->
+    <article class="glass p-5 min-w-0 border-champagne/40 ring-1 ring-champagne/40">
       <p class="section-flag inline-block mb-3">Pro</p>
-      <p class="font-display text-4xl font-bold mb-2">$19 <span class="text-base font-serif italic text-muted">/ month</span></p>
-      <p class="byline mb-4">Paddle billing</p>
-      <ul class="font-serif text-sm space-y-2">
-        <li>10,000 searches / day</li>
-        <li>Top-30 results per query</li>
-        <li>Reranker + summary boost (default)</li>
-        <li>MCP token rotates, team-shareable</li>
-        <li>Time-aware filters (<code class="font-mono text-xs">after</code> /
-          <code class="font-mono text-xs">version</code>)</li>
-        <li>Email when a watched topic moves</li>
+      <div class="mb-1 flex items-baseline gap-1">
+        <span id="pro-price" class="font-display text-3xl font-extrabold">$12</span>
+        <span id="pro-cadence" class="text-sm text-muted">/ month</span>
+      </div>
+      <div class="flex gap-1 text-xs uppercase tracking-[0.15em] mb-4">
+        <button data-billing="monthly"
+          class="billing-toggle px-2 py-1 rounded-full border border-champagne/40 bg-champagne/15 text-champagne">
+          Monthly
+        </button>
+        <button data-billing="annual"
+          class="billing-toggle px-2 py-1 rounded-full border border-white/15 text-mist/60 hover:text-mist">
+          Annual <span class="text-champagne/70">−25%</span>
+        </button>
+      </div>
+      <ul class="text-sm space-y-2 text-mist/80">
+        <li>1,500 searches / day</li>
+        <li>Top-30 results</li>
+        <li>Reranker + summary boost</li>
+        <li>Unlimited MCP endpoints</li>
+        <li>Watch-on-update (RSS / release notes)</li>
+        <li>Priority rerank queue</li>
       </ul>
-      <a href={upgradeHref} class="btn-primary mt-5">
-        {upgradeLabel}
-      </a>
+      <button id="pro-checkout" data-billing="monthly" class="btn-primary mt-5 w-full justify-center">
+        Subscribe
+      </button>
+      <p id="pro-checkout-hint" class="text-muted text-xs mt-2 hidden">
+        <a href={paddleConfig.loginUrl}>Sign in</a> first — we attach your
+        account to the subscription.
+      </p>
+    </article>
+
+    <!-- Team -->
+    <article class="glass p-5 min-w-0">
+      <p class="section-flag inline-block mb-3">Team</p>
+      <div class="mb-1 flex items-baseline gap-1">
+        <span class="font-display text-3xl font-extrabold">$9</span>
+        <span class="text-sm text-muted">/ seat / month</span>
+      </div>
+      <p class="byline mb-4">Min 3 seats</p>
+      <ul class="text-sm space-y-2 text-mist/80">
+        <li>Everything in Pro</li>
+        <li>1,500 searches / seat / day, pooled</li>
+        <li>GitHub-org SSO</li>
+        <li>Shared bookmarks + usage dashboard</li>
+        <li>Org-scoped private corpus (opt-in)</li>
+      </ul>
+      <a href="mailto:lighthouse@harborgang.com?subject=Lighthouse%20Team%20plan"
+         class="btn-secondary mt-5">Contact us</a>
     </article>
   </section>
 
-  <hr class="mt-10 mb-6" />
+  <hr class="mt-12 mb-6" />
 
-  <section class="font-serif text-sm text-muted max-w-2xl">
-    <h3 class="font-display text-xl mb-2 text-mist">Enterprise</h3>
+  <section class="text-sm text-muted max-w-2xl">
+    <h3 class="font-display text-xl mb-2 text-mist">Self-hosted</h3>
     <p>
-      Self-hosted Lighthouse with your own corpus + recipes + admin.
-      Includes installation help and quarterly source curation. By
-      arrangement —
+      Self-host Lighthouse with your own corpus + recipes + admin. Installation
+      help, quarterly source curation, custom-source ingest. By arrangement —{" "}
       <a href="mailto:lighthouse@harborgang.com">lighthouse@harborgang.com</a>.
     </p>
   </section>
 </Newspaper>
+
+<script id="paddle-config" type="application/json" set:html={JSON.stringify(paddleConfig)}></script>
+<script src="https://cdn.paddle.com/paddle/v2/paddle.js" is:inline></script>
+<script is:inline>
+(() => {
+  const cfg = JSON.parse(document.getElementById("paddle-config").textContent);
+
+  // ---- Billing-cadence toggle (UI only) ----
+  let billing = "monthly";
+  const proPrice = document.getElementById("pro-price");
+  const proCadence = document.getElementById("pro-cadence");
+  const proButton = document.getElementById("pro-checkout");
+  const proHint = document.getElementById("pro-checkout-hint");
+
+  function setBilling(next) {
+    billing = next;
+    proButton.dataset.billing = next;
+    document.querySelectorAll(".billing-toggle").forEach((b) => {
+      const active = b.dataset.billing === next;
+      b.classList.toggle("bg-champagne/15", active);
+      b.classList.toggle("border-champagne/40", active);
+      b.classList.toggle("text-champagne", active);
+      b.classList.toggle("border-white/15", !active);
+      b.classList.toggle("text-mist/60", !active);
+    });
+    if (next === "annual") {
+      proPrice.textContent = "$9";
+      proCadence.textContent = "/ month, billed $108 / year";
+    } else {
+      proPrice.textContent = "$12";
+      proCadence.textContent = "/ month";
+    }
+  }
+
+  document.querySelectorAll(".billing-toggle").forEach((b) => {
+    b.addEventListener("click", () => setBilling(b.dataset.billing));
+  });
+
+  // ---- Checkout ----
+  if (!cfg.token || !window.Paddle) {
+    // Misconfig — just point at sign-in (if anonymous) or hide CTA.
+    proButton.addEventListener("click", (e) => {
+      e.preventDefault();
+      window.location.href = cfg.signedIn ? "/home" : cfg.loginUrl;
+    });
+    return;
+  }
+
+  window.Paddle.Environment.set(cfg.environment);
+  window.Paddle.Initialize({ token: cfg.token });
+
+  proButton.addEventListener("click", () => {
+    if (!cfg.signedIn) {
+      window.location.href = cfg.loginUrl;
+      return;
+    }
+    const priceId = billing === "annual" ? cfg.prices.annual : cfg.prices.monthly;
+    if (!priceId) {
+      proHint.textContent = "This plan isn't fully wired yet. Contact lighthouse@harborgang.com.";
+      proHint.classList.remove("hidden");
+      return;
+    }
+    window.Paddle.Checkout.open({
+      items: [{ priceId, quantity: 1 }],
+      customer: { email: cfg.user.email },
+      customData: { auth0_sub: cfg.user.sub, email: cfg.user.email },
+      settings: {
+        displayMode: "overlay",
+        theme: "dark",
+        successUrl: window.location.origin + "/home?from=checkout",
+      },
+    });
+  });
+})();
+</script>

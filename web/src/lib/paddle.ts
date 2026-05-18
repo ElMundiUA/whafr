@@ -150,12 +150,11 @@ export async function verifySignature(
   return mismatch === 0;
 }
 
-export function checkoutUrl(auth0Sub: string, email: string): string {
-  // Until the Paddle.js overlay is wired (needs PADDLE_CLIENT_TOKEN
-  // + Paddle.js loaded on /pricing), point the upgrade button at
-  // /pricing with the user's identifier in the query string — the
-  // overlay can pick it up later and pass it through to Paddle as
-  // customData.
-  const params = new URLSearchParams({ plan: "pro", sub: auth0Sub, email });
-  return `/pricing#checkout?${params.toString()}`;
+export function checkoutUrl(_auth0Sub: string, _email: string): string {
+  // Paddle.js overlay lives on /pricing now — pointing the upgrade
+  // CTA there lets the page initialise Paddle.Checkout client-side
+  // (it needs the public token + user identifiers, which the page
+  // already has). No query params needed; the overlay reads from
+  // window.__lighthouse config.
+  return "/pricing";
 }
