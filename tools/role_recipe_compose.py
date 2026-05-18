@@ -64,15 +64,26 @@ def _default_schedule(tier: str, source: dict) -> str:
 def _flatten_recipe(recipe: dict) -> list[dict]:
     """Walk every tier in a recipe and yield runner-shaped source
     dicts. ``tier`` and ``rationale`` are kept in metadata for
-    audit-time inspection but stripped before the runner sees them."""
+    audit-time inspection but stripped before the runner sees them.
+
+    Source entries accept ``id`` (legacy) or ``name`` (consolidated
+    layout) as the runner-facing identifier. If the entry carries an
+    explicit ``schedule`` we honour it; otherwise we pick a default
+    per tier/connector."""
     out: list[dict] = []
     for tier in TIER_ORDER:
         for src in recipe.get(tier) or []:
+            name = src.get("name") or src.get("id")
+            if not name:
+                continue
             spec = {
-                "name": src["id"],
+                "name": name,
                 "connector": src["connector"],
                 "args": src.get("args", {}),
-                "schedule": {"every": _default_schedule(tier, src)},
+                "schedule": (
+                    src.get("schedule") or
+                    {"every": _default_schedule(tier, src)}
+                ),
             }
             out.append(spec)
     return out
@@ -130,7 +141,8 @@ def _render_parity_md(rows: list[tuple[str, dict]]) -> str:
             c7 = src.get("context7_id", "—")
             par = src.get("parity", "—")
             rat = (src.get("rationale", "") or "").replace("\n", " ")[:80]
-            out.append(f"| `{src['id']}` | `{c7}` | {par} | {rat} |")
+            ident = src.get("id") or src.get("name") or "?"
+            out.append(f"| `{ident}` | `{c7}` | {par} | {rat} |")
         out.append("")
     return "\n".join(out) + "\n"
 
@@ -161,7 +173,8 @@ def _render_differentiators_md(rows: list[tuple[str, dict]]) -> str:
             out.append("")
             for src in srcs:
                 rat = (src.get("rationale", "") or "").replace("\n", " ")
-                out.append(f"- `{src['id']}` — {rat}")
+                ident = src.get("id") or src.get("name") or "?"
+                out.append(f"- `{ident}` — {rat}")
             out.append("")
     return "\n".join(out) + "\n"
 

@@ -37,6 +37,51 @@ sources:
     max_pages: 300
   schedule:
     every: 30d
+- name: cl-gherkin-reference
+  connector: web
+  args:
+    urls:
+    - https://cucumber.io/docs/gherkin/reference/
+    - https://cucumber.io/docs/bdd/
+    - https://cucumber.io/docs/bdd/example-mapping/
+    - https://cucumber.io/docs/bdd/discovery/
+    - https://cucumber.io/docs/bdd/formulation/
+  schedule:
+    every: 30d
+- name: cl-acceptance-criteria
+  connector: web
+  args:
+    urls:
+    - https://www.atlassian.com/agile/project-management/user-stories
+    - https://www.productplan.com/glossary/acceptance-criteria/
+    - https://www.aha.io/roadmapping/guide/agile/what-are-acceptance-criteria
+    - https://lucidchart.com/blog/how-to-write-acceptance-criteria
+  schedule:
+    every: 60d
+- name: cl-liz-keogh
+  connector: sitemap
+  args:
+    root: https://lizkeogh.com
+    max_pages: 80
+  schedule:
+    every: 60d
+- name: cl-dan-north
+  connector: web
+  args:
+    urls:
+    - https://dannorth.net/introducing-bdd/
+    - https://dannorth.net/whats-in-a-story/
+    - https://dannorth.net/bdd-is-like-tdd-if/
+  schedule:
+    every: 90d
+- name: cl-specification-by-example
+  connector: web
+  args:
+    urls:
+    - https://gojko.net/2008/11/04/specifying-with-examples/
+    - https://gojko.net/2014/06/30/specification-by-example-summarized-in-10-minutes/
+  schedule:
+    every: 90d
 - name: cl-agile-manifesto
   connector: web
   args:

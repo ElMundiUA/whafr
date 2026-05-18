@@ -148,6 +148,101 @@ sources:
     max_files: 100
   schedule:
     every: 30d
+- name: ml-pandas-docs
+  connector: github_tree
+  args:
+    slug: pandas-dev/pandas
+    branch: main
+    include_paths:
+    - doc/source/
+    file_extensions:
+    - .rst
+    max_files: 200
+  schedule:
+    every: 30d
+- name: ml-polars-docs
+  connector: github_tree
+  args:
+    slug: pola-rs/polars
+    branch: main
+    include_paths:
+    - docs/
+    file_extensions:
+    - .md
+    max_files: 100
+  schedule:
+    every: 30d
+- name: ml-numpy-docs
+  connector: github_tree
+  args:
+    slug: numpy/numpy
+    branch: main
+    include_paths:
+    - doc/source/
+    file_extensions:
+    - .rst
+    max_files: 200
+  schedule:
+    every: 30d
+- name: ml-sklearn-docs
+  connector: github_tree
+  args:
+    slug: scikit-learn/scikit-learn
+    branch: main
+    include_paths:
+    - doc/
+    file_extensions:
+    - .rst
+    max_files: 200
+  schedule:
+    every: 30d
+- name: ml-langchain-py
+  connector: github_tree
+  args:
+    slug: langchain-ai/langchain
+    branch: master
+    include_paths:
+    - docs/
+    file_extensions:
+    - .md
+    - .mdx
+    - .ipynb
+    max_files: 300
+  schedule:
+    every: 30d
+- name: ml-openai-py
+  connector: github_tree
+  args:
+    slug: openai/openai-python
+    branch: main
+    file_extensions:
+    - .md
+    max_files: 30
+  schedule:
+    every: 30d
+- name: ml-anthropic-py
+  connector: github_tree
+  args:
+    slug: anthropics/anthropic-sdk-python
+    branch: main
+    file_extensions:
+    - .md
+    max_files: 30
+  schedule:
+    every: 30d
+- name: ml-vercel-ai-sdk
+  connector: github_tree
+  args:
+    slug: vercel/ai
+    branch: main
+    include_paths:
+    - content/
+    file_extensions:
+    - .mdx
+    - .md
+    max_files: 200
+  schedule:
+    every: 30d
 - name: ml-mcp-spec
   connector: github_tree
   args:

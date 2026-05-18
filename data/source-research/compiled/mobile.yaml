@@ -92,6 +92,29 @@ sources:
     max_files: 400
   schedule:
     every: 30d
+- name: mob-tamagui-docs
+  connector: github_tree
+  args:
+    slug: tamagui/tamagui
+    branch: main
+    include_paths:
+    - apps/x/data/
+    file_extensions:
+    - .mdx
+    - .md
+    max_files: 100
+  schedule:
+    every: 30d
+- name: mob-jetpack-compose-samples
+  connector: github_tree
+  args:
+    slug: android/compose-samples
+    branch: main
+    file_extensions:
+    - .md
+    max_files: 80
+  schedule:
+    every: 30d
 - name: mob-wcag-mobile
   connector: web
   args:

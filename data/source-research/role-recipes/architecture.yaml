@@ -1,71 +1,182 @@
-# Role recipe: architecture
 role: architecture
-audit_domains: [architecture]
+audit_domains:
+- architecture
 queries_sample:
-  - "CRDT vs OT collaborative editing"
-  - "event sourcing CQRS pattern"
-  - "saga distributed transaction"
-  - "hexagonal architecture ports adapters"
-  - "eventual consistency anti-entropy"
-
+- CRDT vs OT collaborative editing
+- event sourcing CQRS pattern
+- saga distributed transaction
+- hexagonal architecture ports adapters
+- eventual consistency anti-entropy
 tier1_mainstream:
-  - id: arch-microservices-io
-    connector: sitemap
-    args: { root: https://microservices.io, max_pages: 200 }
-    parity: critical
-  - id: arch-aws-well-architected
-    connector: sitemap
-    args: { root: https://docs.aws.amazon.com, max_pages: 200, include_paths: [/wellarchitected/latest/] }
-    parity: critical
-  - id: arch-gcp-architecture-center
-    connector: sitemap
-    args: { root: https://cloud.google.com, max_pages: 200, include_paths: [/architecture/] }
-    parity: critical
-  - id: arch-azure-arch-center
-    connector: sitemap
-    args: { root: https://learn.microsoft.com, max_pages: 200, include_paths: [/en-us/azure/architecture/] }
-    parity: high
-
+- id: arch-microservices-io
+  connector: sitemap
+  args:
+    root: https://microservices.io
+    max_pages: 200
+  parity: critical
+- id: arch-aws-well-architected
+  connector: sitemap
+  args:
+    root: https://docs.aws.amazon.com
+    max_pages: 200
+    include_paths:
+    - /wellarchitected/latest/
+  parity: critical
+- id: arch-gcp-architecture-center
+  connector: sitemap
+  args:
+    root: https://cloud.google.com
+    max_pages: 200
+    include_paths:
+    - /architecture/
+  parity: critical
+- id: arch-azure-arch-center
+  connector: sitemap
+  args:
+    root: https://learn.microsoft.com
+    max_pages: 200
+    include_paths:
+    - /en-us/azure/architecture/
+  parity: high
+- name: arc-crdt-vs-ot
+  connector: web
+  args:
+    urls:
+    - https://www.bartoszsypytkowski.com/the-state-of-a-state-based-crdts/
+    - https://www.bartoszsypytkowski.com/operation-based-crdts-arrays-1/
+    - https://crdt.tech/
+    - https://josephg.com/blog/crdts-go-brrr/
+    - https://josephg.com/blog/crdts-are-the-future/
+  schedule:
+    every: 90d
+- name: arc-event-sourcing-cqrs
+  connector: web
+  args:
+    urls:
+    - https://martinfowler.com/eaaDev/EventSourcing.html
+    - https://martinfowler.com/bliki/CQRS.html
+    - https://microservices.io/patterns/data/event-sourcing.html
+    - https://microservices.io/patterns/data/cqrs.html
+    - https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing
+    - https://learn.microsoft.com/en-us/azure/architecture/patterns/cqrs
+  schedule:
+    every: 90d
+- name: arc-saga
+  connector: web
+  args:
+    urls:
+    - https://microservices.io/patterns/data/saga.html
+    - https://learn.microsoft.com/en-us/azure/architecture/patterns/saga
+    - https://www.kamilgrzybek.com/blog/posts/distributed-transactions-modular-monolith-asp-net-core
+  schedule:
+    every: 90d
+- name: arc-hexagonal
+  connector: web
+  args:
+    urls:
+    - https://alistair.cockburn.us/hexagonal-architecture/
+    - https://herbertograca.com/2017/09/14/ports-adapters-architecture/
+    - https://netflixtechblog.com/ready-for-changes-with-hexagonal-architecture-b315ec967749
+  schedule:
+    every: 90d
+- name: arc-eventual-consistency
+  connector: web
+  args:
+    urls:
+    - https://martinfowler.com/articles/patterns-of-distributed-systems/anti-entropy.html
+    - https://martinfowler.com/articles/patterns-of-distributed-systems/
+    - https://www.allthingsdistributed.com/2008/12/eventually_consistent.html
+    - https://jepsen.io/consistency
+  schedule:
+    every: 90d
+- name: arc-microservices-io
+  connector: sitemap
+  args:
+    root: https://microservices.io
+    max_pages: 200
+    include_paths:
+    - /patterns/
+  schedule:
+    every: 30d
+- name: arc-tw-radar-rss
+  connector: rss
+  args:
+    url: https://www.thoughtworks.com/rss/insights.xml
+    max_items: 100
+  schedule:
+    every: 30d
 tier2_canonical:
-  - id: arch-cap-papers
-    connector: web
-    args:
-      urls:
-        - https://www.glassbeam.com/sites/all/themes/glassbeam/images/blog/10.1.1.67.6951.pdf  # CAP
-        - https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf  # Dynamo
-        - https://research.google/pubs/spanner-googles-globally-distributed-database-2/  # Spanner
-        - https://www.tilkov.com/static/SOA-2010.pdf  # SOA
-  - id: arch-fowler-eaa
-    connector: sitemap
-    args: { root: https://martinfowler.com, max_pages: 200, include_paths: [/eaaCatalog/, /architecture/, /articles/] }
-  - id: arch-c4-model
-    connector: sitemap
-    args: { root: https://c4model.com, max_pages: 50 }
-
+- id: arch-cap-papers
+  connector: web
+  args:
+    urls:
+    - https://www.glassbeam.com/sites/all/themes/glassbeam/images/blog/10.1.1.67.6951.pdf
+    - https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf
+    - https://research.google/pubs/spanner-googles-globally-distributed-database-2/
+    - https://www.tilkov.com/static/SOA-2010.pdf
+- id: arch-fowler-eaa
+  connector: sitemap
+  args:
+    root: https://martinfowler.com
+    max_pages: 200
+    include_paths:
+    - /eaaCatalog/
+    - /architecture/
+    - /articles/
+- id: arch-c4-model
+  connector: sitemap
+  args:
+    root: https://c4model.com
+    max_pages: 50
 tier3_methodology:
-  - id: arch-vaughn-vernon
-    connector: sitemap
-    args: { root: https://vaughnvernon.com, max_pages: 100 }
-  - id: arch-evans-domain-language
-    connector: sitemap
-    args: { root: https://www.domainlanguage.com, max_pages: 100 }
-  - id: arch-mark-richards
-    connector: sitemap
-    args: { root: https://www.developertoarchitect.com, max_pages: 100 }
-  - id: arch-tilkov-innoq
-    connector: sitemap
-    args: { root: https://www.innoq.com, max_pages: 300, include_paths: [/en/blog/] }
-  - id: arch-infoq-architecture
-    connector: sitemap
-    args: { root: https://www.infoq.com, max_pages: 400, include_paths: [/architecture-design/] }
-  - id: arch-thoughtworks-radar
-    connector: sitemap
-    args: { root: https://www.thoughtworks.com, max_pages: 200, include_paths: [/radar/] }
-
+- id: arch-vaughn-vernon
+  connector: sitemap
+  args:
+    root: https://vaughnvernon.com
+    max_pages: 100
+- id: arch-evans-domain-language
+  connector: sitemap
+  args:
+    root: https://www.domainlanguage.com
+    max_pages: 100
+- id: arch-mark-richards
+  connector: sitemap
+  args:
+    root: https://www.developertoarchitect.com
+    max_pages: 100
+- id: arch-tilkov-innoq
+  connector: sitemap
+  args:
+    root: https://www.innoq.com
+    max_pages: 300
+    include_paths:
+    - /en/blog/
+- id: arch-infoq-architecture
+  connector: sitemap
+  args:
+    root: https://www.infoq.com
+    max_pages: 400
+    include_paths:
+    - /architecture-design/
+- id: arch-thoughtworks-radar
+  connector: sitemap
+  args:
+    root: https://www.thoughtworks.com
+    max_pages: 200
+    include_paths:
+    - /radar/
 tier4_streams:
-  - id: arch-thoughtworks-rss
-    connector: rss
-    args: { feeds: ["https://www.thoughtworks.com/rss"], max_entries: 50, fetch_body_when_missing: true }
-  - id: arch-infoq-arch-rss
-    connector: rss
-    args: { feeds: ["https://feed.infoq.com/architecture-design/articles/"], max_entries: 50, fetch_body_when_missing: true }
+- id: arch-thoughtworks-rss
+  connector: rss
+  args:
+    feeds:
+    - https://www.thoughtworks.com/rss
+    max_entries: 50
+    fetch_body_when_missing: true
+- id: arch-infoq-arch-rss
+  connector: rss
+  args:
+    feeds:
+    - https://feed.infoq.com/architecture-design/articles/
+    max_entries: 50
+    fetch_body_when_missing: true

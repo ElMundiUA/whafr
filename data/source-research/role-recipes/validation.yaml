@@ -1,92 +1,182 @@
-# Role recipe: validation (testing — unit / integration / e2e / BDD)
-
 role: validation
-audit_domains: [validation]
+audit_domains:
+- validation
 queries_sample:
-  - "Playwright page object model fixtures"
-  - "BDD scenario for password reset"
-  - "testcontainers Postgres integration"
-  - "mutation testing python"
-  - "Jest mock implementation"
-  - "Cypress component testing"
-
+- Playwright page object model fixtures
+- BDD scenario for password reset
+- testcontainers Postgres integration
+- mutation testing python
+- Jest mock implementation
+- Cypress component testing
 tier1_mainstream:
-  - id: val-playwright-docs
-    connector: github_tree
-    args: { slug: microsoft/playwright, branch: main, file_extensions: [.md], include_paths: [docs/], max_files: 400 }
-    parity: critical
-  - id: val-cypress-docs
-    connector: sitemap
-    args: { root: https://docs.cypress.io, max_pages: 400 }
-    parity: critical
-  - id: val-jest-docs
-    connector: github_tree
-    args: { slug: jestjs/jest, branch: main, file_extensions: [.md], include_paths: [docs/], max_files: 200 }
-    parity: critical
-  - id: val-vitest-docs
-    connector: github_tree
-    args: { slug: vitest-dev/vitest, branch: main, file_extensions: [.md], include_paths: [docs/], max_files: 200 }
-    parity: critical
-  - id: val-pytest-docs
-    connector: sitemap
-    args: { root: https://docs.pytest.org, max_pages: 300 }
-    parity: critical
-  - id: val-testing-library-docs
-    connector: github_tree
-    args: { slug: testing-library/testing-library-docs, branch: main, file_extensions: [.md, .mdx], max_files: 200 }
-    parity: critical
-  - id: val-msw-docs
-    connector: github_tree
-    args: { slug: mswjs/mswjs.io, branch: main, file_extensions: [.md, .mdx], max_files: 200 }
-    parity: high
-  - id: val-hypothesis-docs
-    connector: sitemap
-    args: { root: https://hypothesis.readthedocs.io, max_pages: 200 }
-    parity: high
-  - id: val-cucumber-docs
-    connector: sitemap
-    args: { root: https://cucumber.io, max_pages: 200, include_paths: [/docs/] }
-    parity: high
-  - id: val-pact-docs
-    connector: sitemap
-    args: { root: https://docs.pact.io, max_pages: 200 }
-    parity: medium
-
+- id: val-playwright-docs
+  connector: github_tree
+  args:
+    slug: microsoft/playwright
+    branch: main
+    file_extensions:
+    - .md
+    include_paths:
+    - docs/
+    max_files: 400
+  parity: critical
+- id: val-cypress-docs
+  connector: sitemap
+  args:
+    root: https://docs.cypress.io
+    max_pages: 400
+  parity: critical
+- id: val-jest-docs
+  connector: github_tree
+  args:
+    slug: jestjs/jest
+    branch: main
+    file_extensions:
+    - .md
+    include_paths:
+    - docs/
+    max_files: 200
+  parity: critical
+- id: val-vitest-docs
+  connector: github_tree
+  args:
+    slug: vitest-dev/vitest
+    branch: main
+    file_extensions:
+    - .md
+    include_paths:
+    - docs/
+    max_files: 200
+  parity: critical
+- id: val-pytest-docs
+  connector: sitemap
+  args:
+    root: https://docs.pytest.org
+    max_pages: 300
+  parity: critical
+- id: val-testing-library-docs
+  connector: github_tree
+  args:
+    slug: testing-library/testing-library-docs
+    branch: main
+    file_extensions:
+    - .md
+    - .mdx
+    max_files: 200
+  parity: critical
+- id: val-msw-docs
+  connector: github_tree
+  args:
+    slug: mswjs/mswjs.io
+    branch: main
+    file_extensions:
+    - .md
+    - .mdx
+    max_files: 200
+  parity: high
+- id: val-hypothesis-docs
+  connector: sitemap
+  args:
+    root: https://hypothesis.readthedocs.io
+    max_pages: 200
+  parity: high
+- id: val-cucumber-docs
+  connector: sitemap
+  args:
+    root: https://cucumber.io
+    max_pages: 200
+    include_paths:
+    - /docs/
+  parity: high
+- id: val-pact-docs
+  connector: sitemap
+  args:
+    root: https://docs.pact.io
+    max_pages: 200
+  parity: medium
+- name: val-testing-library
+  connector: github_tree
+  args:
+    slug: testing-library/testing-library-docs
+    branch: main
+    include_paths:
+    - docs/
+    file_extensions:
+    - .mdx
+    - .md
+    max_files: 150
+  schedule:
+    every: 30d
 tier2_canonical:
-  - id: val-gherkin-spec
-    connector: github_tree
-    args: { slug: cucumber/cucumber, branch: main, file_extensions: [.md], include_paths: [gherkin/], max_files: 50 }
-  - id: val-junit5-spec
-    connector: sitemap
-    args: { root: https://junit.org, max_pages: 200, include_paths: [/junit5/docs/current/user-guide/] }
-
+- id: val-gherkin-spec
+  connector: github_tree
+  args:
+    slug: cucumber/cucumber
+    branch: main
+    file_extensions:
+    - .md
+    include_paths:
+    - gherkin/
+    max_files: 50
+- id: val-junit5-spec
+  connector: sitemap
+  args:
+    root: https://junit.org
+    max_pages: 200
+    include_paths:
+    - /junit5/docs/current/user-guide/
 tier3_methodology:
-  - id: val-kentcdodds
-    connector: sitemap
-    args: { root: https://kentcdodds.com, max_pages: 250, include_paths: [/blog/] }
-  - id: val-fowler-testing
-    connector: sitemap
-    args: { root: https://martinfowler.com, max_pages: 200, include_paths: [/bliki/, /articles/, /eaaCatalog/] }
-  - id: val-dan-north
-    connector: sitemap
-    args: { root: https://dannorth.net, max_pages: 100 }
-  - id: val-google-testing
-    connector: sitemap
-    args: { root: https://testing.googleblog.com, max_pages: 200 }
-  - id: val-eric-elliott
-    connector: sitemap
-    args: { root: https://medium.com, max_pages: 50, include_paths: [/@_ericelliott] }
-
+- id: val-kentcdodds
+  connector: sitemap
+  args:
+    root: https://kentcdodds.com
+    max_pages: 250
+    include_paths:
+    - /blog/
+- id: val-fowler-testing
+  connector: sitemap
+  args:
+    root: https://martinfowler.com
+    max_pages: 200
+    include_paths:
+    - /bliki/
+    - /articles/
+    - /eaaCatalog/
+- id: val-dan-north
+  connector: sitemap
+  args:
+    root: https://dannorth.net
+    max_pages: 100
+- id: val-google-testing
+  connector: sitemap
+  args:
+    root: https://testing.googleblog.com
+    max_pages: 200
+- id: val-eric-elliott
+  connector: sitemap
+  args:
+    root: https://medium.com
+    max_pages: 50
+    include_paths:
+    - /@_ericelliott
 tier4_streams:
-  - id: val-playwright-releases
-    connector: github_releases
-    args: { slug: microsoft/playwright, max_releases: 30 }
-  - id: val-cypress-releases
-    connector: github_releases
-    args: { slug: cypress-io/cypress, max_releases: 30 }
-  - id: val-jest-releases
-    connector: github_releases
-    args: { slug: jestjs/jest, max_releases: 30 }
-  - id: val-vitest-releases
-    connector: github_releases
-    args: { slug: vitest-dev/vitest, max_releases: 30 }
+- id: val-playwright-releases
+  connector: github_releases
+  args:
+    slug: microsoft/playwright
+    max_releases: 30
+- id: val-cypress-releases
+  connector: github_releases
+  args:
+    slug: cypress-io/cypress
+    max_releases: 30
+- id: val-jest-releases
+  connector: github_releases
+  args:
+    slug: jestjs/jest
+    max_releases: 30
+- id: val-vitest-releases
+  connector: github_releases
+  args:
+    slug: vitest-dev/vitest
+    max_releases: 30

@@ -87,6 +87,68 @@ sources:
     - /docs/
   schedule:
     every: 30d
+- name: sec-authjs-docs
+  connector: github_tree
+  args:
+    slug: nextauthjs/next-auth
+    branch: main
+    include_paths:
+    - docs/
+    file_extensions:
+    - .mdx
+    - .md
+    max_files: 200
+  schedule:
+    every: 30d
+- name: sec-better-auth-docs
+  connector: github_tree
+  args:
+    slug: better-auth/better-auth
+    branch: main
+    include_paths:
+    - docs/
+    file_extensions:
+    - .mdx
+    - .md
+    max_files: 200
+  schedule:
+    every: 30d
+- name: sec-lucia-docs
+  connector: github_tree
+  args:
+    slug: lucia-auth/lucia
+    branch: main
+    include_paths:
+    - docs/
+    file_extensions:
+    - .md
+    max_files: 100
+  schedule:
+    every: 30d
+- name: sec-clerk-docs
+  connector: github_tree
+  args:
+    slug: clerk/clerk-docs
+    branch: main
+    file_extensions:
+    - .mdx
+    - .md
+    max_files: 300
+  schedule:
+    every: 30d
+- name: sec-supabase-docs
+  connector: github_tree
+  args:
+    slug: supabase/supabase
+    branch: master
+    include_paths:
+    - apps/docs/content/
+    file_extensions:
+    - .mdx
+    - .md
+    max_files: 300
+  schedule:
+    every: 30d
 - name: sec-rfc-oauth-stack
   connector: web
   args:

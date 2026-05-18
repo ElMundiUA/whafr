@@ -53,6 +53,18 @@ sources:
     max_pages: 200
   schedule:
     every: 30d
+- name: gd-bevy-docs
+  connector: github_tree
+  args:
+    slug: bevyengine/bevy-website
+    branch: main
+    include_paths:
+    - content/
+    file_extensions:
+    - .md
+    max_files: 200
+  schedule:
+    every: 30d
 - name: gd-glsl-spec
   connector: web
   args:

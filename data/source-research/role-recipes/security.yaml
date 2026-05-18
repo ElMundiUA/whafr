@@ -1,120 +1,270 @@
-# Role recipe: security
-
 role: security
-audit_domains: [security]
+audit_domains:
+- security
 queries_sample:
-  - "OWASP CSRF cheat sheet"
-  - "secret rotation github actions"
-  - "mTLS client certificate auth"
-  - "STRIDE threat modelling"
-  - "DPoP RFC 9449 token binding"
-  - "OAuth PKCE code_challenge S256"
-  - "JWT alg confusion attack"
-
+- OWASP CSRF cheat sheet
+- secret rotation github actions
+- mTLS client certificate auth
+- STRIDE threat modelling
+- DPoP RFC 9449 token binding
+- OAuth PKCE code_challenge S256
+- JWT alg confusion attack
 tier1_mainstream:
-  - id: sec-owasp-cheatsheets
-    connector: github_tree
-    args: { slug: OWASP/CheatSheetSeries, branch: master, file_extensions: [.md], include_paths: [cheatsheets/], max_files: 200 }
-    parity: critical
-  - id: sec-owasp-asvs
-    connector: github_tree
-    args: { slug: OWASP/ASVS, branch: master, file_extensions: [.md], max_files: 200 }
-    parity: critical
-  - id: sec-owasp-top10
-    connector: sitemap
-    args: { root: https://owasp.org, max_pages: 200, include_paths: [/Top10/, /www-project-application-security-verification-standard/, /www-project-proactive-controls/] }
-    parity: critical
-  - id: sec-portswigger-academy
-    connector: sitemap
-    args: { root: https://portswigger.net, max_pages: 400, include_paths: [/web-security/, /research/] }
-    parity: critical
-  - id: sec-keycloak-docs
-    connector: sitemap
-    args: { root: https://www.keycloak.org, max_pages: 200, include_paths: [/documentation, /docs/] }
-    parity: high
-  - id: sec-vault-docs
-    connector: sitemap
-    args: { root: https://developer.hashicorp.com, max_pages: 300, include_paths: [/vault/docs/, /vault/api-docs/] }
-    parity: high
-  - id: sec-external-secrets-docs
-    connector: github_tree
-    args: { slug: external-secrets/external-secrets, branch: main, file_extensions: [.md], include_paths: [docs/], max_files: 200 }
-    parity: high
-  - id: sec-zaproxy-docs
-    connector: sitemap
-    args: { root: https://www.zaproxy.org, max_pages: 200, include_paths: [/docs/] }
-    parity: medium
-
+- id: sec-owasp-cheatsheets
+  connector: github_tree
+  args:
+    slug: OWASP/CheatSheetSeries
+    branch: master
+    file_extensions:
+    - .md
+    include_paths:
+    - cheatsheets/
+    max_files: 200
+  parity: critical
+- id: sec-owasp-asvs
+  connector: github_tree
+  args:
+    slug: OWASP/ASVS
+    branch: master
+    file_extensions:
+    - .md
+    max_files: 200
+  parity: critical
+- id: sec-owasp-top10
+  connector: sitemap
+  args:
+    root: https://owasp.org
+    max_pages: 200
+    include_paths:
+    - /Top10/
+    - /www-project-application-security-verification-standard/
+    - /www-project-proactive-controls/
+  parity: critical
+- id: sec-portswigger-academy
+  connector: sitemap
+  args:
+    root: https://portswigger.net
+    max_pages: 400
+    include_paths:
+    - /web-security/
+    - /research/
+  parity: critical
+- id: sec-keycloak-docs
+  connector: sitemap
+  args:
+    root: https://www.keycloak.org
+    max_pages: 200
+    include_paths:
+    - /documentation
+    - /docs/
+  parity: high
+- id: sec-vault-docs
+  connector: sitemap
+  args:
+    root: https://developer.hashicorp.com
+    max_pages: 300
+    include_paths:
+    - /vault/docs/
+    - /vault/api-docs/
+  parity: high
+- id: sec-external-secrets-docs
+  connector: github_tree
+  args:
+    slug: external-secrets/external-secrets
+    branch: main
+    file_extensions:
+    - .md
+    include_paths:
+    - docs/
+    max_files: 200
+  parity: high
+- id: sec-zaproxy-docs
+  connector: sitemap
+  args:
+    root: https://www.zaproxy.org
+    max_pages: 200
+    include_paths:
+    - /docs/
+  parity: medium
+- name: sec-authjs-docs
+  connector: github_tree
+  args:
+    slug: nextauthjs/next-auth
+    branch: main
+    include_paths:
+    - docs/
+    file_extensions:
+    - .mdx
+    - .md
+    max_files: 200
+  schedule:
+    every: 30d
+- name: sec-better-auth-docs
+  connector: github_tree
+  args:
+    slug: better-auth/better-auth
+    branch: main
+    include_paths:
+    - docs/
+    file_extensions:
+    - .mdx
+    - .md
+    max_files: 200
+  schedule:
+    every: 30d
+- name: sec-lucia-docs
+  connector: github_tree
+  args:
+    slug: lucia-auth/lucia
+    branch: main
+    include_paths:
+    - docs/
+    file_extensions:
+    - .md
+    max_files: 100
+  schedule:
+    every: 30d
+- name: sec-clerk-docs
+  connector: github_tree
+  args:
+    slug: clerk/clerk-docs
+    branch: main
+    file_extensions:
+    - .mdx
+    - .md
+    max_files: 300
+  schedule:
+    every: 30d
+- name: sec-supabase-docs
+  connector: github_tree
+  args:
+    slug: supabase/supabase
+    branch: master
+    include_paths:
+    - apps/docs/content/
+    file_extensions:
+    - .mdx
+    - .md
+    max_files: 300
+  schedule:
+    every: 30d
 tier2_canonical:
-  - id: sec-rfc-oauth-stack
-    connector: web
-    args:
-      urls:
-        - https://datatracker.ietf.org/doc/html/rfc6749   # OAuth 2.0
-        - https://datatracker.ietf.org/doc/html/rfc7636   # PKCE
-        - https://datatracker.ietf.org/doc/html/rfc9449   # DPoP
-        - https://datatracker.ietf.org/doc/html/rfc8705   # mTLS
-        - https://datatracker.ietf.org/doc/html/rfc9126   # PAR
-        - https://datatracker.ietf.org/doc/html/rfc9101   # JAR
-        - https://datatracker.ietf.org/doc/html/rfc9396   # RAR
-  - id: sec-rfc-jwt-jose
-    connector: web
-    args:
-      urls:
-        - https://datatracker.ietf.org/doc/html/rfc7519
-        - https://datatracker.ietf.org/doc/html/rfc7515
-        - https://datatracker.ietf.org/doc/html/rfc7516
-        - https://datatracker.ietf.org/doc/html/rfc7517
-        - https://datatracker.ietf.org/doc/html/rfc7518
-  - id: sec-nist-sp-800-series
-    connector: web
-    args:
-      urls:
-        - https://csrc.nist.gov/pubs/sp/800/53/r5/final
-        - https://csrc.nist.gov/pubs/sp/800/63/3/final
-        - https://csrc.nist.gov/pubs/sp/800/207/final
-        - https://csrc.nist.gov/pubs/sp/800/204/final
-        - https://csrc.nist.gov/pubs/sp/800/218/final
-  - id: sec-mitre-attack
-    connector: sitemap
-    args: { root: https://attack.mitre.org, max_pages: 400, include_paths: [/techniques/, /tactics/, /mitigations/] }
-  - id: sec-cwe
-    connector: sitemap
-    args: { root: https://cwe.mitre.org, max_pages: 300, include_paths: [/data/definitions/] }
-
+- id: sec-rfc-oauth-stack
+  connector: web
+  args:
+    urls:
+    - https://datatracker.ietf.org/doc/html/rfc6749
+    - https://datatracker.ietf.org/doc/html/rfc7636
+    - https://datatracker.ietf.org/doc/html/rfc9449
+    - https://datatracker.ietf.org/doc/html/rfc8705
+    - https://datatracker.ietf.org/doc/html/rfc9126
+    - https://datatracker.ietf.org/doc/html/rfc9101
+    - https://datatracker.ietf.org/doc/html/rfc9396
+- id: sec-rfc-jwt-jose
+  connector: web
+  args:
+    urls:
+    - https://datatracker.ietf.org/doc/html/rfc7519
+    - https://datatracker.ietf.org/doc/html/rfc7515
+    - https://datatracker.ietf.org/doc/html/rfc7516
+    - https://datatracker.ietf.org/doc/html/rfc7517
+    - https://datatracker.ietf.org/doc/html/rfc7518
+- id: sec-nist-sp-800-series
+  connector: web
+  args:
+    urls:
+    - https://csrc.nist.gov/pubs/sp/800/53/r5/final
+    - https://csrc.nist.gov/pubs/sp/800/63/3/final
+    - https://csrc.nist.gov/pubs/sp/800/207/final
+    - https://csrc.nist.gov/pubs/sp/800/204/final
+    - https://csrc.nist.gov/pubs/sp/800/218/final
+- id: sec-mitre-attack
+  connector: sitemap
+  args:
+    root: https://attack.mitre.org
+    max_pages: 400
+    include_paths:
+    - /techniques/
+    - /tactics/
+    - /mitigations/
+- id: sec-cwe
+  connector: sitemap
+  args:
+    root: https://cwe.mitre.org
+    max_pages: 300
+    include_paths:
+    - /data/definitions/
 tier3_methodology:
-  - id: sec-schneier
-    connector: sitemap
-    args: { root: https://www.schneier.com, max_pages: 200, include_paths: [/blog/, /essays/] }
-  - id: sec-troyhunt
-    connector: sitemap
-    args: { root: https://www.troyhunt.com, max_pages: 200 }
-  - id: sec-miessler
-    connector: sitemap
-    args: { root: https://danielmiessler.com, max_pages: 150, include_paths: [/blog/] }
-  - id: sec-shostack
-    connector: sitemap
-    args: { root: https://shostack.org, max_pages: 100, include_paths: [/blog/] }
-  - id: sec-krebs
-    connector: sitemap
-    args: { root: https://krebsonsecurity.com, max_pages: 200 }
-  - id: sec-google-projectzero
-    connector: sitemap
-    args: { root: https://googleprojectzero.blogspot.com, max_pages: 200 }
-
+- id: sec-schneier
+  connector: sitemap
+  args:
+    root: https://www.schneier.com
+    max_pages: 200
+    include_paths:
+    - /blog/
+    - /essays/
+- id: sec-troyhunt
+  connector: sitemap
+  args:
+    root: https://www.troyhunt.com
+    max_pages: 200
+- id: sec-miessler
+  connector: sitemap
+  args:
+    root: https://danielmiessler.com
+    max_pages: 150
+    include_paths:
+    - /blog/
+- id: sec-shostack
+  connector: sitemap
+  args:
+    root: https://shostack.org
+    max_pages: 100
+    include_paths:
+    - /blog/
+- id: sec-krebs
+  connector: sitemap
+  args:
+    root: https://krebsonsecurity.com
+    max_pages: 200
+- id: sec-google-projectzero
+  connector: sitemap
+  args:
+    root: https://googleprojectzero.blogspot.com
+    max_pages: 200
 tier4_streams:
-  - id: sec-cve-nvd
-    connector: rss
-    args: { feeds: ["https://nvd.nist.gov/feeds/xml/cve/misc/nvd-rss-analyzed.xml"], max_entries: 200, fetch_body_when_missing: false }
-  - id: sec-gh-advisories
-    connector: rss
-    args: { feeds: ["https://github.com/advisories.atom"], max_entries: 200, fetch_body_when_missing: false }
-  - id: sec-schneier-rss
-    connector: rss
-    args: { feeds: ["https://www.schneier.com/feed/"], max_entries: 50, fetch_body_when_missing: true }
-  - id: sec-troyhunt-rss
-    connector: rss
-    args: { feeds: ["https://www.troyhunt.com/rss/"], max_entries: 50, fetch_body_when_missing: true }
-  - id: sec-krebs-rss
-    connector: rss
-    args: { feeds: ["https://krebsonsecurity.com/feed/"], max_entries: 50, fetch_body_when_missing: false }
+- id: sec-cve-nvd
+  connector: rss
+  args:
+    feeds:
+    - https://nvd.nist.gov/feeds/xml/cve/misc/nvd-rss-analyzed.xml
+    max_entries: 200
+    fetch_body_when_missing: false
+- id: sec-gh-advisories
+  connector: rss
+  args:
+    feeds:
+    - https://github.com/advisories.atom
+    max_entries: 200
+    fetch_body_when_missing: false
+- id: sec-schneier-rss
+  connector: rss
+  args:
+    feeds:
+    - https://www.schneier.com/feed/
+    max_entries: 50
+    fetch_body_when_missing: true
+- id: sec-troyhunt-rss
+  connector: rss
+  args:
+    feeds:
+    - https://www.troyhunt.com/rss/
+    max_entries: 50
+    fetch_body_when_missing: true
+- id: sec-krebs-rss
+  connector: rss
+  args:
+    feeds:
+    - https://krebsonsecurity.com/feed/
+    max_entries: 50
+    fetch_body_when_missing: false

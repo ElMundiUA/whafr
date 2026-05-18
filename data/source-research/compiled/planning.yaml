@@ -50,6 +50,56 @@ sources:
     - /agile/
   schedule:
     every: 30d
+- name: pl-capacity-velocity
+  connector: web
+  args:
+    urls:
+    - https://www.atlassian.com/agile/project-management/estimation
+    - https://www.atlassian.com/agile/project-management/sprint-planning
+    - https://www.mountaingoatsoftware.com/blog/where-do-story-points-come-from
+    - https://www.mountaingoatsoftware.com/blog/why-the-fibonacci-sequence-works-well-for-estimating
+  schedule:
+    every: 60d
+- name: pl-noestimates
+  connector: web
+  args:
+    urls:
+    - https://ronjeffries.com/xprog/articles/the-noestimates-movement/
+    - https://neilkillick.com/2013/01/02/12-steps-towards-noestimates/
+    - https://www.allankellyassociates.co.uk/archives/4257/whats-wrong-with-estimation/
+  schedule:
+    every: 90d
+- name: pl-risk-register
+  connector: web
+  args:
+    urls:
+    - https://www.pmi.org/learning/library/risk-management-process-overview-9001
+    - https://www.atlassian.com/work-management/project-management/risk-management
+    - https://en.wikipedia.org/wiki/Risk_register
+  schedule:
+    every: 90d
+- name: pl-rollback-deploy
+  connector: web
+  args:
+    urls:
+    - https://martinfowler.com/bliki/BlueGreenDeployment.html
+    - https://martinfowler.com/bliki/CanaryRelease.html
+    - https://martinfowler.com/articles/feature-toggles.html
+    - https://www.atlassian.com/continuous-delivery/principles/deployment-strategies
+    - https://sre.google/sre-book/release-engineering/
+  schedule:
+    every: 60d
+- name: pl-shape-up
+  connector: web
+  args:
+    urls:
+    - https://basecamp.com/shapeup/0.3-chapter-01
+    - https://basecamp.com/shapeup/1.1-chapter-02
+    - https://basecamp.com/shapeup/2.1-chapter-08
+    - https://basecamp.com/shapeup/3.1-chapter-12
+    - https://basecamp.com/shapeup/3.5-chapter-16
+  schedule:
+    every: 90d
 - name: pl-agile-manifesto
   connector: web
   args:

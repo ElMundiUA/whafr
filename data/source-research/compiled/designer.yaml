@@ -53,6 +53,96 @@ sources:
     max_files: 100
   schedule:
     every: 30d
+- name: de-shadcn-docs
+  connector: github_tree
+  args:
+    slug: shadcn-ui/ui
+    branch: main
+    include_paths:
+    - apps/www/content/
+    file_extensions:
+    - .mdx
+    - .md
+    max_files: 200
+  schedule:
+    every: 30d
+- name: de-radix-docs
+  connector: github_tree
+  args:
+    slug: radix-ui/website
+    branch: main
+    include_paths:
+    - data/
+    - content/
+    file_extensions:
+    - .mdx
+    - .md
+    max_files: 200
+  schedule:
+    every: 30d
+- name: de-headlessui-docs
+  connector: github_tree
+  args:
+    slug: tailwindlabs/headlessui
+    branch: main
+    file_extensions:
+    - .md
+    - .mdx
+    max_files: 50
+  schedule:
+    every: 30d
+- name: de-mantine-docs
+  connector: github_tree
+  args:
+    slug: mantinedev/mantine
+    branch: master
+    include_paths:
+    - apps/mantine.dev/src/pages/
+    file_extensions:
+    - .mdx
+    - .md
+    max_files: 200
+  schedule:
+    every: 30d
+- name: de-mui-docs
+  connector: github_tree
+  args:
+    slug: mui/material-ui
+    branch: master
+    include_paths:
+    - docs/data/material/
+    file_extensions:
+    - .md
+    - .mdx
+    max_files: 300
+  schedule:
+    every: 30d
+- name: de-chakra-docs
+  connector: github_tree
+  args:
+    slug: chakra-ui/chakra-ui
+    branch: main
+    include_paths:
+    - apps/www/content/
+    file_extensions:
+    - .mdx
+    - .md
+    max_files: 150
+  schedule:
+    every: 30d
+- name: de-antd-docs
+  connector: github_tree
+  args:
+    slug: ant-design/ant-design
+    branch: master
+    include_paths:
+    - docs/
+    file_extensions:
+    - .md
+    - .mdx
+    max_files: 100
+  schedule:
+    every: 30d
 - name: ds-wcag
   connector: web
   args:

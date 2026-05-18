@@ -1,66 +1,203 @@
-# Role recipe: designer (UX / UI / accessibility / design systems)
 role: designer
-audit_domains: [designer]
+audit_domains:
+- designer
 queries_sample:
-  - "shadcn ui color tokens"
-  - "WCAG contrast ratio body text"
-  - "ARIA labels icon button"
-  - "dark mode color palette tailwind"
-  - "design tokens semantic naming"
-
+- shadcn ui color tokens
+- WCAG contrast ratio body text
+- ARIA labels icon button
+- dark mode color palette tailwind
+- design tokens semantic naming
 tier1_mainstream:
-  - id: ds-shadcn-docs
-    connector: github_tree
-    args: { slug: shadcn-ui/ui, branch: main, file_extensions: [.md, .mdx], include_paths: [apps/v4/content/], max_files: 200 }
-    parity: critical
-  - id: ds-tailwind-docs
-    connector: github_tree
-    args: { slug: tailwindlabs/tailwindcss.com, branch: main, file_extensions: [.md, .mdx], include_paths: [src/docs/], max_files: 200 }
-    parity: critical
-  - id: ds-radix-ui-docs
-    connector: github_tree
-    args: { slug: radix-ui/website, branch: main, file_extensions: [.md, .mdx], include_paths: [data/primitives/], max_files: 200 }
-    parity: critical
-  - id: ds-headlessui-docs
-    connector: github_tree
-    args: { slug: tailwindlabs/headlessui, branch: main, file_extensions: [.md, .mdx], max_files: 100 }
-    parity: high
-
+- id: ds-shadcn-docs
+  connector: github_tree
+  args:
+    slug: shadcn-ui/ui
+    branch: main
+    file_extensions:
+    - .md
+    - .mdx
+    include_paths:
+    - apps/v4/content/
+    max_files: 200
+  parity: critical
+- id: ds-tailwind-docs
+  connector: github_tree
+  args:
+    slug: tailwindlabs/tailwindcss.com
+    branch: main
+    file_extensions:
+    - .md
+    - .mdx
+    include_paths:
+    - src/docs/
+    max_files: 200
+  parity: critical
+- id: ds-radix-ui-docs
+  connector: github_tree
+  args:
+    slug: radix-ui/website
+    branch: main
+    file_extensions:
+    - .md
+    - .mdx
+    include_paths:
+    - data/primitives/
+    max_files: 200
+  parity: critical
+- id: ds-headlessui-docs
+  connector: github_tree
+  args:
+    slug: tailwindlabs/headlessui
+    branch: main
+    file_extensions:
+    - .md
+    - .mdx
+    max_files: 100
+  parity: high
+- name: de-shadcn-docs
+  connector: github_tree
+  args:
+    slug: shadcn-ui/ui
+    branch: main
+    include_paths:
+    - apps/www/content/
+    file_extensions:
+    - .mdx
+    - .md
+    max_files: 200
+  schedule:
+    every: 30d
+- name: de-radix-docs
+  connector: github_tree
+  args:
+    slug: radix-ui/website
+    branch: main
+    include_paths:
+    - data/
+    - content/
+    file_extensions:
+    - .mdx
+    - .md
+    max_files: 200
+  schedule:
+    every: 30d
+- name: de-headlessui-docs
+  connector: github_tree
+  args:
+    slug: tailwindlabs/headlessui
+    branch: main
+    file_extensions:
+    - .md
+    - .mdx
+    max_files: 50
+  schedule:
+    every: 30d
+- name: de-mantine-docs
+  connector: github_tree
+  args:
+    slug: mantinedev/mantine
+    branch: master
+    include_paths:
+    - apps/mantine.dev/src/pages/
+    file_extensions:
+    - .mdx
+    - .md
+    max_files: 200
+  schedule:
+    every: 30d
+- name: de-mui-docs
+  connector: github_tree
+  args:
+    slug: mui/material-ui
+    branch: master
+    include_paths:
+    - docs/data/material/
+    file_extensions:
+    - .md
+    - .mdx
+    max_files: 300
+  schedule:
+    every: 30d
+- name: de-chakra-docs
+  connector: github_tree
+  args:
+    slug: chakra-ui/chakra-ui
+    branch: main
+    include_paths:
+    - apps/www/content/
+    file_extensions:
+    - .mdx
+    - .md
+    max_files: 150
+  schedule:
+    every: 30d
+- name: de-antd-docs
+  connector: github_tree
+  args:
+    slug: ant-design/ant-design
+    branch: master
+    include_paths:
+    - docs/
+    file_extensions:
+    - .md
+    - .mdx
+    max_files: 100
+  schedule:
+    every: 30d
 tier2_canonical:
-  - id: ds-wcag
-    connector: web
-    args:
-      urls:
-        - https://www.w3.org/TR/WCAG22/
-        - https://www.w3.org/TR/WCAG21/
-        - https://www.w3.org/WAI/ARIA/apg/
-        - https://www.w3.org/TR/wai-aria-1.2/
-  - id: ds-css-spec
-    connector: web
-    args:
-      urls:
-        - https://www.w3.org/TR/css-color-4/
-        - https://www.w3.org/TR/css-grid-2/
-        - https://www.w3.org/TR/css-flexbox-1/
-
+- id: ds-wcag
+  connector: web
+  args:
+    urls:
+    - https://www.w3.org/TR/WCAG22/
+    - https://www.w3.org/TR/WCAG21/
+    - https://www.w3.org/WAI/ARIA/apg/
+    - https://www.w3.org/TR/wai-aria-1.2/
+- id: ds-css-spec
+  connector: web
+  args:
+    urls:
+    - https://www.w3.org/TR/css-color-4/
+    - https://www.w3.org/TR/css-grid-2/
+    - https://www.w3.org/TR/css-flexbox-1/
 tier3_methodology:
-  - id: ds-nngroup
-    connector: sitemap
-    args: { root: https://www.nngroup.com, max_pages: 400, include_paths: [/articles/] }
-  - id: ds-smashing-design
-    connector: sitemap
-    args: { root: https://www.smashingmagazine.com, max_pages: 300, include_paths: [/category/design/, /category/ux/] }
-  - id: ds-a11y-project
-    connector: sitemap
-    args: { root: https://www.a11yproject.com, max_pages: 200 }
-  - id: ds-refactoring-ui
-    connector: sitemap
-    args: { root: https://www.refactoringui.com, max_pages: 50 }
-
+- id: ds-nngroup
+  connector: sitemap
+  args:
+    root: https://www.nngroup.com
+    max_pages: 400
+    include_paths:
+    - /articles/
+- id: ds-smashing-design
+  connector: sitemap
+  args:
+    root: https://www.smashingmagazine.com
+    max_pages: 300
+    include_paths:
+    - /category/design/
+    - /category/ux/
+- id: ds-a11y-project
+  connector: sitemap
+  args:
+    root: https://www.a11yproject.com
+    max_pages: 200
+- id: ds-refactoring-ui
+  connector: sitemap
+  args:
+    root: https://www.refactoringui.com
+    max_pages: 50
 tier4_streams:
-  - id: ds-nngroup-rss
-    connector: rss
-    args: { feeds: ["https://www.nngroup.com/feed/rss/"], max_entries: 50, fetch_body_when_missing: true }
-  - id: ds-smashing-rss
-    connector: rss
-    args: { feeds: ["https://www.smashingmagazine.com/feed/"], max_entries: 50, fetch_body_when_missing: true }
+- id: ds-nngroup-rss
+  connector: rss
+  args:
+    feeds:
+    - https://www.nngroup.com/feed/rss/
+    max_entries: 50
+    fetch_body_when_missing: true
+- id: ds-smashing-rss
+  connector: rss
+  args:
+    feeds:
+    - https://www.smashingmagazine.com/feed/
+    max_entries: 50
+    fetch_body_when_missing: true

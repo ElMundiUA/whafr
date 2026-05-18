@@ -12,6 +12,13 @@ Audit domains: architecture
 | `arch-aws-well-architected` | `—` | critical |  |
 | `arch-gcp-architecture-center` | `—` | critical |  |
 | `arch-azure-arch-center` | `—` | high |  |
+| `arc-crdt-vs-ot` | `—` | — |  |
+| `arc-event-sourcing-cqrs` | `—` | — |  |
+| `arc-saga` | `—` | — |  |
+| `arc-hexagonal` | `—` | — |  |
+| `arc-eventual-consistency` | `—` | — |  |
+| `arc-microservices-io` | `—` | — |  |
+| `arc-tw-radar-rss` | `—` | — |  |
 
 ## clarification
 
@@ -23,6 +30,11 @@ Audit domains: clarification
 | `cl-atlassian-agile` | `—` | critical |  |
 | `cl-mountain-goat` | `—` | critical |  |
 | `cl-agile-alliance` | `—` | critical |  |
+| `cl-gherkin-reference` | `—` | — |  |
+| `cl-acceptance-criteria` | `—` | — |  |
+| `cl-liz-keogh` | `—` | — |  |
+| `cl-dan-north` | `—` | — |  |
+| `cl-specification-by-example` | `—` | — |  |
 
 ## data-eng
 
@@ -52,6 +64,11 @@ Audit domains: decomposition
 | `dc-romanpichler` | `—` | critical |  |
 | `dc-jpatton` | `—` | critical |  |
 | `dc-agileforall` | `—` | high |  |
+| `dc-wbs` | `—` | — |  |
+| `dc-story-slicing` | `—` | — |  |
+| `dc-invest` | `—` | — |  |
+| `dc-mece-bill-wake` | `—` | — |  |
+| `dc-richardlawrence` | `—` | — |  |
 
 ## designer
 
@@ -63,6 +80,13 @@ Audit domains: designer
 | `ds-tailwind-docs` | `—` | critical |  |
 | `ds-radix-ui-docs` | `—` | critical |  |
 | `ds-headlessui-docs` | `—` | high |  |
+| `de-shadcn-docs` | `—` | — |  |
+| `de-radix-docs` | `—` | — |  |
+| `de-headlessui-docs` | `—` | — |  |
+| `de-mantine-docs` | `—` | — |  |
+| `de-mui-docs` | `—` | — |  |
+| `de-chakra-docs` | `—` | — |  |
+| `de-antd-docs` | `—` | — |  |
 
 ## developer
 
@@ -82,6 +106,54 @@ Audit domains: developer, validation, performance
 | `dev-nextjs-docs` | `/vercel/next.js` | critical | Next.js App Router + server components. |
 | `dev-django-docs` | `/django/django` | high | Long-tail but high traffic. |
 | `dev-pytest-docs` | `—` | critical | Test runner standard for Python. |
+| `dev-fastapi-patterns` | `—` | — |  |
+| `dev-sqlalchemy-async` | `—` | — |  |
+| `dev-pydantic-v2` | `—` | — |  |
+| `dev-python-asyncio` | `—` | — |  |
+| `dev-anthropic-prompt-caching` | `—` | — |  |
+| `dev-react-patterns` | `—` | — |  |
+| `dev-nestjs-docs` | `—` | — |  |
+| `dev-express-docs` | `—` | — |  |
+| `dev-fastify-docs` | `—` | — |  |
+| `dev-hono-docs` | `—` | — |  |
+| `dev-koa-docs` | `—` | — |  |
+| `dev-dotenv-readme` | `—` | — |  |
+| `dev-dotenv-expand` | `—` | — |  |
+| `dev-prisma-docs` | `—` | — |  |
+| `dev-drizzle-docs` | `—` | — |  |
+| `dev-kysely-docs` | `—` | — |  |
+| `dev-typeorm-docs` | `—` | — |  |
+| `dev-mongoose-docs` | `—` | — |  |
+| `dev-sequelize-docs` | `—` | — |  |
+| `dev-node-postgres` | `—` | — |  |
+| `dev-bullmq-docs` | `—` | — |  |
+| `dev-ioredis-readme` | `—` | — |  |
+| `dev-zod-docs` | `—` | — |  |
+| `dev-valibot-docs` | `—` | — |  |
+| `dev-joi-docs` | `—` | — |  |
+| `dev-yup-readme` | `—` | — |  |
+| `dev-trpc-docs` | `—` | — |  |
+| `dev-graphql-yoga` | `—` | — |  |
+| `dev-apollo-server` | `—` | — |  |
+| `dev-tanstack-query` | `—` | — |  |
+| `dev-zustand-docs` | `—` | — |  |
+| `dev-jotai-docs` | `—` | — |  |
+| `dev-redux-toolkit` | `—` | — |  |
+| `dev-recoil-docs` | `—` | — |  |
+| `dev-react-hook-form` | `—` | — |  |
+| `dev-formik-docs` | `—` | — |  |
+| `dev-vite-docs` | `—` | — |  |
+| `dev-esbuild-docs` | `—` | — |  |
+| `dev-swc-docs` | `—` | — |  |
+| `dev-rollup-docs` | `—` | — |  |
+| `dev-flask-docs` | `—` | — |  |
+| `dev-celery-docs` | `—` | — |  |
+| `dev-aiohttp-docs` | `—` | — |  |
+| `dev-starlette-docs` | `—` | — |  |
+| `dev-pydantic-settings` | `—` | — |  |
+| `dev-uvicorn-docs` | `—` | — |  |
+| `dev-uv-docs` | `—` | — |  |
+| `dev-poetry-docs` | `—` | — |  |
 
 ## devops
 
@@ -102,6 +174,9 @@ Audit domains: devops
 | `do-gh-actions-docs` | `—` | critical |  |
 | `do-gitlab-ci-docs` | `—` | high |  |
 | `do-tekton-docs` | `—` | medium |  |
+| `do-caddy-docs` | `—` | — |  |
+| `do-traefik-docs` | `—` | — |  |
+| `do-cf-workers` | `—` | — |  |
 
 ## embedded
 
@@ -167,6 +242,7 @@ Audit domains: gamedev
 | `gd-godot-docs` | `—` | critical |  |
 | `gd-bevy-book` | `—` | high |  |
 | `gd-unity-blog` | `—` | medium |  |
+| `gd-bevy-docs` | `—` | — |  |
 
 ## ml
 
@@ -186,6 +262,14 @@ Audit domains: ml
 | `ml-openai-cookbook` | `—` | critical |  |
 | `ml-dspy-docs` | `—` | high |  |
 | `ml-instructor-docs` | `—` | high |  |
+| `ml-pandas-docs` | `—` | — |  |
+| `ml-polars-docs` | `—` | — |  |
+| `ml-numpy-docs` | `—` | — |  |
+| `ml-sklearn-docs` | `—` | — |  |
+| `ml-langchain-py` | `—` | — |  |
+| `ml-openai-py` | `—` | — |  |
+| `ml-anthropic-py` | `—` | — |  |
+| `ml-vercel-ai-sdk` | `—` | — |  |
 
 ## mobile
 
@@ -201,6 +285,8 @@ Audit domains: mobile
 | `mob-swiftui-tutorials` | `—` | high |  |
 | `mob-kotlin-docs` | `—` | critical |  |
 | `mob-flutter-docs` | `—` | high |  |
+| `mob-tamagui-docs` | `—` | — |  |
+| `mob-jetpack-compose-samples` | `—` | — |  |
 
 ## network
 
@@ -238,6 +324,11 @@ Audit domains: planning
 | `pl-less-works` | `—` | high |  |
 | `pl-kanban-university` | `—` | high |  |
 | `pl-atlassian-agile` | `—` | critical |  |
+| `pl-capacity-velocity` | `—` | — |  |
+| `pl-noestimates` | `—` | — |  |
+| `pl-risk-register` | `—` | — |  |
+| `pl-rollback-deploy` | `—` | — |  |
+| `pl-shape-up` | `—` | — |  |
 
 ## product-manager
 
@@ -252,6 +343,11 @@ Audit domains: product-manager
 | `pm-aha-io` | `—` | high |  |
 | `pm-intercom-blog` | `—` | medium |  |
 | `pm-atlassian-agile` | `—` | critical |  |
+| `pm-rice-intercom` | `—` | — |  |
+| `pm-jtbd` | `—` | — |  |
+| `pm-heart-metrics` | `—` | — |  |
+| `pm-prd-templates` | `—` | — |  |
+| `pm-product-talk-torres` | `—` | — |  |
 
 ## reviewer
 
@@ -282,6 +378,11 @@ Audit domains: security
 | `sec-vault-docs` | `—` | high |  |
 | `sec-external-secrets-docs` | `—` | high |  |
 | `sec-zaproxy-docs` | `—` | medium |  |
+| `sec-authjs-docs` | `—` | — |  |
+| `sec-better-auth-docs` | `—` | — |  |
+| `sec-lucia-docs` | `—` | — |  |
+| `sec-clerk-docs` | `—` | — |  |
+| `sec-supabase-docs` | `—` | — |  |
 
 ## self-heal
 
@@ -298,6 +399,12 @@ Audit domains: self-heal
 | `sh-jaeger-docs` | `—` | high |  |
 | `sh-pyspy` | `—` | high |  |
 | `sh-memray` | `—` | high |  |
+| `sh-incident-response` | `—` | — |  |
+| `sh-postgres-perf` | `—` | — |  |
+| `sh-python-memory-debug` | `—` | — |  |
+| `sh-k8s-oom-debug` | `—` | — |  |
+| `sh-otel-docs` | `—` | — |  |
+| `sh-loki-docs` | `—` | — |  |
 
 ## validation
 
@@ -315,6 +422,7 @@ Audit domains: validation
 | `val-hypothesis-docs` | `—` | high |  |
 | `val-cucumber-docs` | `—` | high |  |
 | `val-pact-docs` | `—` | medium |  |
+| `val-testing-library` | `—` | — |  |
 
 ## web3
 

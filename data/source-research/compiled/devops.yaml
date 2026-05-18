@@ -134,6 +134,43 @@ sources:
     max_files: 200
   schedule:
     every: 30d
+- name: do-caddy-docs
+  connector: github_tree
+  args:
+    slug: caddyserver/website
+    branch: master
+    include_paths:
+    - src/docs/markdown/
+    file_extensions:
+    - .md
+    max_files: 100
+  schedule:
+    every: 30d
+- name: do-traefik-docs
+  connector: github_tree
+  args:
+    slug: traefik/traefik
+    branch: master
+    include_paths:
+    - docs/
+    file_extensions:
+    - .md
+    max_files: 100
+  schedule:
+    every: 30d
+- name: do-cf-workers
+  connector: github_tree
+  args:
+    slug: cloudflare/cloudflare-docs
+    branch: production
+    include_paths:
+    - src/content/docs/workers/
+    file_extensions:
+    - .mdx
+    - .md
+    max_files: 200
+  schedule:
+    every: 30d
 - name: do-cncf-tag-runtime
   connector: github_tree
   args:

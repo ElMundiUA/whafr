@@ -93,6 +93,72 @@ sources:
     max_files: 80
   schedule:
     every: 30d
+- name: sh-incident-response
+  connector: web
+  args:
+    urls:
+    - https://response.pagerduty.com/
+    - https://response.pagerduty.com/before/severity_levels/
+    - https://response.pagerduty.com/during/during_an_incident/
+    - https://response.pagerduty.com/after/post_mortem_process/
+    - https://github.com/dastergon/awesome-sre
+  schedule:
+    every: 60d
+- name: sh-postgres-perf
+  connector: web
+  args:
+    urls:
+    - https://www.postgresql.org/docs/current/pgstatstatements.html
+    - https://www.postgresql.org/docs/current/auto-explain.html
+    - https://www.postgresql.org/docs/current/sql-explain.html
+    - https://wiki.postgresql.org/wiki/Slow_Query_Questions
+    - https://www.cybertec-postgresql.com/en/3-ways-to-detect-slow-queries-in-postgresql/
+  schedule:
+    every: 60d
+- name: sh-python-memory-debug
+  connector: web
+  args:
+    urls:
+    - https://docs.python.org/3/library/tracemalloc.html
+    - https://docs.python.org/3/library/gc.html
+    - https://pythonspeed.com/articles/memory-profiling-debugging-pandas/
+    - https://pythonspeed.com/articles/python-out-of-memory/
+    - https://docs.python.org/3/library/resource.html
+  schedule:
+    every: 60d
+- name: sh-k8s-oom-debug
+  connector: web
+  args:
+    urls:
+    - https://kubernetes.io/docs/tasks/debug/debug-application/debug-pods/
+    - https://kubernetes.io/docs/tasks/debug/debug-application/determine-reason-pod-failure/
+    - https://learnk8s.io/troubleshooting-deployments
+  schedule:
+    every: 60d
+- name: sh-otel-docs
+  connector: github_tree
+  args:
+    slug: open-telemetry/opentelemetry.io
+    branch: main
+    include_paths:
+    - content/en/docs/
+    file_extensions:
+    - .md
+    max_files: 300
+  schedule:
+    every: 30d
+- name: sh-loki-docs
+  connector: github_tree
+  args:
+    slug: grafana/loki
+    branch: main
+    include_paths:
+    - docs/sources/
+    file_extensions:
+    - .md
+    max_files: 80
+  schedule:
+    every: 30d
 - name: sh-rfc-syslog
   connector: web
   args:
