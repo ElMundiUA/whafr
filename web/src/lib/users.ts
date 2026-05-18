@@ -32,19 +32,31 @@ export async function upsertFromAuth(user: SessionUser): Promise<UserRow> {
   return row;
 }
 
+// Tiny in-process TTL cache for tier lookups so the navbar widget
+// doesn't query Neon on every page load. 30 s TTL — cap-comp
+// changes propagate quickly without hammering the DB.
+const _tierCache = new Map<string, { tier: "free" | "pro"; expires: number }>();
+
 export async function effectiveTier(user: SessionUser | null): Promise<"anon" | "free" | "pro"> {
   if (!user) return "anon";
-  // Source of truth for tier is the DB row (custom claim can lag).
-  const row = await one<{ tier: "free" | "pro"; pro_until: Date | null }>(
-    `SELECT tier, pro_until FROM users WHERE auth0_sub = $1`,
-    [user.sub],
-  );
-  if (!row) return "free";
-  if (row.tier === "pro") {
-    if (!row.pro_until || row.pro_until > new Date()) return "pro";
-    return "free";  // expired
+  const now = Date.now();
+  const hit = _tierCache.get(user.sub);
+  if (hit && hit.expires > now) return hit.tier;
+  let resolved: "free" | "pro" = "free";
+  try {
+    const row = await one<{ tier: "free" | "pro"; pro_until: Date | null }>(
+      `SELECT tier, pro_until FROM users WHERE auth0_sub = $1`,
+      [user.sub],
+    );
+    if (row?.tier === "pro") {
+      if (!row.pro_until || row.pro_until > new Date()) resolved = "pro";
+    }
+  } catch {
+    /* fall back to cookie-tier on db hiccup */
+    resolved = user.tier === "pro" ? "pro" : "free";
   }
-  return "free";
+  _tierCache.set(user.sub, { tier: resolved, expires: now + 30_000 });
+  return resolved;
 }
 
 export async function listUsers(limit = 100): Promise<UserRow[]> {

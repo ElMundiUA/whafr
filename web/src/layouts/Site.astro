@@ -8,6 +8,7 @@ import "@/styles/global.css";
 import {
   LIMITS, tierForUser, subjectFor, currentUsage, clientIp,
 } from "@/lib/usage";
+import { effectiveTier } from "@/lib/users";
 
 interface Props {
   title?: string;
@@ -28,7 +29,16 @@ const {
 const user = Astro.locals.user;
 const currentPath = Astro.url.pathname + Astro.url.search;
 
-const tier = tierForUser(user);
+// Resolve tier from the DB on every request (with 30s in-process
+// cache) so admin tier-toggle effect is visible without re-login.
+// Cookie-tier is stale for cap-comped users.
+let tier = tierForUser(user);
+try {
+  const dbTier = await effectiveTier(user);
+  tier = dbTier;
+} catch {
+  /* keep cookie-tier */
+}
 const limit = LIMITS[tier];
 let usedToday = 0;
 try {
