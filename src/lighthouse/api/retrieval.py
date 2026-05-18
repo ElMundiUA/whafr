@@ -74,7 +74,8 @@ class SourceResponse(BaseModel):
     valid_at: str | None = None
 
 
-@router.get("/search", response_model=SearchResponse)
+@router.get("/search", response_model=SearchResponse, include_in_schema=False)
+@router.get("/v1/search", response_model=SearchResponse)
 async def search(
     q: Annotated[str, Query(min_length=1, description="Natural-language query")],
     graph: Annotated[Any, Depends(get_graph)],

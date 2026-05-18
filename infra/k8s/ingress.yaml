@@ -20,13 +20,9 @@ spec:
     - host: lighthouse.harborgang.com
       http:
         paths:
-          - path: /search
-            pathType: Prefix
-            backend:
-              service:
-                name: lighthouse-api
-                port:
-                  number: 80
+          # /search is the public HTML page on web. External clients
+          # should use /v1/search for the JSON API. /mcp/ is the MCP
+          # transport and stays on api.
           - path: /fetch_source
             pathType: Prefix
             backend:
