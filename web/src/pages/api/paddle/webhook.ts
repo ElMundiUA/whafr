@@ -6,7 +6,7 @@ export const prerender = false;
 export const POST: APIRoute = async ({ request }) => {
   const body = await request.text();
   const sig = request.headers.get("paddle-signature") ?? "";
-  const secret = import.meta.env.PADDLE_API_KEY ?? "";
+  const secret = import.meta.env.PADDLE_WEBHOOK_SECRET ?? "";
   if (secret && !(await verifySignature(body, sig, secret))) {
     return new Response("bad signature", { status: 401 });
   }

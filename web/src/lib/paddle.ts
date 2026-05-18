@@ -17,7 +17,9 @@ interface PaddleEvent {
   };
 }
 
-const PRO_PRICE_ID = import.meta.env.PADDLE_PRODUCT_PRO_MONTHLY ?? "";
+const PRO_PRICE_MONTHLY = import.meta.env.PADDLE_PRICE_PRO_MONTHLY ?? "";
+const PRO_PRICE_ANNUAL = import.meta.env.PADDLE_PRICE_PRO_ANNUAL ?? "";
+const PRO_PRICE_IDS = [PRO_PRICE_MONTHLY, PRO_PRICE_ANNUAL].filter(Boolean);
 
 export async function recordEvent(evt: PaddleEvent): Promise<void> {
   await query(
@@ -61,11 +63,12 @@ export async function applyEvent(evt: PaddleEvent): Promise<void> {
     return;
   }
 
-  // Verify the item matches our Pro price (defence-in-depth — a
-  // future second product shouldn't accidentally upgrade everyone).
-  if (isPro && PRO_PRICE_ID) {
+  // Verify the item matches one of our Pro prices (defence-in-
+  // depth — a future second product shouldn't accidentally
+  // upgrade everyone).
+  if (isPro && PRO_PRICE_IDS.length > 0) {
     const priceIds = (data.items ?? []).map((i) => i.price?.id).filter(Boolean);
-    if (priceIds.length > 0 && !priceIds.includes(PRO_PRICE_ID)) {
+    if (priceIds.length > 0 && !priceIds.some((p) => PRO_PRICE_IDS.includes(p as string))) {
       await markProcessed(evt.event_id);
       return;
     }
@@ -136,14 +139,11 @@ export async function verifySignature(
 }
 
 export function checkoutUrl(auth0Sub: string, email: string): string {
-  const base = import.meta.env.PADDLE_ENV === "production"
-    ? "https://buy.paddle.com/product"
-    : "https://sandbox-buy.paddle.com/product";
-  const productId = import.meta.env.PADDLE_PRODUCT_PRO_MONTHLY ?? "";
-  const u = new URL(`${base}/${productId}`);
-  // Paddle Classic format — for Billing v2 the checkout link is
-  // created server-side via API. Stub for now; swap to Paddle.js
-  // overlay once the product is set up.
-  u.searchParams.set("passthrough", JSON.stringify({ auth0_sub: auth0Sub, email }));
-  return u.toString();
+  // Until the Paddle.js overlay is wired (needs PADDLE_CLIENT_TOKEN
+  // + Paddle.js loaded on /pricing), point the upgrade button at
+  // /pricing with the user's identifier in the query string — the
+  // overlay can pick it up later and pass it through to Paddle as
+  // customData.
+  const params = new URLSearchParams({ plan: "pro", sub: auth0Sub, email });
+  return `/pricing#checkout?${params.toString()}`;
 }

@@ -19,11 +19,12 @@ interface ImportMetaEnv {
   readonly AUTH0_SCOPE: string;
   readonly SESSION_SECRET: string;
   readonly ADMIN_EMAIL: string;
-  readonly PADDLE_VENDOR_ID: string;
+  readonly PADDLE_CLIENT_TOKEN: string;
   readonly PADDLE_API_KEY: string;
-  readonly PADDLE_PUBLIC_KEY: string;
-  readonly PADDLE_PRODUCT_PRO_MONTHLY: string;
-  readonly PADDLE_ENV: string;
+  readonly PADDLE_WEBHOOK_SECRET: string;
+  readonly PADDLE_PRICE_PRO_MONTHLY: string;
+  readonly PADDLE_PRICE_PRO_ANNUAL: string;
+  readonly PADDLE_ENVIRONMENT: string;
   readonly LIGHTHOUSE_DATABASE_URL: string;
 }
 
