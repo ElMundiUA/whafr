@@ -5,6 +5,7 @@ import ChunkCard from "@/components/ChunkCard.astro";
 import CodeBlock from "@/components/CodeBlock.astro";
 import { corpusStats, recentRepos, recentEvents, timeAgo } from "@/lib/stats";
 import IndexedPulse from "@/components/IndexedPulse.astro";
+import StatStrip from "@/components/StatStrip.astro";
 import { API_BASE } from "@/lib/api-base";
 import { bumpAndCheck, clientIp, subjectFor, tierForUser, LIMITS } from "@/lib/usage";
 import { effectiveTier } from "@/lib/users";
@@ -118,16 +119,25 @@ url = "${MCP_URL}"
     <>
       <!-- ─────────────── Hero ─────────────── -->
       <!-- No inline glow — body aurora (lilac dome + champagne right +
-           coral left) carries the hero atmosphere on its own. -->
+           coral left) carries the hero atmosphere on its own. The
+           numbers moved out of the H1 into the stat strip below, so
+           the title reads as a promise, the strip carries the proof. -->
       <section class="relative pt-10 pb-2 text-center">
         <p class="section-kicker mb-3">Grounding for coding agents</p>
         <h1 class="font-display text-4xl md:text-5xl font-bold tracking-tight text-mist leading-[1.1] max-w-3xl mx-auto">
-          {stats.total_chunks.toLocaleString()} canonical docs your agent <span class="text-champagne">can cite.</span>
+          Canonical docs your agent <span class="text-champagne">can cite.</span>
         </h1>
         <p class="mt-3 text-mist/65 text-sm md:text-base max-w-xl mx-auto">
           Plug your MCP client in, or try the same retrieval from the browser.
         </p>
       </section>
+
+      <!-- ─────────────── Stat strip (by the numbers) ─────────────── -->
+      <StatStrip stats={[
+        { value: stats.total_chunks.toLocaleString(),  label: "Chunks",  body: "Indexed paragraphs your agent can search and cite verbatim.",  accent: "aqua" },
+        { value: stats.total_sources.toLocaleString(), label: "Sources", body: "RFCs, OWASP, NIST SP-800, framework docs, methodology pages.", accent: "lilac" },
+        { value: "21",                                 label: "Roles",   body: "Per-role recipes tuned for security, ML, frontend, DevOps and more.", accent: "sun" },
+      ]} />
 
       <!-- ─────────────── Live pulse ticker (horizontal, full width) ─────────────── -->
       <IndexedPulse events={events} />

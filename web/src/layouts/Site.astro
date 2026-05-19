@@ -99,7 +99,7 @@ function isActive(href: string): boolean {
     <header class="sticky top-0 z-50 border-b border-white/10 bg-ink/80 backdrop-blur-xl">
       <div class="mx-auto flex h-16 max-w-[80rem] items-center px-4 sm:px-6">
         <div class="flex flex-1 justify-start">
-          <a href={isEngine ? "/engine" : "/"} class="shrink-0 font-display text-base font-bold tracking-tight text-mist">
+          <a href="/" class="shrink-0 font-display text-base font-bold tracking-tight text-mist">
             {isEngine ? (
               <>Lighthouse<span class="text-mist/55 font-normal ml-1">Engine</span></>
             ) : (
@@ -176,8 +176,8 @@ function isActive(href: string): boolean {
 
     <!-- ─────────────── Page heading (optional) ─────────────── -->
     {pageHeading && (
-      <div class="mx-auto max-w-[80rem] w-full px-4 sm:px-6 pt-12 pb-2">
-        <h1 class="font-display text-4xl md:text-5xl font-extrabold tracking-tight text-mist leading-tight">
+      <div class="mx-auto max-w-5xl w-full px-4 sm:px-6 pt-12 pb-2">
+        <h1 class="font-display text-4xl md:text-5xl font-bold tracking-tight text-mist leading-tight">
           {pageHeading}
         </h1>
         {pageSubhead && (
@@ -194,7 +194,11 @@ function isActive(href: string): boolean {
         <slot />
       </main>
     ) : (
-      <main class="flex-1 mx-auto max-w-[80rem] w-full px-4 sm:px-6 py-8">
+      <!-- Single content column for every page. 5xl (1024px) keeps
+           4-col stat / pricing grids comfortable without sprawling, and
+           prose sections (text + cards centered with `max-w-3xl mx-auto`)
+           sit visually balanced inside it. -->
+      <main class="flex-1 mx-auto max-w-5xl w-full px-4 sm:px-6 py-8">
         <slot />
       </main>
     )}
