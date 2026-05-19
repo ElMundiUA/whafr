@@ -29,7 +29,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from lighthouse import __version__
-from lighthouse.api.dependencies import get_proposal_queue
+from lighthouse.api.admin_importers import router as admin_importers_router
+from lighthouse.api.dependencies import close_pg_pool, get_proposal_queue
 from lighthouse.api.proposal import router as proposal_router
 from lighthouse.api.retrieval import router as retrieval_router
 from lighthouse.mcp.server import build_server as build_mcp_server
@@ -62,6 +63,10 @@ def create_app() -> FastAPI:
                     await queue.drain()
                 except Exception:
                     logger.exception("proposal queue drain failed")
+                try:
+                    await close_pg_pool()
+                except Exception:
+                    logger.exception("admin asyncpg pool close failed")
 
     app = FastAPI(
         title="Lighthouse",
@@ -79,6 +84,7 @@ def create_app() -> FastAPI:
 
     app.include_router(retrieval_router)
     app.include_router(proposal_router)
+    app.include_router(admin_importers_router)
 
     # MCP (streamable-http) mounted at /mcp/ — its task-group lifetime
     # is owned by the lifespan above.

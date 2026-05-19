@@ -1,0 +1,97 @@
+---
+import Site from "@/layouts/Site.astro";
+import { listImporters } from "@/lib/importers-api";
+
+export const prerender = false;
+
+const user = Astro.locals.user;
+if (!user || !user.is_admin) {
+  return Astro.redirect("/api/auth/login?return_to=/admin/importers");
+}
+
+let rows: Awaited<ReturnType<typeof listImporters>> = [];
+let err: string | null = null;
+try {
+  rows = await listImporters();
+} catch (e) {
+  err = String(e);
+}
+
+function ago(iso: string | null): string {
+  if (!iso) return "—";
+  const ms = Date.now() - new Date(iso).getTime();
+  const m = Math.round(ms / 60_000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 48) return `${h} h ago`;
+  return `${Math.round(h / 24)} d ago`;
+}
+
+const statusColor = {
+  idle: "text-mist/60",
+  queued: "text-azure",
+  running: "text-champagne animate-pulse",
+  error: "text-coral",
+};
+---
+
+<Site title="Importers — Lighthouse admin" pageHeading="Importers">
+  <nav class="font-mono text-xs uppercase tracking-flag mb-6 flex gap-x-6">
+    <a href="/admin">Corpus</a>
+    <a href="/admin/users">Users</a>
+    <a href="/admin/billing">Billing</a>
+    <a href="/admin/importers" class="text-champagne">Importers</a>
+  </nav>
+
+  <p class="text-mist/70 max-w-2xl mb-6 text-sm leading-relaxed">
+    Engine-side feature. Each importer is a saved config — type
+    (web pages / sitemap / GitHub repo / …) plus the values its
+    schema asks for. Secrets are encrypted at rest. Saved configs
+    run on demand; chunks land in the same <code class="font-mono text-xs">chunks</code> table the rest of the corpus uses.
+  </p>
+
+  {err && (
+    <p class="mb-6 rounded-2xl border border-coral/40 bg-coral/5 p-4 text-coral font-mono text-xs">
+      {err}
+    </p>
+  )}
+
+  <div class="flex items-center justify-between mb-4">
+    <p class="text-mist/55 text-sm">{rows.length} saved</p>
+    <a href="/admin/importers/new" class="btn-primary !text-sm">+ New importer</a>
+  </div>
+
+  {rows.length === 0 ? (
+    <div class="glass p-10 text-center text-mist/55">
+      No importers yet. <a href="/admin/importers/new" class="text-champagne">Add one</a> to get started.
+    </div>
+  ) : (
+    <ul class="space-y-3">
+      {rows.map((row) => (
+        <li>
+          <a href={`/admin/importers/${row.id}`}
+             class="glass p-5 flex items-center gap-5 no-underline hover:border-champagne/40 transition">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-baseline gap-3 mb-1">
+                <p class="font-display text-base font-bold text-mist truncate">{row.name}</p>
+                <span class="text-xs text-mist/45 font-mono">{row.type}</span>
+                {row.has_secrets && <span class="text-[10px] uppercase tracking-[0.15em] text-champagne/75">enc</span>}
+              </div>
+              <p class="text-xs text-mist/55 font-mono">
+                recipe: {row.recipe}
+                {row.description && <span class="text-mist/35"> · {row.description}</span>}
+              </p>
+            </div>
+            <div class="text-right text-xs shrink-0">
+              <p class={`uppercase tracking-[0.18em] font-semibold ${statusColor[row.status] ?? "text-mist/60"}`}>
+                {row.status}
+              </p>
+              <p class="text-mist/45 mt-1">last run: {ago(row.last_run_at)}</p>
+            </div>
+          </a>
+        </li>
+      ))}
+    </ul>
+  )}
+</Site>

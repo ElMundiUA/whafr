@@ -1,0 +1,222 @@
+---
+import Site from "@/layouts/Site.astro";
+import { listTypes } from "@/lib/importers-api";
+
+export const prerender = false;
+
+const user = Astro.locals.user;
+if (!user || !user.is_admin) {
+  return Astro.redirect("/api/auth/login?return_to=/admin/importers/new");
+}
+
+let types: Awaited<ReturnType<typeof listTypes>> = [];
+let err: string | null = null;
+try {
+  types = await listTypes();
+} catch (e) {
+  err = String(e);
+}
+---
+
+<Site title="New importer — Lighthouse admin" pageHeading="New importer">
+  <nav class="font-mono text-xs uppercase tracking-flag mb-6 flex gap-x-6">
+    <a href="/admin/importers" class="text-champagne">← Importers</a>
+  </nav>
+
+  {err && (
+    <p class="mb-6 rounded-2xl border border-coral/40 bg-coral/5 p-4 text-coral font-mono text-xs">
+      {err}
+    </p>
+  )}
+
+  <!-- Step 1: pick type -->
+  <section data-step="pick" class="mb-6">
+    <p class="section-kicker mb-3">1. Pick a type</p>
+    <ul class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {types.map((t) => (
+        <li>
+          <button data-type={t.type} data-name={t.display_name}
+                  data-secrets={JSON.stringify(t.secret_keys)}
+                  data-schema={JSON.stringify(t.config_schema)}
+                  class="pick-type w-full text-left glass p-4 hover:border-champagne/40 transition">
+            <p class="font-display text-base font-bold text-mist mb-1">{t.display_name}</p>
+            <p class="text-xs text-mist/55 leading-relaxed mb-2">{t.description}</p>
+            <p class="text-[10px] font-mono text-mist/35 uppercase tracking-[0.15em]">
+              {t.type}{t.secret_keys.length > 0 && ` · secrets: ${t.secret_keys.join(", ")}`}
+            </p>
+          </button>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <!-- Step 2: configure (hidden until a type is picked) -->
+  <section data-step="config" class="hidden">
+    <p class="section-kicker mb-3">2. Configure</p>
+
+    <form id="importer-form" class="glass p-6 space-y-5">
+      <!-- Meta -->
+      <div>
+        <label class="block text-xs uppercase tracking-[0.18em] text-mist/55 mb-1">Type</label>
+        <p id="picked-type-label" class="font-mono text-sm text-champagne"></p>
+      </div>
+      <div>
+        <label class="block text-xs uppercase tracking-[0.18em] text-mist/55 mb-1">Name</label>
+        <input name="name" required maxlength="200"
+               placeholder="e.g. FastAPI docs"
+               class="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-mist text-sm focus:border-champagne/50 outline-none" />
+      </div>
+      <div>
+        <label class="block text-xs uppercase tracking-[0.18em] text-mist/55 mb-1">Recipe slug</label>
+        <input name="recipe" required maxlength="200"
+               placeholder="e.g. dev-fastapi-docs"
+               pattern="[a-z0-9-]+"
+               class="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-mist text-sm font-mono focus:border-champagne/50 outline-none" />
+        <p class="text-xs text-mist/45 mt-1">Stamped on every chunk this importer produces. Lowercase + hyphens.</p>
+      </div>
+      <div>
+        <label class="block text-xs uppercase tracking-[0.18em] text-mist/55 mb-1">Description (optional)</label>
+        <input name="description" maxlength="500"
+               class="w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-mist text-sm focus:border-champagne/50 outline-none" />
+      </div>
+
+      <!-- Schema-driven fields render into this slot -->
+      <div id="schema-slot" class="space-y-5 pt-2 border-t border-white/5"></div>
+
+      <div class="flex items-center justify-end gap-3 pt-2">
+        <button type="button" id="back-btn"
+                class="btn-secondary !text-sm">← Pick another type</button>
+        <button type="submit" id="save-btn"
+                class="btn-primary !text-sm">Save importer</button>
+      </div>
+      <p id="form-error" class="text-coral text-sm hidden"></p>
+    </form>
+  </section>
+</Site>
+
+<script is:inline>
+(() => {
+  const $pick = document.querySelector("[data-step=pick]");
+  const $cfg = document.querySelector("[data-step=config]");
+  const $slot = document.getElementById("schema-slot");
+  const $form = document.getElementById("importer-form");
+  const $label = document.getElementById("picked-type-label");
+  const $err = document.getElementById("form-error");
+
+  let picked = null;
+
+  function render(schema, secretKeys) {
+    $slot.innerHTML = "";
+    const props = (schema && schema.properties) || {};
+    const required = new Set((schema && schema.required) || []);
+    for (const [key, def] of Object.entries(props)) {
+      const wrap = document.createElement("div");
+      const label = document.createElement("label");
+      label.className = "block text-xs uppercase tracking-[0.18em] text-mist/55 mb-1";
+      label.textContent = (def.title || key) + (required.has(key) ? " *" : "");
+      wrap.appendChild(label);
+
+      let inp;
+      if (def.format === "textarea" || (def.type === "string" && key.includes("paths"))) {
+        inp = document.createElement("textarea");
+        inp.rows = 4;
+        inp.className = "w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-mist text-sm font-mono focus:border-champagne/50 outline-none";
+      } else if (def.type === "integer" || def.type === "number") {
+        inp = document.createElement("input");
+        inp.type = "number";
+        if (def.minimum != null) inp.min = def.minimum;
+        if (def.maximum != null) inp.max = def.maximum;
+        if (def.type === "number") inp.step = "any";
+        inp.className = "w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-mist text-sm font-mono focus:border-champagne/50 outline-none";
+      } else if (def.type === "boolean") {
+        inp = document.createElement("input");
+        inp.type = "checkbox";
+        inp.className = "h-4 w-4";
+      } else {
+        inp = document.createElement("input");
+        inp.type = (def.format === "password" || secretKeys.includes(key)) ? "password" : "text";
+        inp.className = "w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-mist text-sm font-mono focus:border-champagne/50 outline-none";
+      }
+      inp.name = key;
+      inp.dataset.field = key;
+      inp.dataset.kind = secretKeys.includes(key) ? "secret" : "config";
+      if (def.default != null) inp.value = String(def.default);
+      if (def.format === "uri") inp.placeholder = "https://…";
+      if (required.has(key)) inp.required = true;
+      wrap.appendChild(inp);
+
+      if (def.description) {
+        const help = document.createElement("p");
+        help.className = "text-xs text-mist/45 mt-1";
+        help.textContent = def.description;
+        wrap.appendChild(help);
+      }
+      $slot.appendChild(wrap);
+    }
+  }
+
+  document.querySelectorAll(".pick-type").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      picked = {
+        type: btn.dataset.type,
+        name: btn.dataset.name,
+        secrets: JSON.parse(btn.dataset.secrets),
+        schema: JSON.parse(btn.dataset.schema),
+      };
+      $label.textContent = picked.name + "  (" + picked.type + ")";
+      render(picked.schema, picked.secrets);
+      $pick.classList.add("hidden");
+      $cfg.classList.remove("hidden");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
+
+  document.getElementById("back-btn").addEventListener("click", () => {
+    $cfg.classList.add("hidden");
+    $pick.classList.remove("hidden");
+    picked = null;
+  });
+
+  $form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    $err.classList.add("hidden");
+    const fd = new FormData($form);
+    const meta = {
+      name: String(fd.get("name") || "").trim(),
+      recipe: String(fd.get("recipe") || "").trim(),
+      description: String(fd.get("description") || "").trim() || null,
+    };
+    const config = {};
+    const secrets = {};
+    for (const inp of $slot.querySelectorAll("[data-field]")) {
+      const key = inp.dataset.field;
+      let v;
+      if (inp.type === "checkbox") v = inp.checked;
+      else if (inp.type === "number") v = inp.value === "" ? null : Number(inp.value);
+      else v = inp.value;
+      if (v === "" || v == null) continue;
+      if (inp.dataset.kind === "secret") secrets[key] = String(v);
+      else config[key] = v;
+    }
+    const payload = { ...meta, type: picked.type, config, secrets };
+    try {
+      const r = await fetch("/api/admin/importers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) {
+        const body = await r.text();
+        $err.textContent = `Save failed (${r.status}): ${body.slice(0, 400)}`;
+        $err.classList.remove("hidden");
+        return;
+      }
+      const created = await r.json();
+      window.location.href = `/admin/importers/${created.id}`;
+    } catch (err) {
+      $err.textContent = "Save failed: " + String(err);
+      $err.classList.remove("hidden");
+    }
+  });
+})();
+</script>

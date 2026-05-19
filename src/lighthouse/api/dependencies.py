@@ -64,6 +64,48 @@ def get_librarian() -> Librarian:
     return Librarian()
 
 
+_PG_POOL: Any | None = None
+
+
+async def get_pg_pool() -> Any:
+    """Lazy asyncpg pool against LIGHTHOUSE_PG_URL.
+
+    Used by the admin importers router (and any future admin SQL).
+    Mirrors the connection-string + pgbouncer treatment used in
+    ``lighthouse.core.flat_graph``: strip Neon's pooler-only query
+    params, disable statement caching.
+    """
+    global _PG_POOL
+    if _PG_POOL is not None:
+        return _PG_POOL
+    import asyncpg
+
+    from lighthouse.core.flat_graph import _strip_neon_extras
+
+    url = get_settings().lighthouse_pg_url
+    if not url:
+        raise RuntimeError(
+            "LIGHTHOUSE_PG_URL not set — admin importers need Postgres."
+        )
+    _PG_POOL = await asyncpg.create_pool(
+        dsn=_strip_neon_extras(url),
+        min_size=1,
+        max_size=5,
+        command_timeout=60,
+        statement_cache_size=0,
+    )
+    return _PG_POOL
+
+
+async def close_pg_pool() -> None:
+    """Drain the asyncpg pool on shutdown so SIGTERM in a pod doesn't
+    leave a half-open Postgres connection."""
+    global _PG_POOL
+    if _PG_POOL is not None:
+        await _PG_POOL.close()
+        _PG_POOL = None
+
+
 @lru_cache(maxsize=1)
 def get_proposal_queue() -> ProposalQueue:
     """Process-singleton :class:`ProposalQueue`.
