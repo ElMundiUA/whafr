@@ -119,7 +119,8 @@ def _iso_or_none(v: Any) -> str | None:
     return str(v)
 
 
-@router.get("/fetch_entity/{node_id}", response_model=EntityResponse)
+@router.get("/v1/fetch_entity/{node_id}", response_model=EntityResponse)
+@router.get("/fetch_entity/{node_id}", response_model=EntityResponse, include_in_schema=False)
 async def fetch_entity(
     node_id: str,
     graph: Annotated[Any, Depends(get_graph)],
@@ -147,7 +148,8 @@ async def fetch_legacy(
     return await fetch_entity(node_id, graph)
 
 
-@router.get("/fetch_source/{episode_id}", response_model=SourceResponse)
+@router.get("/v1/fetch_source/{episode_id}", response_model=SourceResponse)
+@router.get("/fetch_source/{episode_id}", response_model=SourceResponse, include_in_schema=False)
 async def fetch_source(
     episode_id: str,
     graph: Annotated[Any, Depends(get_graph)],

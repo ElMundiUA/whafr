@@ -1,0 +1,42 @@
+name: SDK freshness
+
+# Re-generates sdk/openapi.json + sdk/ts/src/openapi.d.ts and fails
+# the build if either drifts from what's checked in. Keeps the
+# committed SDK types in lockstep with the actual server.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Install uv
+        run: pip install uv
+      - name: Install package (no extras)
+        run: uv pip install --system -e .
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - name: Regenerate openapi.json
+        env:
+          LIGHTHOUSE_PG_URL: postgresql://x@127.0.0.1/x
+        run: |
+          python - <<'PY'
+          import json
+          from lighthouse.api.main import app
+          with open("sdk/openapi.json", "w") as f:
+              json.dump(app.openapi(), f, indent=2)
+          PY
+      - name: Regenerate TS types
+        run: npx --yes openapi-typescript@^7 sdk/openapi.json -o sdk/ts/src/openapi.d.ts
+      - name: Fail if SDK out of date
+        run: |
+          if ! git diff --exit-code sdk/openapi.json sdk/ts/src/openapi.d.ts; then
+            echo "::error::SDK is out of date. Run sdk regen scripts and commit."
+            exit 1
+          fi

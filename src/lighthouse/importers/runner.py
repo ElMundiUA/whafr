@@ -23,6 +23,7 @@ import asyncpg
 from lighthouse.importers import crypto, store
 from lighthouse.importers.registry import lookup_importer
 from lighthouse.ingest import drain
+from lighthouse.webhooks import emit_event
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,17 @@ async def run_importer(
         run_id = await store.start_run(
             conn, importer_id, triggered_by=triggered_by
         )
+    await emit_event(
+        pool,
+        "importer.run.started",
+        {
+            "importer_id": str(importer_id),
+            "importer_name": row.name,
+            "importer_type": row.type,
+            "run_id": str(run_id),
+            "triggered_by": triggered_by,
+        },
+    )
 
     # Decrypt + build connector outside the txn — these can be slow
     # and we don't want to hold a pool connection through a long crawl.
@@ -123,6 +135,18 @@ async def run_importer(
         await store.set_status(
             conn, importer_id, status="idle", last_error=None, bump_last_run=True
         )
+    await emit_event(
+        pool,
+        "importer.run.finished",
+        {
+            "importer_id": str(importer_id),
+            "importer_name": row.name,
+            "importer_type": row.type,
+            "run_id": str(run_id),
+            "status": "success",
+            "chunks_added": n_chunks,
+        },
+    )
     return run_id
 
 
@@ -133,8 +157,9 @@ async def _persist_failure(
     error_text: str,
 ) -> None:
     """Best-effort: persist a runner failure to the run row + flip the
-    importer back to 'error'. Swallows nested errors so the original
-    exception propagates."""
+    importer back to 'error', emit importer.run.finished with
+    status=error. Swallows nested errors so the original exception
+    propagates."""
     try:
         async with pool.acquire() as conn:
             await store.finish_run(
@@ -153,5 +178,15 @@ async def _persist_failure(
                 last_error=error_text[:8000],
                 bump_last_run=True,
             )
+        await emit_event(
+            pool,
+            "importer.run.finished",
+            {
+                "importer_id": str(importer_id),
+                "run_id": str(run_id),
+                "status": "error",
+                "error": error_text[:1000],
+            },
+        )
     except Exception:
         logger.exception("Failed to persist importer-run failure")

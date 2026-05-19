@@ -35,7 +35,10 @@ from lighthouse.importers.registry import list_importers, lookup_importer
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/admin/importers", tags=["admin", "importers"])
+# Router defined WITHOUT a prefix — main.py mounts it twice:
+#   /admin/importers/*  (legacy, in-cluster admin UI)
+#   /v1/importers/*     (external SDK-stable, semver-locked)
+router = APIRouter(tags=["importers"])
 
 # Strong references to fire-and-forget runner tasks. Without holding
 # them somewhere Python may GC the Task while it's still running.

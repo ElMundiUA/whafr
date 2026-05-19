@@ -1,0 +1,22 @@
+{
+  "name": "@lighthouse/client",
+  "version": "0.1.0",
+  "description": "TypeScript client for the Lighthouse engine API (auto-generated from /openapi.json + thin runtime wrapper).",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/openapi.d.ts"
+  },
+  "scripts": {
+    "regen": "openapi-typescript ../openapi.json -o src/openapi.d.ts && prettier -w src/openapi.d.ts",
+    "regen:from-running": "openapi-typescript http://localhost:8000/openapi.json -o src/openapi.d.ts"
+  },
+  "files": ["src", "README.md"],
+  "devDependencies": {
+    "openapi-typescript": "^7.4.0",
+    "prettier": "^3.3.0",
+    "typescript": "^5.5.0"
+  }
+}
