@@ -18,14 +18,34 @@ from typing import Any
 
 from lighthouse.importers._optional import import_reader
 from lighthouse.importers.adapters.llama_hub import LlamaHubImporter
-from lighthouse.importers.base import ImporterMeta
+from lighthouse.importers.base import DiscoveredItem, ImporterMeta
 from lighthouse.importers.registry import register
+
+
+def _notion_title(item: dict) -> str:
+    """Notion's search API embeds the title inside the `properties` or
+    `title` rich-text array — depends on the object type. Pull the
+    first plain_text we find."""
+    for source in (item.get("title"), item.get("properties", {}).get("title", {}).get("title")):
+        if isinstance(source, list) and source:
+            text = source[0].get("plain_text") or source[0].get("text", {}).get("content")
+            if text:
+                return text
+    # Pages use the title property under various names; scan all.
+    props = item.get("properties", {})
+    for prop in props.values():
+        if prop.get("type") == "title":
+            arr = prop.get("title", [])
+            if arr:
+                return arr[0].get("plain_text") or ""
+    return ""
 
 # ─────────────────────────── Notion ────────────────────────────
 
 
 @register
 class NotionImporter(LlamaHubImporter):
+    supports_discovery = True
     meta = ImporterMeta(
         type="notion",
         display_name="Notion",
@@ -59,7 +79,70 @@ class NotionImporter(LlamaHubImporter):
             },
         },
         secret_keys=("integration_token",),
+        discovery_required=("integration_token",),
     )
+
+    def discover(
+        self, config: Mapping[str, Any], secrets: Mapping[str, str]
+    ) -> list[DiscoveredItem]:
+        import httpx
+
+        token = secrets.get("integration_token") or ""
+        if not token:
+            raise ValueError("integration_token is required to discover")
+        out: list[DiscoveredItem] = []
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Notion-Version": "2022-06-28",
+            "Content-Type": "application/json",
+        }
+        # `/v1/search` returns everything the integration was shared
+        # with. Two passes — databases then pages — so the picker can
+        # show kind=database (the natural import unit) above raw pages.
+        with httpx.Client(timeout=15.0) as client:
+            for kind, payload in (
+                ("database", {"filter": {"property": "object", "value": "database"}}),
+                ("page", {"filter": {"property": "object", "value": "page"}}),
+            ):
+                cursor = None
+                for _ in range(5):  # cap at 5 pages × 100 items = 500 entries
+                    body = {**payload, "page_size": 100}
+                    if cursor:
+                        body["start_cursor"] = cursor
+                    r = client.post(
+                        "https://api.notion.com/v1/search",
+                        headers=headers,
+                        json=body,
+                    )
+                    r.raise_for_status()
+                    data = r.json()
+                    for item in data.get("results", []):
+                        item_id = item.get("id", "")
+                        title = _notion_title(item) or "(untitled)"
+                        if kind == "database":
+                            out.append(
+                                DiscoveredItem(
+                                    id=item_id,
+                                    name=title,
+                                    kind="database",
+                                    hint=item.get("url"),
+                                    config_patch={"database_ids": item_id},
+                                )
+                            )
+                        else:
+                            out.append(
+                                DiscoveredItem(
+                                    id=item_id,
+                                    name=title,
+                                    kind="page",
+                                    hint=item.get("url"),
+                                    config_patch={"page_ids": item_id},
+                                )
+                            )
+                    if not data.get("has_more"):
+                        break
+                    cursor = data.get("next_cursor")
+        return out
 
     def make_reader(self, config: Mapping[str, Any], secrets: Mapping[str, str]) -> Any:
         cls = import_reader(
@@ -92,6 +175,7 @@ class NotionImporter(LlamaHubImporter):
 
 @register
 class ConfluenceImporter(LlamaHubImporter):
+    supports_discovery = True
     meta = ImporterMeta(
         type="confluence",
         display_name="Confluence (Atlassian)",
@@ -136,7 +220,47 @@ class ConfluenceImporter(LlamaHubImporter):
             },
         },
         secret_keys=("api_token",),
+        discovery_required=("base_url", "user_name", "api_token"),
     )
+
+    def discover(
+        self, config: Mapping[str, Any], secrets: Mapping[str, str]
+    ) -> list[DiscoveredItem]:
+        import httpx
+
+        base = str(config.get("base_url") or "").rstrip("/")
+        if not base:
+            raise ValueError("base_url is required")
+        user = str(config.get("user_name") or "")
+        token = secrets.get("api_token") or ""
+        if not (user and token):
+            raise ValueError("user_name + api_token are required")
+        # Confluence Cloud REST: /wiki/rest/api/space; basic-auth with
+        # email + token. Page size 100, walk a few pages.
+        out: list[DiscoveredItem] = []
+        start = 0
+        with httpx.Client(timeout=15.0, auth=(user, token)) as client:
+            for _ in range(5):
+                r = client.get(
+                    f"{base}/rest/api/space",
+                    params={"limit": 100, "start": start, "type": "global"},
+                )
+                r.raise_for_status()
+                data = r.json()
+                for s in data.get("results", []):
+                    out.append(
+                        DiscoveredItem(
+                            id=s.get("key", ""),
+                            name=s.get("name", "") or s.get("key", ""),
+                            kind="space",
+                            hint=s.get("description", {}).get("plain", {}).get("value") or None,
+                            config_patch={"space_key": s.get("key", "")},
+                        )
+                    )
+                if len(data.get("results", [])) < 100:
+                    break
+                start += 100
+        return out
 
     def make_reader(self, config: Mapping[str, Any], secrets: Mapping[str, str]) -> Any:
         cls = import_reader(
@@ -165,6 +289,7 @@ class ConfluenceImporter(LlamaHubImporter):
 
 @register
 class JiraImporter(LlamaHubImporter):
+    supports_discovery = True
     meta = ImporterMeta(
         type="jira",
         display_name="Jira (Atlassian)",
@@ -200,7 +325,38 @@ class JiraImporter(LlamaHubImporter):
             },
         },
         secret_keys=("api_token",),
+        discovery_required=("server_url", "email", "api_token"),
     )
+
+    def discover(
+        self, config: Mapping[str, Any], secrets: Mapping[str, str]
+    ) -> list[DiscoveredItem]:
+        import httpx
+
+        base = str(config.get("server_url") or "").rstrip("/")
+        if not base:
+            raise ValueError("server_url is required")
+        user = str(config.get("email") or "")
+        token = secrets.get("api_token") or ""
+        if not (user and token):
+            raise ValueError("email + api_token are required")
+        out: list[DiscoveredItem] = []
+        with httpx.Client(timeout=15.0, auth=(user, token)) as client:
+            r = client.get(f"{base}/rest/api/3/project/search", params={"maxResults": 100})
+            r.raise_for_status()
+            for p in r.json().get("values", []):
+                key = p.get("key", "")
+                out.append(
+                    DiscoveredItem(
+                        id=key,
+                        name=p.get("name", "") or key,
+                        kind="project",
+                        hint=f"{p.get('projectTypeKey', '')} · {p.get('style', '')}".strip(" ·"),
+                        # Build a sensible default JQL for the picked project.
+                        config_patch={"jql": f"project = {key} ORDER BY updated DESC"},
+                    )
+                )
+        return out
 
     def make_reader(self, config: Mapping[str, Any], secrets: Mapping[str, str]) -> Any:
         cls = import_reader(

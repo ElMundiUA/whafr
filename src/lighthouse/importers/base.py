@@ -20,7 +20,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, ClassVar
 
 from lighthouse.connectors.base import Connector
 
@@ -40,6 +40,26 @@ class ImporterMeta:
     # Names of keys inside `config_schema.properties` that hold
     # secrets and must be encrypted before persisting.
     secret_keys: tuple[str, ...] = field(default_factory=tuple)
+    # Names of config_schema properties the UI must collect BEFORE
+    # calling `discover()` (the importer needs them to authenticate
+    # and probe the source). Implies the importer supports discovery
+    # when non-empty AND the subclass overrides discover().
+    discovery_required: tuple[str, ...] = field(default_factory=tuple)
+
+
+@dataclass(slots=True)
+class DiscoveredItem:
+    """One thing the user can pick to import from a source.
+
+    `config_patch` is merged into the saved importer's config — keeps
+    type-specific selection logic on the backend, frontend stays generic.
+    """
+
+    id: str
+    name: str
+    kind: str
+    hint: str | None
+    config_patch: dict[str, Any]
 
 
 @dataclass(slots=True)
@@ -66,6 +86,9 @@ class LighthouseImporter(ABC):
     """
 
     meta: ImporterMeta
+    # Subclasses set True when they implement `discover()`. The /types
+    # API surfaces this so the wizard knows to offer a picker step.
+    supports_discovery: ClassVar[bool] = False
 
     @abstractmethod
     def build_connector(
@@ -82,3 +105,24 @@ class LighthouseImporter(ABC):
         adapter can decide whether to fall back to env vars.
         """
         raise NotImplementedError
+
+    def discover(
+        self,
+        config: Mapping[str, Any],
+        secrets: Mapping[str, str],
+    ) -> list[DiscoveredItem]:
+        """Probe the source and return what's available to import.
+
+        Default raises `NotImplementedError` — the adapter doesn't
+        support picker-style discovery, the wizard falls back to the
+        flat-form path. Subclasses that override MUST also set
+        `supports_discovery = True` at the class level so the /types
+        response advertises it.
+
+        The probe call is bounded: keep it under a few seconds, page
+        sensibly, cap at ~200 items. The UI has a search filter so
+        operators don't need every channel/page back at once.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement discover()"
+        )

@@ -83,6 +83,26 @@ class ImporterTypeOut(BaseModel):
     description: str
     config_schema: dict[str, Any]
     secret_keys: list[str]
+    supports_discovery: bool
+    discovery_required: list[str]
+
+
+class DiscoveredItemOut(BaseModel):
+    id: str
+    name: str
+    kind: str
+    hint: str | None
+    config_patch: dict[str, Any]
+
+
+class DiscoverIn(BaseModel):
+    type: str
+    config: dict[str, Any] = Field(default_factory=dict)
+    secrets: dict[str, str] = Field(default_factory=dict)
+
+
+class DiscoverOut(BaseModel):
+    items: list[DiscoveredItemOut]
 
 
 class ImporterOut(BaseModel):
@@ -202,9 +222,55 @@ async def list_types() -> list[ImporterTypeOut]:
             description=cls.meta.description,
             config_schema=cls.meta.config_schema,
             secret_keys=list(cls.meta.secret_keys),
+            supports_discovery=cls.supports_discovery,
+            discovery_required=list(cls.meta.discovery_required),
         )
         for cls in list_importers()
     ]
+
+
+@router.post(
+    "/discover",
+    response_model=DiscoverOut,
+    dependencies=[Depends(_require_admin)],
+)
+async def discover_route(body: DiscoverIn) -> DiscoverOut:
+    """Probe the source with provided creds and list available items.
+
+    No DB writes — secrets stay in memory only. The wizard sends them
+    again on save (where they get encrypted)."""
+    try:
+        cls = lookup_importer(body.type)
+    except KeyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not cls.supports_discovery:
+        raise HTTPException(
+            status_code=400, detail=f"{body.type} does not support discovery"
+        )
+    importer = cls()
+    try:
+        items = await asyncio.to_thread(
+            importer.discover, body.config, body.secrets
+        )
+    except NotImplementedError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("discover failed for %s", body.type)
+        raise HTTPException(
+            status_code=502, detail=f"discover failed: {exc}"
+        ) from exc
+    return DiscoverOut(
+        items=[
+            DiscoveredItemOut(
+                id=i.id,
+                name=i.name,
+                kind=i.kind,
+                hint=i.hint,
+                config_patch=i.config_patch,
+            )
+            for i in items
+        ]
+    )
 
 
 @router.get(

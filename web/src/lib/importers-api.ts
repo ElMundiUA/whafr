@@ -15,6 +15,16 @@ export interface ImporterType {
   description: string;
   config_schema: Record<string, unknown>;
   secret_keys: string[];
+  supports_discovery: boolean;
+  discovery_required: string[];
+}
+
+export interface DiscoveredItem {
+  id: string;
+  name: string;
+  kind: string;
+  hint: string | null;
+  config_patch: Record<string, unknown>;
 }
 
 export interface Importer {
@@ -111,3 +121,10 @@ export const runImporter = (
   id: string,
 ): Promise<{ run_id: string; importer_id: string; status: string }> =>
   call(`/${id}/run`, { method: "POST" });
+
+export const discover = (body: {
+  type: string;
+  config: Record<string, unknown>;
+  secrets: Record<string, string>;
+}): Promise<{ items: DiscoveredItem[] }> =>
+  call("/discover", { method: "POST", body: JSON.stringify(body) });

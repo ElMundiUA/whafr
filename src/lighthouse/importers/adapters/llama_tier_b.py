@@ -19,7 +19,7 @@ from typing import Any
 
 from lighthouse.importers._optional import import_reader
 from lighthouse.importers.adapters.llama_hub import LlamaHubImporter
-from lighthouse.importers.base import ImporterMeta
+from lighthouse.importers.base import DiscoveredItem, ImporterMeta
 from lighthouse.importers.registry import register
 
 _LIST_SPLIT = re.compile(r"[\s,]+")
@@ -34,6 +34,7 @@ def _split_csv(raw: str) -> list[str]:
 
 @register
 class SlackImporter(LlamaHubImporter):
+    supports_discovery = True
     meta = ImporterMeta(
         type="slack",
         display_name="Slack",
@@ -65,7 +66,53 @@ class SlackImporter(LlamaHubImporter):
             },
         },
         secret_keys=("slack_token",),
+        discovery_required=("slack_token",),
     )
+
+    def discover(
+        self, config: Mapping[str, Any], secrets: Mapping[str, str]
+    ) -> list[DiscoveredItem]:
+        import httpx
+
+        token = secrets.get("slack_token") or ""
+        if not token:
+            raise ValueError("slack_token is required")
+        out: list[DiscoveredItem] = []
+        cursor = None
+        with httpx.Client(timeout=15.0) as client:
+            for _ in range(5):  # cap at 5 pages × 200 = 1000 channels
+                params: dict[str, Any] = {
+                    "limit": 200,
+                    "exclude_archived": True,
+                    "types": "public_channel,private_channel",
+                }
+                if cursor:
+                    params["cursor"] = cursor
+                r = client.get(
+                    "https://slack.com/api/conversations.list",
+                    headers={"Authorization": f"Bearer {token}"},
+                    params=params,
+                )
+                r.raise_for_status()
+                data = r.json()
+                if not data.get("ok"):
+                    raise ValueError(f"Slack API error: {data.get('error')}")
+                for ch in data.get("channels", []):
+                    if not ch.get("is_member"):
+                        continue  # only what the bot can actually read
+                    out.append(
+                        DiscoveredItem(
+                            id=ch["id"],
+                            name=f"#{ch.get('name', ch['id'])}",
+                            kind="channel",
+                            hint=f"{ch.get('num_members', '?')} members",
+                            config_patch={"channel_ids": ch["id"]},
+                        )
+                    )
+                cursor = data.get("response_metadata", {}).get("next_cursor")
+                if not cursor:
+                    break
+        return out
 
     def make_reader(self, config: Mapping[str, Any], secrets: Mapping[str, str]) -> Any:
         cls = import_reader(
