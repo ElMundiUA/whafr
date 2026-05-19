@@ -8,6 +8,7 @@ pages live at [lighthouse.harborgang.com](https://lighthouse.harborgang.com).
 | Doc | What it covers |
 |---|---|
 | [`getting-started.md`](getting-started.md) | Stand up an engine; first call; first importer. |
+| [`deployment.md`](deployment.md) | Compose vs Helm, Postgres providers, backups, upgrades. |
 | [`api.md`](api.md) | REST endpoint catalog, auth posture, error shape, versioning. |
 | [`webhooks.md`](webhooks.md) | Event catalog, HMAC signing, retry semantics, idempotency. |
 | [`sdk-ts.md`](sdk-ts.md) | TypeScript client (`@lighthouse/client`) — full reference. |

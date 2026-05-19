@@ -1,0 +1,49 @@
+Lighthouse {{ .Chart.AppVersion }} installed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+──── 1. Reach the API ────
+
+{{- if .Values.ingress.enabled }}
+  Ingress hosts:
+{{- range .Values.ingress.hosts }}
+   {{- range .paths }}
+    {{ $.host }}{{ .path }}
+   {{- end }}
+{{- end }}
+{{- else }}
+  No ingress configured. Port-forward to test:
+
+    kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "lighthouse.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }}
+
+  Then open http://localhost:{{ .Values.service.port }}/docs for the Swagger UI.
+{{- end }}
+
+──── 2. Confirm DB schema ────
+
+Lighthouse boots its own chunks-table schema on first request. Apply
+the rest (importers, webhooks) by piping `web/sql/*.sql` to your
+Postgres once:
+
+  psql "$LIGHTHOUSE_PG_URL" -f web/sql/001_users.sql
+  psql "$LIGHTHOUSE_PG_URL" -f web/sql/002_importers.sql
+  psql "$LIGHTHOUSE_PG_URL" -f web/sql/003_importers_unique_name.sql
+  psql "$LIGHTHOUSE_PG_URL" -f web/sql/004_webhooks.sql
+
+──── 3. Create an importer ────
+
+{{- if .Values.env.adminToken }}
+  TOK={{ .Values.env.adminToken }}
+{{- else }}
+  TOK=$(kubectl -n {{ .Release.Namespace }} get secret {{ include "lighthouse.envSecretName" . }} \
+        -o jsonpath='{.data.LIGHTHOUSE_ADMIN_TOKEN}' | base64 -d)
+{{- end }}
+
+  curl -H "Authorization: Bearer $TOK" \
+       -H "Content-Type: application/json" \
+       -X POST <BASE_URL>/v1/importers/ \
+       -d '{"type":"sitemap","name":"fastapi","recipe":"fastapi","config":{"root":"https://fastapi.tiangolo.com","max_pages":0}}'
+
+──── 4. Next steps ────
+
+  * API reference   : docs/api.md
+  * Webhooks        : docs/webhooks.md
+  * TS / Py SDKs    : docs/sdk-ts.md · docs/sdk-python.md

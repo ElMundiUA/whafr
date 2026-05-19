@@ -35,22 +35,45 @@ sdk/
 docs/             Operator + integrator documentation
 ```
 
-## Quickstart
+## Install
+
+### Local (Docker Compose)
 
 ```bash
-docker run -d --name lighthouse \
-  -p 8000:8000 \
-  -e LIGHTHOUSE_PG_URL=postgresql://user:pw@host:5432/lighthouse \
-  -e LIGHTHOUSE_SECRETS_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())") \
-  -e LIGHTHOUSE_ADMIN_TOKEN=$(openssl rand -base64 32) \
-  -e OPENAI_API_KEY=sk-… \
-  ghcr.io/elmundiua/lighthouse:latest
-
-curl http://localhost:8000/health
-open http://localhost:8000/docs           # Swagger UI
+cd compose/
+cp .env.example .env       # fill in keys
+docker compose up -d
 ```
 
-Full walkthrough: [`docs/getting-started.md`](docs/getting-started.md).
+Bundles Postgres + pgvector + API. Full walkthrough:
+[`compose/README.md`](compose/README.md).
+
+### Kubernetes (Helm)
+
+```bash
+helm install lighthouse charts/lighthouse \
+  --namespace lighthouse --create-namespace \
+  --set postgres.url=postgresql://user:pw@pg.svc:5432/lighthouse \
+  --set env.secretsKey=$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())') \
+  --set env.adminToken=$(openssl rand -base64 32) \
+  --set env.openaiKey=$OPENAI_API_KEY
+```
+
+BYO Postgres (Neon / RDS / CNPG / pgvector image — see
+[`docs/deployment.md`](docs/deployment.md)). Chart reference:
+[`charts/lighthouse/README.md`](charts/lighthouse/README.md).
+
+### One-shot Docker
+
+```bash
+docker run -d -p 8000:8000 \
+  -e LIGHTHOUSE_PG_URL=postgresql://… \
+  -e LIGHTHOUSE_SECRETS_KEY=… -e LIGHTHOUSE_ADMIN_TOKEN=… \
+  -e OPENAI_API_KEY=sk-… \
+  ghcr.io/elmundiua/lighthouse:latest
+```
+
+Full quickstart: [`docs/getting-started.md`](docs/getting-started.md).
 
 ## Programmatic use
 
@@ -96,6 +119,7 @@ lighthouse mcp
 | Doc | What it covers |
 |---|---|
 | [`docs/getting-started.md`](docs/getting-started.md) | Boot an engine, first call, first importer. |
+| [`docs/deployment.md`](docs/deployment.md) | Compose vs Helm, Postgres providers, backups, upgrades. |
 | [`docs/api.md`](docs/api.md) | REST endpoint catalog. |
 | [`docs/webhooks.md`](docs/webhooks.md) | Event payloads + HMAC signing + retry. |
 | [`docs/sdk-ts.md`](docs/sdk-ts.md) | TypeScript SDK reference. |

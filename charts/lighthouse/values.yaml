@@ -1,0 +1,131 @@
+# Default values for lighthouse. Override any of these via `--values`
+# or `--set`.
+
+# ─────────────────────────── Image ───────────────────────────
+image:
+  repository: ghcr.io/elmundiua/lighthouse
+  tag: ""                # defaults to .Chart.AppVersion when empty
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+# - name: ghcr-pull
+
+# ─────────────────────────── Replicas ────────────────────────
+replicaCount: 1
+
+# ─────────────────────────── Postgres ────────────────────────
+# Lighthouse needs a Postgres with the `pgvector` extension. This
+# chart does NOT bundle one — bring your own (cloud provider,
+# CloudNativePG, Zalando, Crunchy, etc.).
+#
+# Provide the connection string EITHER inline OR via an existing
+# Secret you've already created in the namespace.
+postgres:
+  # Plain-text connection URL (only stored in a generated Secret —
+  # not committed if you use --set on the CLI).
+  url: ""                # e.g. postgresql://lighthouse:pw@pg.svc:5432/lighthouse
+
+  # OR: name of an existing Secret that already carries the URL
+  # under the key `LIGHTHOUSE_PG_URL`.
+  existingSecret: ""
+
+# ─────────────────────────── Engine env ──────────────────────
+env:
+  # Fernet master key for encrypted importer secrets (Fernet.generate_key()).
+  # REQUIRED if you create any importer that stores tokens.
+  secretsKey: ""
+
+  # Bearer token for /v1/* admin endpoints. Leave empty for
+  # in-cluster-only deployments where network policy is the gate.
+  adminToken: ""
+
+  # OpenAI API key (embeddings + chunk summarisation). REQUIRED.
+  openaiKey: ""
+
+  # Optional providers
+  anthropicKey: ""
+  openrouterKey: ""
+  githubToken: ""
+
+# OR: reference an existing Secret carrying any/all of:
+#   LIGHTHOUSE_SECRETS_KEY, LIGHTHOUSE_ADMIN_TOKEN,
+#   OPENAI_API_KEY, ANTHROPIC_API_KEY, OPENROUTER_API_KEY, GITHUB_TOKEN
+existingEnvSecret: ""
+
+# ─────────────────────────── Service ─────────────────────────
+service:
+  type: ClusterIP
+  port: 8000
+  annotations: {}
+
+# ─────────────────────────── Ingress ─────────────────────────
+ingress:
+  enabled: false
+  className: ""          # e.g. "nginx", "traefik"
+  annotations: {}
+  hosts:
+    - host: lighthouse.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  # - secretName: lighthouse-tls
+  #   hosts: [lighthouse.example.com]
+
+# ─────────────────────────── Resources ───────────────────────
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+
+# ─────────────────────────── Probes ──────────────────────────
+livenessProbe:
+  httpGet: { path: /health, port: http }
+  initialDelaySeconds: 30
+  periodSeconds: 30
+readinessProbe:
+  httpGet: { path: /health, port: http }
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+# ─────────────────────────── Scheduling ──────────────────────
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}
+podSecurityContext: {}
+securityContext: {}
+
+# ─────────────────────────── Astro web UI (optional) ─────────
+# The admin Astro UI is a separate container. Off by default — the
+# engine works headless via /v1/. Enable for in-cluster admin pages.
+web:
+  enabled: false
+  image:
+    repository: ghcr.io/elmundiua/lighthouse-web
+    tag: ""
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 3000
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts:
+      - host: lighthouse-admin.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls: []
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi

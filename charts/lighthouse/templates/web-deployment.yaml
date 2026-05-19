@@ -1,0 +1,43 @@
+{{- if .Values.web.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lighthouse.fullname" . }}-web
+  labels:
+    {{- include "lighthouse.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  replicas: {{ .Values.web.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "lighthouse.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        {{- include "lighthouse.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: web
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: web
+          image: "{{ .Values.web.image.repository }}:{{ .Values.web.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.web.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: PUBLIC_LIGHTHOUSE_API_BASE
+              value: "http://{{ include "lighthouse.fullname" . }}:{{ .Values.service.port }}"
+          envFrom:
+            - secretRef:
+                name: {{ include "lighthouse.envSecretName" . }}
+                optional: true
+            - secretRef:
+                name: {{ include "lighthouse.pgSecretName" . }}
+                optional: true
+          resources: {{- toYaml .Values.web.resources | nindent 12 }}
+{{- end }}
