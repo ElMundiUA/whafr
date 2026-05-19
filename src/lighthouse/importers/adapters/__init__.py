@@ -7,6 +7,7 @@ from lighthouse.importers.adapters import (  # noqa: F401
     github_releases,
     github_repo,
     llama_hub,
+    llama_tier_a,
     rss,
     sitemap,
     url_list,

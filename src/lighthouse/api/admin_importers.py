@@ -341,13 +341,22 @@ async def run_route(
     pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
 ) -> RunQueuedOut:
     """Kick off a run in the background. Returns immediately with the
-    importer id; poll `/{id}/runs` for the actual run row's progress."""
+    importer id; poll `/{id}/runs` for the actual run row's progress.
+
+    We instantiate the importer up-front (without running it) so a
+    missing optional-dep package fails the request with a 422 +
+    pip-install hint instead of letting the background task swallow
+    the error into the run row."""
     async with pool.acquire() as conn:
         row = await store.get(conn, importer_id)
     if row is None:
         raise HTTPException(status_code=404, detail="not found")
     if row.status == "running":
         raise HTTPException(status_code=409, detail="already running")
+    try:
+        lookup_importer(row.type)
+    except KeyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     _spawn_run(pool, importer_id)
     return RunQueuedOut(run_id=importer_id, importer_id=importer_id)
 

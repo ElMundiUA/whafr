@@ -44,6 +44,35 @@ dev = [
     "mypy>=1.13",
 ]
 
+# ─────────── Importer extras ───────────
+# Each Tier-A llama-hub-backed importer is gated by an optional-deps
+# group so the base install stays slim (~200 MB without these). The
+# admin UI raises a friendly error when the user picks a type whose
+# package isn't installed.
+# Prod image installs `[importers-all]` so every type is available.
+
+importers-notion = ["llama-index-readers-notion>=0.3"]
+importers-confluence = ["llama-index-readers-confluence>=0.3"]
+importers-jira = ["llama-index-readers-jira>=0.3"]
+importers-gitlab = ["llama-index-readers-gitlab>=0.3"]
+importers-bitbucket = ["llama-index-readers-bitbucket>=0.2"]
+importers-linear = ["llama-index-readers-linear>=0.3"]
+importers-wikipedia = ["llama-index-readers-wikipedia>=0.3"]
+# File reader already in base deps (llama-index-readers-file). Keep
+# a group anyway so docs can advise `[importers-file]` for clarity.
+importers-file = ["llama-index-readers-file>=0.4"]
+
+importers-all = [
+    "llama-index-readers-notion>=0.3",
+    "llama-index-readers-confluence>=0.3",
+    "llama-index-readers-jira>=0.3",
+    "llama-index-readers-gitlab>=0.3",
+    "llama-index-readers-bitbucket>=0.2",
+    "llama-index-readers-linear>=0.3",
+    "llama-index-readers-wikipedia>=0.3",
+    "llama-index-readers-file>=0.4",
+]
+
 [project.urls]
 Homepage = "https://harborgang.com"
 
