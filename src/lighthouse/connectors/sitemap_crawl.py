@@ -67,7 +67,7 @@ class SitemapCrawlConnector(Connector):
         root: str,
         *,
         include_paths: Sequence[str] | None = None,
-        max_pages: int = 200,
+        max_pages: int | None = 200,
         rate_limit_per_sec: float = 1.0,
         sitemap_url: str | None = None,
     ) -> None:
@@ -77,7 +77,10 @@ class SitemapCrawlConnector(Connector):
             include_paths: URL-path prefixes to keep. ``["/3/library/"]``
                 limits to that subtree. Empty/None means accept all
                 URLs from the sitemap.
-            max_pages: Hard cap on documents emitted.
+            max_pages: Hard cap on documents emitted. ``None`` (or
+                ``0``) means no cap — take every URL the sitemap
+                lists. Use deliberately on monster sites; pair with
+                tight ``include_paths`` if you only want a subtree.
             rate_limit_per_sec: Polite per-domain throttle. 1.0 is
                 safe for almost everywhere; parallelism comes from
                 running many sources concurrently, not from spamming
@@ -89,7 +92,11 @@ class SitemapCrawlConnector(Connector):
         self._root = root.rstrip("/")
         self._domain = urlparse(self._root).netloc
         self._include_paths = list(include_paths or [])
-        self._max_pages = max_pages
+        # Normalise: None or 0 → "no cap". We store as None internally
+        # and treat any positive int as a hard ceiling.
+        self._max_pages: int | None = (
+            None if max_pages is None or max_pages <= 0 else max_pages
+        )
         self._rate_limit = max(0.1, rate_limit_per_sec)
         self._override_sitemap = sitemap_url
         # Populated during sitemap discovery; keyed by URL → lastmod
@@ -118,10 +125,10 @@ class SitemapCrawlConnector(Connector):
 
         page_urls = self._filter_and_cap(page_urls)
         logger.info(
-            "sitemap %s: %d URLs to crawl (max_pages=%d, rate=%s/s)",
+            "sitemap %s: %d URLs to crawl (max_pages=%s, rate=%s/s)",
             self._root,
             len(page_urls),
-            self._max_pages,
+            self._max_pages if self._max_pages is not None else "unlimited",
             self._rate_limit,
         )
 
@@ -227,7 +234,7 @@ class SitemapCrawlConnector(Connector):
                     lm_el = url_el.find("lastmod")
                 if lm_el is not None and lm_el.text:
                     self._lastmod[page_url] = lm_el.text.strip()
-                if len(out) >= budget:
+                if budget is not None and len(out) >= budget:
                     return out
         elif tag == "sitemapindex" and depth < 2:
             sm_els = root.findall(f"{_SM_NS}sitemap")
@@ -238,8 +245,12 @@ class SitemapCrawlConnector(Connector):
                 if loc_el is None:
                     loc_el = sm_el.find("loc")
                 if loc_el is not None and loc_el.text:
-                    remaining = budget - len(out)
-                    if remaining <= 0:
+                    remaining = (
+                        None
+                        if budget is None
+                        else budget - len(out)
+                    )
+                    if remaining is not None and remaining <= 0:
                         return out
                     out.extend(
                         await self._walk_sitemap(
@@ -249,7 +260,7 @@ class SitemapCrawlConnector(Connector):
                             budget=remaining,
                         )
                     )
-                    if len(out) >= budget:
+                    if budget is not None and len(out) >= budget:
                         return out
         return out
 
@@ -282,6 +293,7 @@ class SitemapCrawlConnector(Connector):
     def _filter_and_cap(self, urls: Iterable[str]) -> list[str]:
         out: list[str] = []
         seen: set[str] = set()
+        cap = self._max_pages
         for u in urls:
             if u in seen:
                 continue
@@ -291,7 +303,7 @@ class SitemapCrawlConnector(Connector):
                 if not any(path.startswith(p) for p in self._include_paths):
                     continue
             out.append(u)
-            if len(out) >= self._max_pages:
+            if cap is not None and len(out) >= cap:
                 break
         return out
 

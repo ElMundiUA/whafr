@@ -30,9 +30,14 @@ from fastapi import FastAPI
 
 from lighthouse import __version__
 from lighthouse.api.admin_importers import router as admin_importers_router
-from lighthouse.api.dependencies import close_pg_pool, get_proposal_queue
+from lighthouse.api.dependencies import (
+    close_pg_pool,
+    get_pg_pool,
+    get_proposal_queue,
+)
 from lighthouse.api.proposal import router as proposal_router
 from lighthouse.api.retrieval import router as retrieval_router
+from lighthouse.importers import store as importer_store
 from lighthouse.mcp.server import build_server as build_mcp_server
 
 logger = logging.getLogger(__name__)
@@ -55,6 +60,18 @@ def create_app() -> FastAPI:
                 logger.info("bootstrapped %d pending proposals from store", n)
         except Exception:
             logger.exception("proposal queue bootstrap failed")
+        # Reset any importer rows / runs stranded by the previous pod —
+        # asyncio.create_task'd runs don't survive a SIGTERM, so on each
+        # boot we sweep stuck rows back to a usable state. Cheap: at
+        # most a few rows in flight at once.
+        try:
+            pool = await get_pg_pool()
+            async with pool.acquire() as conn:
+                swept = await importer_store.sweep_orphans(conn)
+            if swept:
+                logger.info("importer sweep: marked %d orphan run(s) as cancelled", swept)
+        except Exception:
+            logger.exception("importer orphan-sweep failed")
         async with mcp_server.session_manager.run():
             try:
                 yield

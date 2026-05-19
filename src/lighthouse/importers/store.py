@@ -276,6 +276,37 @@ async def finish_run(
     )
 
 
+async def sweep_orphans(conn: asyncpg.Connection) -> int:
+    """Mark any importer / importer_run still in ``running`` as
+    cancelled. Called on API startup so a pod kill mid-crawl doesn't
+    leave the importer perma-stuck.
+
+    Returns the number of runs flipped — useful to log."""
+    n = await conn.fetchval(
+        """
+        WITH stuck AS (
+            UPDATE importer_runs
+               SET status = 'cancelled',
+                   finished_at = NOW(),
+                   error_text = COALESCE(error_text, 'pod restart')
+             WHERE status = 'running'
+            RETURNING id
+        )
+        SELECT count(*) FROM stuck
+        """,
+    )
+    await conn.execute(
+        """
+        UPDATE importers
+           SET status = 'idle',
+               last_error = COALESCE(last_error, 'pod restart while running'),
+               updated_at = NOW()
+         WHERE status IN ('running', 'queued')
+        """,
+    )
+    return int(n or 0)
+
+
 async def recent_runs(
     conn: asyncpg.Connection,
     importer_id: UUID,

@@ -53,10 +53,14 @@ class SitemapImporter(LighthouseImporter):
                 },
                 "max_pages": {
                     "type": "integer",
-                    "title": "Max pages",
-                    "default": 200,
-                    "minimum": 1,
-                    "maximum": 20000,
+                    "title": "Max pages (0 = no cap)",
+                    "description": (
+                        "0 or empty crawls every URL in the sitemap. "
+                        "Tighten with include_paths if the site is huge."
+                    ),
+                    "default": 0,
+                    "minimum": 0,
+                    "maximum": 1000000,
                 },
                 "rate_limit_per_sec": {
                     "type": "number",
@@ -77,10 +81,12 @@ class SitemapImporter(LighthouseImporter):
     ) -> Connector:
         include_raw = str(config.get("include_paths", "") or "").strip()
         include = [p for p in include_raw.splitlines() if p.strip()] or None
+        raw_cap = config.get("max_pages", 0)
+        cap = int(raw_cap) if raw_cap not in (None, "") else 0
         return SitemapCrawlConnector(
             root=str(config["root"]),
             sitemap_url=(str(config["sitemap_url"]) if config.get("sitemap_url") else None),
             include_paths=include,
-            max_pages=int(config.get("max_pages", 200)),
+            max_pages=cap if cap > 0 else None,
             rate_limit_per_sec=float(config.get("rate_limit_per_sec", 1.0)),
         )
