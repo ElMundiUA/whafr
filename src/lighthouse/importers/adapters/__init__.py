@@ -8,6 +8,7 @@ from lighthouse.importers.adapters import (  # noqa: F401
     github_repo,
     llama_hub,
     llama_tier_a,
+    llama_tier_b,
     rss,
     sitemap,
     url_list,

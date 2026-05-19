@@ -62,7 +62,27 @@ importers-wikipedia = ["llama-index-readers-wikipedia>=0.3"]
 # a group anyway so docs can advise `[importers-file]` for clarity.
 importers-file = ["llama-index-readers-file>=0.4"]
 
+# ── Tier B ──
+importers-slack = ["llama-index-readers-slack>=0.3"]
+importers-discord = ["llama-index-readers-discord>=0.3"]
+importers-s3 = ["llama-index-readers-s3>=0.3"]
+importers-gcs = ["llama-index-readers-gcs>=0.3"]
+importers-azure-blob = ["llama-index-readers-azstorage-blob>=0.3"]
+importers-box = ["llama-index-readers-box>=0.3"]
+importers-google-drive = ["llama-index-readers-google>=0.4"]
+importers-asana = ["llama-index-readers-asana>=0.3"]
+importers-trello = ["llama-index-readers-trello>=0.3"]
+importers-zendesk = ["llama-index-readers-zendesk>=0.3"]
+importers-intercom = ["llama-index-readers-intercom>=0.3"]
+importers-database = ["llama-index-readers-database>=0.3", "SQLAlchemy>=2.0"]
+importers-mongodb = ["llama-index-readers-mongodb>=0.3"]
+importers-arxiv = ["llama-index-readers-papers>=0.3"]
+importers-airtable = ["llama-index-readers-airtable>=0.3"]
+importers-reddit = ["llama-index-readers-reddit>=0.3"]
+importers-stackoverflow = ["llama-index-readers-stackoverflow>=0.3"]
+
 importers-all = [
+    # Tier A
     "llama-index-readers-notion>=0.3",
     "llama-index-readers-confluence>=0.3",
     "llama-index-readers-jira>=0.3",
@@ -71,6 +91,25 @@ importers-all = [
     "llama-index-readers-linear>=0.3",
     "llama-index-readers-wikipedia>=0.3",
     "llama-index-readers-file>=0.4",
+    # Tier B
+    "llama-index-readers-slack>=0.3",
+    "llama-index-readers-discord>=0.3",
+    "llama-index-readers-s3>=0.3",
+    "llama-index-readers-gcs>=0.3",
+    "llama-index-readers-azstorage-blob>=0.3",
+    "llama-index-readers-box>=0.3",
+    "llama-index-readers-google>=0.4",
+    "llama-index-readers-asana>=0.3",
+    "llama-index-readers-trello>=0.3",
+    "llama-index-readers-zendesk>=0.3",
+    "llama-index-readers-intercom>=0.3",
+    "llama-index-readers-database>=0.3",
+    "SQLAlchemy>=2.0",
+    "llama-index-readers-mongodb>=0.3",
+    "llama-index-readers-papers>=0.3",
+    "llama-index-readers-airtable>=0.3",
+    "llama-index-readers-reddit>=0.3",
+    "llama-index-readers-stackoverflow>=0.3",
 ]
 
 [project.urls]
