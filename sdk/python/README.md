@@ -39,3 +39,10 @@ async with AsyncLighthouse("https://lighthouse.example.com", token="…") as lh:
 
 A small sync client (`Lighthouse`) is provided for one-shot scripts;
 prefer `AsyncLighthouse` everywhere else.
+
+## Full reference
+
+End-to-end guide with every method + receiver patterns + error
+handling: [`docs/sdk-python.md`](../../docs/sdk-python.md). API
+endpoint catalog: [`docs/api.md`](../../docs/api.md). Webhook
+protocol: [`docs/webhooks.md`](../../docs/webhooks.md).

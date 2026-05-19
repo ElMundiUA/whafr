@@ -1,87 +1,113 @@
-# Lighthouse
+# Lighthouse Engine
 
-Knowledge base for AI agents. Retrieval over MCP, proposals over HTTP, temporal
-knowledge graph underneath, no tenant ceremony.
+Open-source retrieval layer for grounded coding agents. Hybrid BM25 +
+pgvector + cross-encoder rerank, served over HTTP + MCP. Pluggable
+importer layer covering 30 source types out of the box: docs (sitemap,
+github), team knowledge (Notion, Confluence, Slack, Linear, Jira),
+storage (S3, GCS, Azure Blob, Google Drive, Box), structured data
+(Postgres, MongoDB, Airtable), forums (Reddit, Stack Overflow), and
+more.
 
-The same engine ships in two deployment patterns:
+Same code powers two products:
 
-- **Global instance** — public read-only retrieval, sources authoritative tech
-  docs, librarian curates incoming proposals. One deployment everyone consumes.
-- **Project instance** — private retrieval, project-specific sources,
-  project-specific librarian calibration. One deployment per project.
+- **[lighthouse.harborgang.com](https://lighthouse.harborgang.com)** —
+  hosted SaaS over a curated SDLC corpus (RFCs, OWASP, NIST,
+  framework docs).
+- **Engine** — self-hosted, bring-your-own-corpus. This repo.
 
-Isolation is achieved by deploying separate instances against separate
-databases. The code has no tenant model; the two deployments simply never share
-a Postgres or graph store.
+Apache-2.0.
 
 ## What's in here
 
 ```
 src/lighthouse/
-  api/            FastAPI app: /search, /fetch_entity, /fetch_source, /propose
-  core/           Config + Graphiti+Neo4j wrapper
-  connectors/     Source connectors (markdown, web, github, sitemap)
-  librarian/      Curator agent (Anthropic SDK + prompt caching)
-infra/            docker-compose + k8s manifests (Neo4j 5.26 CE + lighthouse-api)
-tests/            Smoke tests
+  api/            FastAPI app (/v1 + /admin + /mcp)
+  core/           FlatGraph: pgvector index + BM25 + rerank
+  connectors/     Source connectors: sitemap, github_tree, rss, web, …
+  importers/      Admin-managed importer layer + 30 adapters
+  webhooks/       Outbound webhook dispatcher (HMAC, retry)
+  mcp/            MCP server (streamable-http transport)
+infra/            Docker + k8s manifests
+web/              Astro public + admin frontend
+sdk/
+  ts/             @lighthouse/client     — TypeScript SDK
+  python/         lighthouse-client      — Python SDK
+docs/             Operator + integrator documentation
 ```
-
-## Self-host: graph backend
-
-Lighthouse v0.2+ runs on **Neo4j 5.26 Community Edition** (GPLv3, free for
-self-hosters). Earlier versions used FalkorDB; we moved off it because its
-BSL ("Business Source License") is source-available, not OSS — a problem for
-an opensource project. The Neo4j swap is a one-line config change for
-existing deployments; data does not migrate automatically (re-ingest from
-sources).
 
 ## Quickstart
 
 ```bash
-cp .env.example .env
-# Fill in ANTHROPIC_API_KEY, OPENAI_API_KEY, LIGHTHOUSE_PROPOSAL_API_KEY
+docker run -d --name lighthouse \
+  -p 8000:8000 \
+  -e LIGHTHOUSE_PG_URL=postgresql://user:pw@host:5432/lighthouse \
+  -e LIGHTHOUSE_SECRETS_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())") \
+  -e LIGHTHOUSE_ADMIN_TOKEN=$(openssl rand -base64 32) \
+  -e OPENAI_API_KEY=sk-… \
+  ghcr.io/elmundiua/lighthouse:latest
 
-docker compose -f infra/docker-compose.yml up -d   # Neo4j on bolt://localhost:7687
-pip install -e ".[dev]"
-uvicorn lighthouse.api.main:app --reload
-```
-
-Neo4j browser is on http://localhost:7474 — default creds `neo4j` /
-`neo4j_dev_password` (change in compose + `.env` before exposing anywhere).
-
-Then:
-
-```bash
 curl http://localhost:8000/health
-curl 'http://localhost:8000/search?q=hello&top_k=5'
+open http://localhost:8000/docs           # Swagger UI
 ```
 
-## Ingesting content
+Full walkthrough: [`docs/getting-started.md`](docs/getting-started.md).
 
-```bash
-# A local directory of markdown files
-lighthouse ingest markdown ./docs
+## Programmatic use
 
-# One or more web pages (BeautifulSoup-parsed; no JS rendering)
-lighthouse ingest web https://example.com/post1 https://example.com/post2
+```ts
+import { createClient } from "@lighthouse/client";
 
-# Doc files from a GitHub repo (.md / .rst / .mdx / .txt by default)
-GITHUB_TOKEN=ghp_... lighthouse ingest github fastapi/fastapi --branch master
+const lh = createClient({ baseUrl: "https://your-engine", token });
 
-# Restrict file types explicitly
-lighthouse ingest github encode/starlette --ext .md .rst
+const { hits } = await lh.search("OAuth 2.0 PKCE S256", { top_k: 5 });
+const imp = await lh.importers.create({
+  type: "sitemap",
+  name: "fastapi-docs",
+  recipe: "fastapi-docs",
+  config: { root: "https://fastapi.tiangolo.com", max_pages: 0 },
+});
+await lh.importers.run(imp.id);
 ```
 
-## MCP server (for AI clients)
+```python
+from lighthouse_client import AsyncLighthouse
+
+async with AsyncLighthouse("https://your-engine", token=tok) as lh:
+    stats = await lh.corpus_stats()
+    imp = await lh.create_importer(
+        type="sitemap", name="fastapi-docs", recipe="fastapi-docs",
+        config={"root": "https://fastapi.tiangolo.com", "max_pages": 0},
+    )
+    await lh.run_importer(imp.id)
+```
+
+## MCP
 
 ```bash
-# Desktop clients (Claude Desktop, Cursor) spawn this over stdio
+# Local stdio (Claude Desktop, Cursor)
 lighthouse mcp
 
-# Remote agents use HTTP transports
-lighthouse mcp --transport http --port 8765
+# HTTP transport — already mounted at /mcp/ when the API is running
+# Point your MCP client at: https://your-engine/mcp/
 ```
+
+## Documentation
+
+| Doc | What it covers |
+|---|---|
+| [`docs/getting-started.md`](docs/getting-started.md) | Boot an engine, first call, first importer. |
+| [`docs/api.md`](docs/api.md) | REST endpoint catalog. |
+| [`docs/webhooks.md`](docs/webhooks.md) | Event payloads + HMAC signing + retry. |
+| [`docs/sdk-ts.md`](docs/sdk-ts.md) | TypeScript SDK reference. |
+| [`docs/sdk-python.md`](docs/sdk-python.md) | Python SDK reference. |
+| [`docs/role-recipes.md`](docs/role-recipes.md) | Recipe authoring. |
+| [`docs/flat-rag-migration.md`](docs/flat-rag-migration.md) | Retrieval engine internals. |
+
+Interactive Swagger UI ships at `/docs` on every engine; full
+OpenAPI schema at `/openapi.json` (also committed at
+[`sdk/openapi.json`](sdk/openapi.json)).
 
 ## License
 
-Apache 2.0 — see [LICENSE](./LICENSE).
+Apache-2.0. Curated corpus shipped on the hosted SaaS is separate
+and not included in this repo.

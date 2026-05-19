@@ -48,6 +48,13 @@ const ok = await verifyWebhookSignature(
 );
 ```
 
+## Full reference
+
+End-to-end guide with every method + receiver patterns + error
+handling: [`docs/sdk-ts.md`](../../docs/sdk-ts.md). API endpoint
+catalog: [`docs/api.md`](../../docs/api.md). Webhook protocol:
+[`docs/webhooks.md`](../../docs/webhooks.md).
+
 ## Re-generating types
 
 The TS interface mirrors the running API. After any engine change:
