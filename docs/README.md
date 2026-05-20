@@ -1,14 +1,15 @@
 # Lighthouse Engine documentation
 
-Stack-deep technical docs for operators and integrators. Marketing
-pages live at [lighthouse.harborgang.com](https://lighthouse.harborgang.com).
+Stack-deep technical docs for integrators. Marketing pages live at
+[lighthouse.harborgang.com](https://lighthouse.harborgang.com).
+Operator-side guides (Compose, Helm, Postgres providers, backups,
+upgrades) live at [harborgang.com/whafr](https://harborgang.com/whafr).
 
 ## Start here
 
 | Doc | What it covers |
 |---|---|
-| [`getting-started.md`](getting-started.md) | Stand up an engine; first call; first importer. |
-| [`deployment.md`](deployment.md) | Compose vs Helm, Postgres providers, backups, upgrades. |
+| [`getting-started.md`](getting-started.md) | First call, first importer (assumes a running engine). |
 | [`api.md`](api.md) | REST endpoint catalog, auth posture, error shape, versioning. |
 | [`webhooks.md`](webhooks.md) | Event catalog, HMAC signing, retry semantics, idempotency. |
 | [`sdk-ts.md`](sdk-ts.md) | TypeScript client (`@lighthouse/client`) — full reference. |

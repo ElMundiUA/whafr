@@ -1,7 +1,10 @@
 # Getting started with Lighthouse Engine
 
-Stand up an engine, point a client at it, run your first search.
-Five minutes from clone to citation.
+Point a client at a running engine and make your first call. If you
+need to *bring* an engine up first, the operator-side walkthrough lives
+on [harborgang.com/whafr](https://harborgang.com/whafr) — Compose, Helm,
+Postgres providers, backups, upgrades. This page picks up after a
+healthy `/v1/health`.
 
 ## Deployment model
 
@@ -18,18 +21,6 @@ Components:
 - **(optional) cross-encoder** — reranker; falls back to BM25+vector
   blend if absent.
 
-## Run with Docker
-
-```bash
-docker run -d --name lighthouse \
-  -p 8000:8000 \
-  -e LIGHTHOUSE_PG_URL=postgresql://user:pw@host:5432/lighthouse \
-  -e LIGHTHOUSE_SECRETS_KEY=$(python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())") \
-  -e LIGHTHOUSE_ADMIN_TOKEN=$(openssl rand -base64 32) \
-  -e OPENAI_API_KEY=sk-… \
-  ghcr.io/elmundiua/lighthouse:latest
-```
-
 The container exposes:
 
 - `GET /health` — liveness
@@ -37,28 +28,13 @@ The container exposes:
 - `GET /openapi.json` — machine-readable schema
 - `POST /mcp/` — MCP transport, mount in any MCP client
 
-## Required environment
-
-| Var | Purpose | Required |
-|---|---|---|
-| `LIGHTHOUSE_PG_URL` | Postgres DSN (pgvector available) | yes |
-| `LIGHTHOUSE_SECRETS_KEY` | Fernet master key for encrypted importer secrets | yes (any importer that stores tokens) |
-| `LIGHTHOUSE_ADMIN_TOKEN` | Shared bearer token for `/v1/*` admin surface | yes (any non-public deployment) |
-| `OPENAI_API_KEY` | Embeddings + chunk summarisation | yes |
-| `OPENROUTER_API_KEY` | Alternative LLM provider | optional |
-| `ANTHROPIC_API_KEY` | Cross-encoder rerank, librarian | optional |
-| `LIGHTHOUSE_BACKEND` | `flat` (default) or `graphiti` | optional |
-
-Generate fresh values on first deploy and store them in your secret
-manager — there's no recovery if `LIGHTHOUSE_SECRETS_KEY` is lost (every
-encrypted importer config becomes garbage).
-
 ## First call
 
-Once the container is up:
+Assuming an engine running at `https://lighthouse.example.com` and the
+admin bearer you set at deploy time:
 
 ```bash
-export TOK=<the LIGHTHOUSE_ADMIN_TOKEN you set above>
+export TOK=<your admin token>
 
 # Public retrieval — no auth needed
 curl https://lighthouse.example.com/v1/search?q=OAuth+2.0+PKCE
@@ -114,3 +90,5 @@ Within a few minutes you'll see `status: success` with a non-zero
 - [`sdk-python.md`](sdk-python.md) — Python client.
 - [`role-recipes.md`](role-recipes.md) — what a recipe is, how to author one.
 - [`flat-rag-migration.md`](flat-rag-migration.md) — the retrieval engine internals.
+- [harborgang.com/whafr](https://harborgang.com/whafr) — operator
+  guide (Compose, Helm, env vars, secrets, upgrades).

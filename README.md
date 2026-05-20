@@ -17,6 +17,11 @@ Same code powers two products:
 
 Apache-2.0.
 
+> **Looking to run this?** Operator-side docs (Compose, Helm, K8s,
+> backups, upgrades) live on [harborgang.com/whafr](https://harborgang.com/whafr).
+> This repo carries the engine itself — code, SDKs, recipe authoring,
+> internals. Pin a `sha-*` tag from there.
+
 ## What's in here
 
 ```
@@ -27,53 +32,11 @@ src/lighthouse/
   importers/      Admin-managed importer layer + 30 adapters
   webhooks/       Outbound webhook dispatcher (HMAC, retry)
   mcp/            MCP server (streamable-http transport)
-infra/            Docker + k8s manifests
-web/              Astro public + admin frontend
 sdk/
   ts/             @lighthouse/client     — TypeScript SDK
   python/         lighthouse-client      — Python SDK
-docs/             Operator + integrator documentation
+docs/             Engine reference: API, SDKs, recipes, internals
 ```
-
-## Install
-
-### Local (Docker Compose)
-
-```bash
-cd compose/
-cp .env.example .env       # fill in keys
-docker compose up -d
-```
-
-Bundles Postgres + pgvector + API. Full walkthrough:
-[`compose/README.md`](compose/README.md).
-
-### Kubernetes (Helm)
-
-```bash
-helm install lighthouse charts/lighthouse \
-  --namespace lighthouse --create-namespace \
-  --set postgres.url=postgresql://user:pw@pg.svc:5432/lighthouse \
-  --set env.secretsKey=$(python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())') \
-  --set env.adminToken=$(openssl rand -base64 32) \
-  --set env.openaiKey=$OPENAI_API_KEY
-```
-
-BYO Postgres (Neon / RDS / CNPG / pgvector image — see
-[`docs/deployment.md`](docs/deployment.md)). Chart reference:
-[`charts/lighthouse/README.md`](charts/lighthouse/README.md).
-
-### One-shot Docker
-
-```bash
-docker run -d -p 8000:8000 \
-  -e LIGHTHOUSE_PG_URL=postgresql://… \
-  -e LIGHTHOUSE_SECRETS_KEY=… -e LIGHTHOUSE_ADMIN_TOKEN=… \
-  -e OPENAI_API_KEY=sk-… \
-  ghcr.io/elmundiua/lighthouse:latest
-```
-
-Full quickstart: [`docs/getting-started.md`](docs/getting-started.md).
 
 ## Programmatic use
 
@@ -118,8 +81,7 @@ lighthouse mcp
 
 | Doc | What it covers |
 |---|---|
-| [`docs/getting-started.md`](docs/getting-started.md) | Boot an engine, first call, first importer. |
-| [`docs/deployment.md`](docs/deployment.md) | Compose vs Helm, Postgres providers, backups, upgrades. |
+| [`docs/getting-started.md`](docs/getting-started.md) | First call, first importer. |
 | [`docs/api.md`](docs/api.md) | REST endpoint catalog. |
 | [`docs/webhooks.md`](docs/webhooks.md) | Event payloads + HMAC signing + retry. |
 | [`docs/sdk-ts.md`](docs/sdk-ts.md) | TypeScript SDK reference. |
