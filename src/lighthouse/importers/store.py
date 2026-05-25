@@ -137,6 +137,24 @@ async def get(
     return _row_to_importer(row) if row else None
 
 
+async def get_by_name(
+    conn: asyncpg.Connection, *, name: str, workspace_id: str
+) -> ImporterRow | None:
+    """Resolve one importer by its (workspace_id, name) pair — the
+    idempotency key the per-workspace provisioner uses."""
+    row = await conn.fetchrow(
+        """
+        SELECT id, type, name, description, recipe, config, secrets_enc,
+               enabled, status, workspace_id, last_run_at, last_error,
+               created_at, updated_at
+        FROM importers WHERE workspace_id = $1 AND name = $2
+        """,
+        workspace_id,
+        name,
+    )
+    return _row_to_importer(row) if row else None
+
+
 async def create(
     conn: asyncpg.Connection,
     *,

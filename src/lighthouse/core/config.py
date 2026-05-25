@@ -39,6 +39,18 @@ class Settings(BaseSettings):
     # an empty string makes every query raise at first use.
     lighthouse_pg_url: str = ""
 
+    # --- Per-workspace S3 ingestion ---
+    # When a workspace is set up, the engine provisions a per-workspace
+    # S3 importer pointed at ``s3://<bucket>/<workspace_id>/``. The
+    # bucket (and optional S3-compatible endpoint / IAM keys) are
+    # instance-level config; the prefix is derived from workspace_id.
+    # Leave secret empty to rely on the instance's IAM role / boto
+    # default credential chain.
+    lighthouse_workspace_s3_bucket: str = ""
+    lighthouse_workspace_s3_endpoint_url: str = ""
+    lighthouse_workspace_s3_access_id: str = ""
+    lighthouse_workspace_s3_access_secret: str = ""
+
     # --- API auth ---
     # Single shared key gates the proposal endpoint. Empty string means
     # "no auth" — fine for local dev, never for a public deployment.

@@ -42,6 +42,7 @@ async def test_migrations_apply_idempotently_with_workspace_default() -> None:
             "0001_baseline.sql",
             "0002_workspace_id.sql",
             "0003_importers.sql",
+            "0004_importer_workspace_name_unique.sql",
         ]
 
         col = await conn.fetchrow(

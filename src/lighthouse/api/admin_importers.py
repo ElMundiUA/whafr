@@ -30,7 +30,8 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from lighthouse.api.dependencies import get_pg_pool, get_workspace
-from lighthouse.importers import crypto, runner, store
+from lighthouse.core.config import get_settings
+from lighthouse.importers import crypto, provisioning, runner, store
 from lighthouse.importers.registry import list_importers, lookup_importer
 
 logger = logging.getLogger(__name__)
@@ -327,6 +328,30 @@ async def create_route(
             created_by=None,
             workspace_id=workspace_id,
         )
+    return _row_to_out(row)
+
+
+@router.post(
+    "/provision/s3",
+    response_model=ImporterOut,
+    dependencies=[Depends(_require_admin)],
+)
+async def provision_s3_route(
+    pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
+    workspace_id: Annotated[str, Depends(get_workspace)],
+) -> ImporterOut:
+    """Idempotently provision the per-workspace S3 importer for the
+    caller's workspace (from ``X-Workspace``). Safe to call on every
+    workspace setup — repeat calls return the existing importer."""
+    try:
+        async with pool.acquire() as conn:
+            row = await provisioning.provision_workspace_s3_importer(
+                conn, workspace_id=workspace_id, settings=get_settings()
+            )
+    except provisioning.ReservedWorkspaceError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except provisioning.ProvisioningConfigError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     return _row_to_out(row)
 
 
