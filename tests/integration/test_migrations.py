@@ -32,6 +32,8 @@ async def test_migrations_apply_idempotently_with_workspace_default() -> None:
     conn = await asyncpg.connect(_DSN)
     try:
         # Clean slate so the test is deterministic on a shared DB.
+        await conn.execute("DROP TABLE IF EXISTS webhook_deliveries CASCADE")
+        await conn.execute("DROP TABLE IF EXISTS webhooks CASCADE")
         await conn.execute("DROP TABLE IF EXISTS importer_runs CASCADE")
         await conn.execute("DROP TABLE IF EXISTS importers CASCADE")
         await conn.execute("DROP TABLE IF EXISTS chunks CASCADE")
@@ -43,6 +45,7 @@ async def test_migrations_apply_idempotently_with_workspace_default() -> None:
             "0002_workspace_id.sql",
             "0003_importers.sql",
             "0004_importer_workspace_name_unique.sql",
+            "0005_webhooks.sql",
         ]
 
         col = await conn.fetchrow(
@@ -79,6 +82,8 @@ async def test_migrations_apply_idempotently_with_workspace_default() -> None:
         )
         assert await conn.fetchval("SELECT workspace_id FROM chunks LIMIT 1") == "public"
     finally:
+        await conn.execute("DROP TABLE IF EXISTS webhook_deliveries CASCADE")
+        await conn.execute("DROP TABLE IF EXISTS webhooks CASCADE")
         await conn.execute("DROP TABLE IF EXISTS importer_runs CASCADE")
         await conn.execute("DROP TABLE IF EXISTS importers CASCADE")
         await conn.execute("DROP TABLE IF EXISTS chunks CASCADE")

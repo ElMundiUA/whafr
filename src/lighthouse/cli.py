@@ -29,6 +29,13 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("serve", help="Run the FastAPI app under uvicorn")
 
+    sub.add_parser(
+        "run-importers",
+        help="Run every enabled importer once (idle/error) then exit. "
+        "Intended for a scheduled CronJob — delta-skip makes re-runs of "
+        "unchanged sources cheap.",
+    )
+
     runner_cmd = sub.add_parser(
         "runner",
         help="Run the scheduled source-runner (drains configured sources on a schedule)",
@@ -146,6 +153,8 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "serve":
         return _serve()
+    if args.cmd == "run-importers":
+        return asyncio.run(_run_importers())
     if args.cmd == "mcp":
         return _mcp(args.transport, args.host, args.port)
     if args.cmd == "runner":
@@ -189,6 +198,50 @@ def _serve() -> int:
 
     uvicorn.run("lighthouse.api.main:app", host="0.0.0.0", port=8000, reload=False)
     return 0
+
+
+async def _run_importers() -> int:
+    """Run every enabled importer once, then exit. For a scheduled
+    CronJob: it pulls each configured source into the graph. Delta-skip
+    (has_unchanged_chunk) makes re-runs of unchanged sources cheap, so
+    running on a tight schedule is fine."""
+    import asyncpg
+
+    from lighthouse.core.config import get_settings
+    from lighthouse.core.flat_graph import _strip_neon_extras
+    from lighthouse.importers import runner
+
+    settings = get_settings()
+    if not settings.lighthouse_pg_url:
+        logger.error("LIGHTHOUSE_PG_URL not set — cannot run importers")
+        return 1
+    pool = await asyncpg.create_pool(
+        dsn=_strip_neon_extras(settings.lighthouse_pg_url),
+        min_size=1,
+        max_size=5,
+        command_timeout=120,
+        statement_cache_size=0,
+    )
+    try:
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT id FROM importers "
+                "WHERE enabled AND status IN ('idle', 'error') "
+                "ORDER BY updated_at"
+            )
+        ids = [r["id"] for r in rows]
+        logger.info("run-importers: %d importer(s) to run", len(ids))
+        ok = 0
+        for iid in ids:
+            try:
+                await runner.run_importer(pool, iid, triggered_by="cron")
+                ok += 1
+            except Exception:
+                logger.exception("run-importers: importer %s failed", iid)
+        logger.info("run-importers: %d/%d succeeded", ok, len(ids))
+        return 0
+    finally:
+        await pool.close()
 
 
 def _mcp(transport: str, host: str, port: int) -> int:
