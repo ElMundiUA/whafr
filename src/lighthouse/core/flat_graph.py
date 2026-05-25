@@ -40,6 +40,7 @@ from typing import Any
 
 from lighthouse.core.config import Settings, get_settings
 from lighthouse.core.graph import _split_episode_body
+from lighthouse.core.migrator import run_migrations
 
 logger = logging.getLogger(__name__)
 
@@ -113,147 +114,24 @@ class FlatGraph:
             self._pool = None
 
     async def initialize(self) -> None:
-        """Idempotent — creates schema + indexes if missing.
+        """Idempotent — applies any pending SQL migrations.
 
-        Also evolves the schema: adds ``summary`` / ``tags`` columns
-        and a boosted tsvector when missing, so existing deployments
-        don't need a manual migration. The boosted tsv is what
-        ``search(use_summary_boost=True)`` queries against — kept as
-        a separate column so the un-boosted retrieval still works
-        unchanged for clients that didn't opt in.
+        Schema now lives in versioned files under ``core/migrations/``
+        and is applied by :func:`run_migrations` (replaces the old
+        in-code CREATE/ALTER block). The runner serializes concurrent
+        boots with an advisory lock, so the previous per-index
+        try/except race guard is no longer needed. The ``0001`` baseline
+        is idempotent, so existing deployments migrate to the runner
+        transparently (every statement no-ops, the version is recorded).
         """
         if self._initialized:
             return
         pool = await self._pool_lazy()
-        dim = int(self._settings.openai_embedding_dim)
         async with pool.acquire() as conn:
-            # Extensions
-            await conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
-            # Table — column types chosen for cheap reads:
-            # `tsv` is a generated tsvector (no triggers).
-            await conn.execute(
-                f"""
-                CREATE TABLE IF NOT EXISTS chunks (
-                    uuid             UUID PRIMARY KEY,
-                    name             TEXT,
-                    source           TEXT NOT NULL,
-                    url              TEXT,
-                    content          TEXT NOT NULL,
-                    content_sha256   TEXT NOT NULL,
-                    full_body_sha256 TEXT,
-                    published_at     TIMESTAMPTZ,
-                    ingested_at      TIMESTAMPTZ DEFAULT now(),
-                    version          TEXT,
-                    superseded_by    UUID REFERENCES chunks(uuid)
-                                     ON DELETE SET NULL,
-                    chunk_index      INTEGER,
-                    chunk_count      INTEGER,
-                    embedding        vector({dim}),
-                    summary          TEXT,
-                    tags             TEXT,
-                    tsv              tsvector
-                                     GENERATED ALWAYS AS (
-                                         setweight(
-                                             to_tsvector('english',
-                                                 coalesce(name,'')),
-                                             'A')
-                                         || setweight(
-                                             to_tsvector('english',
-                                                 coalesce(content,'')),
-                                             'B')
-                                     ) STORED,
-                    tsv_boosted      tsvector
-                                     GENERATED ALWAYS AS (
-                                         setweight(
-                                             to_tsvector('english',
-                                                 coalesce(summary,'')),
-                                             'A')
-                                         || setweight(
-                                             to_tsvector('english',
-                                                 coalesce(tags,'')),
-                                             'A')
-                                         || setweight(
-                                             to_tsvector('english',
-                                                 coalesce(name,'')),
-                                             'B')
-                                         || setweight(
-                                             to_tsvector('english',
-                                                 coalesce(content,'')),
-                                             'C')
-                                     ) STORED
-                )
-                """
+            await run_migrations(
+                conn,
+                embedding_dim=int(self._settings.openai_embedding_dim),
             )
-            # Schema-evolve for existing deployments that pre-date
-            # the summary/keywords columns. ADD COLUMN IF NOT EXISTS
-            # is cheap, idempotent, and matches our test environment.
-            # ``keywords`` is the expansion field — synonyms / related
-            # terms / alternative phrasings the body itself doesn't
-            # mention but a real query might. We weight it the same as
-            # summary in the boosted tsvector so it can rescue queries
-            # that don't textually match the source.
-            for stmt in (
-                "ALTER TABLE chunks ADD COLUMN IF NOT EXISTS summary TEXT",
-                "ALTER TABLE chunks ADD COLUMN IF NOT EXISTS tags TEXT",
-                "ALTER TABLE chunks ADD COLUMN IF NOT EXISTS keywords TEXT",
-                # `recipes` carries which role-recipe slugs claim this
-                # source — multiple recipes routinely point at the same
-                # canonical doc (RFC 9110 is relevant to network,
-                # performance, and security). Membership is set-valued
-                # so a doc can belong to many recipes without being
-                # duplicated as separate rows.
-                "ALTER TABLE chunks ADD COLUMN IF NOT EXISTS recipes TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[]",
-                # ADD COLUMN with GENERATED clause is supported in
-                # PG 12+. We intentionally do NOT drop-recreate when
-                # the formula changes — that opens a "column does
-                # not exist" window where concurrent /search hits
-                # 500. If the formula needs to change, ship an
-                # explicit migration that ADDs the new column under
-                # a versioned name, switches readers, then drops the
-                # old one out-of-band.
-                """
-                ALTER TABLE chunks
-                ADD COLUMN IF NOT EXISTS tsv_boosted tsvector
-                GENERATED ALWAYS AS (
-                    setweight(to_tsvector('english', coalesce(summary,'')), 'A') ||
-                    setweight(to_tsvector('english', coalesce(keywords,'')), 'A') ||
-                    setweight(to_tsvector('english', coalesce(tags,'')), 'A') ||
-                    setweight(to_tsvector('english', coalesce(name,'')), 'B') ||
-                    setweight(to_tsvector('english', coalesce(content,'')), 'C')
-                ) STORED
-                """,
-            ):
-                try:
-                    await conn.execute(stmt)
-                except Exception as exc:  # noqa: BLE001
-                    logger.warning("schema evolve skipped: %s", exc)
-            # Indexes — guarded with IF NOT EXISTS AND wrapped in
-            # try/except. Even with the IF NOT EXISTS clause, two
-            # workers calling initialize() concurrently can both
-            # see "does not exist" and race into CREATE INDEX,
-            # producing a duplicate-key violation on pg_class. The
-            # try/except catches that without crashing whichever
-            # worker lost the race.
-            for idx_stmt in (
-                "CREATE INDEX IF NOT EXISTS chunks_tsv_gin ON chunks USING GIN (tsv)",
-                "CREATE INDEX IF NOT EXISTS chunks_tsv_boosted_gin ON chunks USING GIN (tsv_boosted)",
-                "CREATE INDEX IF NOT EXISTS chunks_source_published_idx ON chunks (source, published_at DESC)",
-                "CREATE INDEX IF NOT EXISTS chunks_full_body_sha_idx ON chunks (full_body_sha256)",
-                "CREATE INDEX IF NOT EXISTS chunks_published_at_idx ON chunks (published_at DESC) WHERE superseded_by IS NULL",
-                # GIN on recipes lets the search path filter chunks
-                # by role membership cheaply (recipes @> '{ml}').
-                "CREATE INDEX IF NOT EXISTS chunks_recipes_gin ON chunks USING GIN (recipes)",
-                # HNSW is the fast ANN index — cheap insert + fast
-                # query. ``vector_cosine_ops`` matches the OpenAI
-                # embed convention.
-                "CREATE INDEX IF NOT EXISTS chunks_embedding_hnsw_idx ON chunks USING hnsw (embedding vector_cosine_ops)",
-            ):
-                try:
-                    await conn.execute(idx_stmt)
-                except Exception as exc:  # noqa: BLE001
-                    # Tolerate the duplicate-key race; log anything
-                    # else.
-                    logger.info("index create skipped (likely race): %s", exc)
         self._initialized = True
 
     # ---- write path ----------------------------------------------------
