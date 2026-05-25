@@ -22,41 +22,54 @@ from lighthouse.api.dependencies import (
     get_proposal_store,
 )
 from lighthouse.api.main import create_app
-from lighthouse.core.graph import GraphNode, GraphSearchHit, KnowledgeGraph
+from lighthouse.core.flat_graph import FlatHit
 from lighthouse.librarian.agent import Librarian
 from lighthouse.proposals.queue import ProposalQueue
 from lighthouse.proposals.store import GitProposalStore
 
 
-class FakeGraph(KnowledgeGraph):
-    """In-memory stand-in for KnowledgeGraph.
+class FakeGraph:
+    """In-memory stand-in for :class:`FlatGraph` (duck-typed).
 
-    Tests configure ``search_hits`` and ``nodes`` then assert on what the
-    routes do with them. ``ingested`` is a write log so ingestion-path
-    tests can verify what the CLI actually passes through.
+    Tests configure ``search_hits`` then assert on what the routes /
+    MCP tools do with them. ``ingested`` is a write log so ingestion-path
+    tests can verify what was passed through. ``last_search_workspace``
+    captures the tenant the last search was scoped to.
     """
 
     def __init__(self) -> None:
-        # Skip parent __init__ — we don't want a real Settings load.
-        self.search_hits: list[GraphSearchHit] = []
-        self.nodes: dict[str, GraphNode] = {}
+        self.search_hits: list[FlatHit] = []
         self.ingested: list[dict[str, str]] = []
         self.last_search_workspace: str | None = None
         self.initialized = False
 
-    async def initialize(self) -> None:  # type: ignore[override]
+    async def initialize(self) -> None:
         self.initialized = True
 
-    async def search(  # type: ignore[override]
+    async def search(
         self, query: str, *, workspace_id: str = "public", top_k: int = 10
-    ) -> list[GraphSearchHit]:
+    ) -> list[FlatHit]:
         self.last_search_workspace = workspace_id
         return list(self.search_hits[:top_k])
 
-    async def fetch(self, node_id: str) -> GraphNode | None:  # type: ignore[override]
-        return self.nodes.get(node_id)
+    async def fetch(self, node_id: str, *, workspace_id: str = "public"):
+        # Flat-RAG has no entity layer — always None.
+        return None
 
-    async def upsert_episode(  # type: ignore[override]
+    async def fetch_source(self, chunk_id: str, *, workspace_id: str = "public"):
+        return None
+
+    async def has_unchanged_episode(
+        self,
+        source: str,
+        body_sha256: str,
+        recipe: str | None = None,
+        *,
+        workspace_id: str = "public",
+    ) -> bool:
+        return False
+
+    async def upsert_episode(
         self,
         *,
         name: str,
@@ -64,6 +77,7 @@ class FakeGraph(KnowledgeGraph):
         source: str,
         workspace_id: str = "public",
         reference_time: datetime | None = None,
+        recipe: str | None = None,
     ) -> str:
         self.ingested.append(
             {
@@ -76,7 +90,7 @@ class FakeGraph(KnowledgeGraph):
         )
         return f"fake-episode-{len(self.ingested)}"
 
-    async def close(self) -> None:  # type: ignore[override]
+    async def close(self) -> None:
         pass
 
 

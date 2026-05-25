@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from lighthouse.core.graph import GraphNode, GraphSearchHit
+from lighthouse.core.flat_graph import FlatHit
 from lighthouse.mcp.server import build_server
 from tests.conftest import FakeGraph
 
@@ -37,59 +37,39 @@ async def test_mcp_lists_all_four_tools(server_with_fake) -> None:
     assert names == {"search", "fetch_entity", "fetch_source", "propose"}
 
 
-async def test_mcp_search_marshals_graph_hits(server_with_fake) -> None:
+async def test_mcp_search_marshals_flat_hits(server_with_fake) -> None:
     server, fake = server_with_fake
     fake.search_hits = [
-        GraphSearchHit(
-            node_id="edge-1",
-            summary="Lighthouse runs on FalkorDB.",
-            source_node_uuid="lh-node",
-            target_node_uuid="fdb-node",
-            valid_from=datetime(2026, 1, 1, tzinfo=UTC),
+        FlatHit(
+            node_id="chunk-1",
+            summary="Lighthouse runs on Postgres + pgvector.",
+            source="https://example.com/doc",
+            published_at=datetime(2026, 1, 1, tzinfo=UTC),
+            episode_ids=["chunk-1"],
         ),
     ]
 
-    result = await server.call_tool("search", {"query": "graph backend", "top_k": 5})
+    result = await server.call_tool("search", {"query": "backend", "top_k": 5})
 
-    # FastMCP returns (content_blocks, structured_dict) when a tool
-    # produces typed output; assert on the structured payload which
-    # is the canonical shape MCP clients consume.
+    # FastMCP returns (content_blocks, structured_dict). A BaseModel
+    # return (McpSearchResponse) serialises its fields at the top level,
+    # so hits live under "hits".
     _, structured = result
-    hits = structured["result"]
+    hits = structured["hits"]
     assert len(hits) == 1
-    assert hits[0]["node_id"] == "edge-1"
-    assert "FalkorDB" in hits[0]["summary"]
-    assert hits[0]["source_node_id"] == "lh-node"
+    assert hits[0]["node_id"] == "chunk-1"
+    assert "pgvector" in hits[0]["summary"]
     assert hits[0]["valid_from"] == "2026-01-01T00:00:00+00:00"
+    # No entity layer in flat-RAG.
+    assert hits[0]["source_node_id"] is None
+    assert hits[0]["episode_ids"] == ["chunk-1"]
 
 
-async def test_mcp_fetch_returns_node(server_with_fake) -> None:
-    server, fake = server_with_fake
-    fake.nodes["n-1"] = GraphNode(
-        node_id="n-1",
-        name="Neo4j",
-        summary="A property graph database used as Lighthouse's default backend.",
-        labels=["Entity", "Database"],
-        attributes={"license": "GPLv3"},
-    )
-
-    result = await server.call_tool("fetch_entity", {"node_id": "n-1"})
-    _, structured = result
-    # FastMCP wraps single-object returns under "result" for parity
-    # with list returns. Unwrap before asserting.
-    node = structured["result"]
-    assert node["node_id"] == "n-1"
-    assert node["name"] == "Neo4j"
-    assert "Database" in node["labels"]
-    assert node["attributes"]["license"] == "GPLv3"
-
-
-async def test_mcp_fetch_entity_returns_null_when_missing(server_with_fake) -> None:
+async def test_mcp_fetch_entity_is_inert(server_with_fake) -> None:
+    # Flat-RAG has no entity layer — fetch_entity always returns null.
     server, _ = server_with_fake
-    result = await server.call_tool("fetch_entity", {"node_id": "missing"})
+    result = await server.call_tool("fetch_entity", {"node_id": "anything"})
     _, structured = result
-    # FastMCP wraps a None return into {"result": None} when the
-    # function's declared return type is Optional.
     assert structured.get("result") is None
 
 

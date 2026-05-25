@@ -57,16 +57,6 @@ def main(argv: list[str] | None = None) -> int:
         help="Max parallel source ingests. Sitemap connector is polite "
         "by default (per-source rate_limit_per_sec=1.0).",
     )
-    runner_cmd.add_argument(
-        "--backend",
-        choices=["graphiti", "flat"],
-        default="graphiti",
-        help="Which retrieval backend to upsert into. 'graphiti' keeps "
-        "the legacy Neo4j path (default — production). 'flat' uses "
-        "the new pgvector path (LIGHTHOUSE_PG_URL). Both can run "
-        "side-by-side during the A/B comparison; do not delete the "
-        "other while comparing.",
-    )
 
     mcp_cmd = sub.add_parser("mcp", help="Run the MCP server (for AI clients)")
     mcp_cmd.add_argument(
@@ -78,14 +68,6 @@ def main(argv: list[str] | None = None) -> int:
     )
     mcp_cmd.add_argument("--host", default="127.0.0.1")
     mcp_cmd.add_argument("--port", type=int, default=8765)
-    mcp_cmd.add_argument(
-        "--backend",
-        choices=["graphiti", "flat"],
-        default="flat",
-        help="Retrieval backend. 'flat' (default, production) reads "
-        "chunks from pgvector with summary + keywords + reranker. "
-        "'graphiti' reads :Episodic from Neo4j (legacy).",
-    )
 
     ingest = sub.add_parser("ingest", help="Drain a source into the graph")
     ingest_sub = ingest.add_subparsers(dest="source", required=True)
@@ -138,35 +120,24 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Optional markdown summary alongside JSON",
     )
-    audit.add_argument(
-        "--backend",
-        choices=["graphiti", "flat"],
-        default="graphiti",
-        help="Backend to audit. 'graphiti' (default) reads :Episodic "
-        "from Neo4j; 'flat' reads chunks from pgvector. Used during "
-        "the A/B comparison to score the same canonical queries "
-        "against both engines.",
-    )
     # Boost + reranker default to on — matches production search
-    # behaviour. ``--no-*`` flags are for measuring the lift of
-    # each layer (boost-only, no-boost) during A/B tuning.
+    # behaviour. ``--no-*`` flags are for measuring the lift of each
+    # layer (boost-only, no-boost) during tuning.
     audit.add_argument(
         "--no-summary-boost",
         dest="use_summary_boost",
         action="store_false",
         default=True,
-        help="Flat-only: disable the tsv_boosted column for this run. "
-        "Default is ON; pass this to measure the boost lift. "
-        "Ignored when --backend=graphiti.",
+        help="Disable the tsv_boosted column for this run. Default is "
+        "ON; pass this to measure the boost lift.",
     )
     audit.add_argument(
         "--no-reranker",
         dest="use_reranker",
         action="store_false",
         default=True,
-        help="Flat-only: disable the post-hybrid gpt-4o-mini reranker. "
-        "Default is ON; pass this to measure rerank lift. Ignored "
-        "when --backend=graphiti.",
+        help="Disable the post-hybrid gpt-4o-mini reranker. Default is "
+        "ON; pass this to measure rerank lift.",
     )
 
     args = parser.parse_args(argv)
@@ -176,7 +147,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.cmd == "serve":
         return _serve()
     if args.cmd == "mcp":
-        return _mcp(args.transport, args.host, args.port, args.backend)
+        return _mcp(args.transport, args.host, args.port)
     if args.cmd == "runner":
         return asyncio.run(
             _runner(
@@ -184,7 +155,6 @@ def main(argv: list[str] | None = None) -> int:
                 once=args.once,
                 heartbeat=args.heartbeat,
                 max_concurrent=args.max_concurrent,
-                backend=args.backend,
             )
         )
     if args.cmd == "ingest":
@@ -205,7 +175,6 @@ def main(argv: list[str] | None = None) -> int:
                 top_k=args.top_k,
                 out_path=args.out,
                 summary_path=args.summary,
-                backend=args.backend,
                 use_summary_boost=args.use_summary_boost,
                 use_reranker=args.use_reranker,
             )
@@ -222,25 +191,17 @@ def _serve() -> int:
     return 0
 
 
-def _mcp(transport: str, host: str, port: int, backend: str = "flat") -> int:
+def _mcp(transport: str, host: str, port: int) -> int:
     from pathlib import Path
 
     from lighthouse.core.config import get_settings
+    from lighthouse.core.flat_graph import FlatGraph
     from lighthouse.librarian.agent import Librarian
     from lighthouse.mcp.server import run_http, run_stdio
     from lighthouse.proposals.store import GitProposalStore
 
     settings = get_settings()
-    if backend == "flat":
-        from lighthouse.core.flat_graph import FlatGraph
-
-        graph: Any = FlatGraph(settings)
-        logger.info("MCP serving FLAT backend (pgvector)")
-    else:
-        from lighthouse.core.graph import KnowledgeGraph
-
-        graph = KnowledgeGraph(settings)
-        logger.info("MCP serving GRAPHITI backend (Neo4j)")
+    graph: Any = FlatGraph(settings)
     store = GitProposalStore(Path(settings.lighthouse_proposals_dir))
     librarian = Librarian(settings)
 
@@ -264,9 +225,9 @@ async def _runner(
     once: bool,
     heartbeat: float,
     max_concurrent: int,
-    backend: str = "graphiti",
 ) -> int:
     from lighthouse.core.config import get_settings
+    from lighthouse.core.flat_graph import FlatGraph
     from lighthouse.runner import SourceScheduler, StateStore, load_config
 
     settings = get_settings()
@@ -276,17 +237,7 @@ async def _runner(
         logger.warning("no sources configured in %s — nothing to do", cfg_path)
         return 0
 
-    if backend == "flat":
-        from lighthouse.core.flat_graph import FlatGraph
-
-        graph: Any = FlatGraph(settings)
-        logger.info("runner using FLAT backend (pgvector)")
-    else:
-        from lighthouse.core.graph import KnowledgeGraph
-
-        graph = KnowledgeGraph(settings)
-        logger.info("runner using GRAPHITI backend (Neo4j)")
-
+    graph: Any = FlatGraph(settings)
     state = StateStore(Path(settings.lighthouse_runner_state))
     scheduler = SourceScheduler(
         config,

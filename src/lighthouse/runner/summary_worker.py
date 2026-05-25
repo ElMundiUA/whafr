@@ -43,6 +43,8 @@ async def main(
         MODEL,
         OPENROUTER_BASE,
         PROMPT,
+    )
+    from lighthouse.core.enrichment import (
         parse as parse_enrichment,
     )
     from lighthouse.core.flat_graph import FlatGraph

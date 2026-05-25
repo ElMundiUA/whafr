@@ -30,20 +30,20 @@ router = APIRouter(tags=["retrieval"])
 
 
 class SearchHit(BaseModel):
-    """One fact returned by ``/search``.
+    """One chunk returned by ``/search``.
 
-    A fact is a graph edge — a one-line statement relating two entities
-    (``source_node_id`` and ``target_node_id``) extracted from a source
-    chunk (``episode_ids``). Clients that want more context either
-    drill into an entity via ``/fetch_entity`` or — usually preferred —
-    pull the original paragraph via ``/fetch_source``.
+    ``summary`` is the chunk's heading + snippet; ``episode_ids`` carries
+    the chunk uuid — feed it to ``/fetch_source`` for the full text.
+    ``source_node_id`` / ``target_node_id`` / ``valid_until`` are retained
+    for wire compatibility but are always null (flat-RAG has no entity
+    layer).
     """
 
     node_id: str
     summary: str
     source: str | None = None
     """Upstream identifier — a URL or github-tree ref. Lets clients
-    link to the original. ``None`` for legacy graphiti hits."""
+    link to the original."""
     source_node_id: str | None = None
     target_node_id: str | None = None
     valid_from: str | None = None
@@ -86,26 +86,18 @@ async def search(
     top_k: Annotated[int, Query(ge=1, le=50)] = 10,
 ) -> SearchResponse:
     hits = await graph.search(q, top_k=top_k, workspace_id=workspace_id)
-    # Build response from whichever hit type the engine returned —
-    # GraphSearchHit (Graphiti) carries entity uuids; FlatHit
-    # (pgvector) doesn't have an entity layer so those fields are
-    # None. valid_from/valid_until map to GraphSearchHit timestamps
-    # OR FlatHit.published_at, depending on engine.
+    # Flat-RAG hits are chunks: no entity layer, so source_node_id /
+    # target_node_id / valid_until stay None. valid_from carries the
+    # chunk's published_at.
     return SearchResponse(
         query=q,
         hits=[
             SearchHit(
                 node_id=h.node_id,
                 summary=h.summary,
-                source=getattr(h, "source", None),
-                source_node_id=getattr(h, "source_node_uuid", None) or None,
-                target_node_id=getattr(h, "target_node_uuid", None) or None,
-                valid_from=_iso_or_none(
-                    getattr(h, "valid_from", None)
-                    or getattr(h, "published_at", None)
-                ),
-                valid_until=_iso_or_none(getattr(h, "valid_until", None)),
-                episode_ids=list(getattr(h, "episode_ids", []) or []),
+                source=h.source,
+                valid_from=_iso_or_none(h.published_at),
+                episode_ids=list(h.episode_ids),
             )
             for h in hits
         ],

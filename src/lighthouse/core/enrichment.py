@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import re
 
-
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
 MODEL = "qwen/qwen-2.5-7b-instruct"
 

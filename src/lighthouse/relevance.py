@@ -1,15 +1,15 @@
 """Cheap-LLM relevance gate.
 
-Sits between the connector's :class:`SourceDocument` stream and
-Graphiti's expensive entity-extraction call. Decides per-doc whether
-the content is worth ingesting at all — runs a tiny ``gpt-4o-mini``
-(or whichever ``RELEVANCE_GATE_MODEL`` is set to) classification call
-that costs fractions of a cent per doc.
+Sits between the connector's :class:`SourceDocument` stream and the
+engine's embedding pass. Decides per-doc whether the content is worth
+ingesting at all — runs a tiny ``gpt-4o-mini`` (or whichever
+``RELEVANCE_GATE_MODEL`` is set to) classification call that costs
+fractions of a cent per doc.
 
-The economic argument: Graphiti's ``add_episode`` typically costs
-~$0.005-0.02 per doc (extraction + embedding). The gate costs
-~$0.0002. Filtering out 20% off-topic crawl noise pays for the gate
-~10x over.
+The economic argument: embedding a doc (chunk splits × embedding
+calls) costs more than the gate's single ~$0.0002 classification.
+Filtering out 20% off-topic crawl noise pays for the gate many times
+over on whole-site crawls.
 
 The gate is opt-in via ``RELEVANCE_GATE_ENABLED=true``. Reason:
 hand-curated source lists (the ``web`` connector with explicit URLs)

@@ -23,7 +23,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from lighthouse.core.graph import KnowledgeGraph
+from lighthouse.core.flat_graph import FlatGraph
 from lighthouse.librarian.agent import Librarian
 from lighthouse.proposals.store import GitProposalStore
 from lighthouse.proposals.worker import process_proposal
@@ -45,7 +45,7 @@ class ProposalQueue:
         *,
         store: GitProposalStore,
         librarian: Librarian,
-        graph: KnowledgeGraph,
+        graph: FlatGraph,
         max_concurrent: int = 4,
     ) -> None:
         self._store = store

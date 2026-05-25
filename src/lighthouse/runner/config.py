@@ -23,7 +23,6 @@ from pydantic import BaseModel, Field, field_validator
 
 from lighthouse.connectors.base import Connector
 
-
 # --- duration parsing ---------------------------------------------------
 
 

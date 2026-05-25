@@ -14,7 +14,7 @@ import logging
 from typing import Any
 
 from lighthouse.connectors.base import Connector
-from lighthouse.core.graph import KnowledgeGraph
+from lighthouse.core.flat_graph import FlatGraph
 from lighthouse.relevance import RelevanceGate
 
 logger = logging.getLogger(__name__)
@@ -25,30 +25,29 @@ async def drain(
     *,
     source_prefix: str,
     workspace_id: str,
-    graph: KnowledgeGraph | Any | None = None,
+    graph: FlatGraph | Any | None = None,
     gate: RelevanceGate | None = None,
 ) -> int:
-    """Run ``connector.ingest()`` and upsert each document as an episode.
+    """Run ``connector.ingest()`` and upsert each document into the graph.
 
     ``graph`` is a parameter so a long-running process (like the
-    scheduler) can share one graph instance across many drains instead
+    scheduler) can share one engine instance across many drains instead
     of opening/closing on each. When ``graph`` is ``None`` we open and
     close one ourselves — matches the one-shot CLI flow.
 
-    ``gate`` is an optional :class:`RelevanceGate`. When enabled it
-    runs a cheap LLM classifier on every doc before paying for full
-    entity extraction — useful for whole-site crawls where 20-40% of
-    pages are nav/marketing/error noise. Disabled gate is a no-op,
-    so curated URL lists pay nothing.
+    ``gate`` is an optional :class:`RelevanceGate`. When enabled it runs
+    a cheap LLM classifier on every doc before ingest — useful for
+    whole-site crawls where 20-40% of pages are nav/marketing/error
+    noise. Disabled gate is a no-op, so curated URL lists pay nothing.
 
-    Delta-ingest: before paying for Graphiti's LLM extraction, we hash
-    the new body and ask the graph layer whether the same source URL
-    already has an episode with that exact content hash. If yes, skip
-    the upsert entirely — recurrent ingest of unchanged sources costs
-    ~one Neo4j read instead of N OpenAI calls.
+    Delta-ingest: before re-embedding, we hash the body and ask the
+    engine whether the same source already has a chunk with that exact
+    content hash in this workspace. If yes, skip the upsert entirely —
+    recurrent ingest of unchanged sources costs ~one indexed read
+    instead of N OpenAI embedding calls.
     """
     owns_graph = graph is None
-    g = graph or KnowledgeGraph()
+    g = graph or FlatGraph()
     if owns_graph:
         await g.initialize()
     relevance = gate or RelevanceGate()
@@ -100,13 +99,10 @@ async def drain(
                     workspace_id=workspace_id,
                 )
             except Exception:
-                # Graphiti can raise Pydantic ValidationError on the
-                # entity nodes it extracts (e.g. a numeric "name" that
-                # fails ``string_type``), an LLM rate limit, or a
-                # transient Neo4j error. Pre-fix, that killed the whole
-                # source — a single bad page would silently truncate
-                # ingest at the second URL of a 200-URL sitemap. Keep
-                # the loop alive and log the failure instead.
+                # An embedding rate-limit or a transient Postgres error
+                # shouldn't kill the whole crawl — a single bad page
+                # would otherwise truncate ingest at one URL of a
+                # 200-URL sitemap. Keep the loop alive and log instead.
                 failed += 1
                 logger.exception(
                     "upsert_episode failed for %s (skipping doc)",

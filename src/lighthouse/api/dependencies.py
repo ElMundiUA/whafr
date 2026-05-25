@@ -9,8 +9,6 @@ without monkey-patching modules.
 
 from __future__ import annotations
 
-import logging
-import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Any
@@ -22,8 +20,6 @@ from lighthouse.core.flat_graph import PUBLIC_WORKSPACE
 from lighthouse.librarian.agent import Librarian
 from lighthouse.proposals.queue import ProposalQueue
 from lighthouse.proposals.store import GitProposalStore
-
-logger = logging.getLogger(__name__)
 
 
 async def get_workspace(
@@ -42,30 +38,15 @@ async def get_workspace(
 
 @lru_cache(maxsize=1)
 def get_graph() -> Any:
-    """Process-singleton retrieval engine.
-
-    Picks the engine from ``LIGHTHOUSE_BACKEND`` env var:
-    - ``flat`` (default — production): pgvector with summary +
-      keywords + reranker. The Graphiti / Neo4j path is being
-      retired; see docs/flat-rag-migration.md.
-    - ``graphiti``: legacy :class:`KnowledgeGraph` against Neo4j.
-      Kept reachable for the deprecation window — flip the env back
-      to ``graphiti`` to roll back.
+    """Process-singleton retrieval engine (pgvector flat-RAG).
 
     Cached so every request reuses the same connection pool. Tests
-    override via ``app.dependency_overrides[get_graph]`` rather
-    than touching the cache.
+    override via ``app.dependency_overrides[get_graph]`` rather than
+    touching the cache.
     """
-    backend = os.environ.get("LIGHTHOUSE_BACKEND", "flat").lower()
-    if backend == "flat":
-        from lighthouse.core.flat_graph import FlatGraph
+    from lighthouse.core.flat_graph import FlatGraph
 
-        logger.info("API serving FLAT backend (pgvector)")
-        return FlatGraph()
-    from lighthouse.core.graph import KnowledgeGraph
-
-    logger.info("API serving GRAPHITI backend (Neo4j)")
-    return KnowledgeGraph()
+    return FlatGraph()
 
 
 @lru_cache(maxsize=1)

@@ -1,13 +1,12 @@
 """Smoke tests — boot the API in-process via TestClient against a fake
-graph. The real graph backend is exercised in
-``tests/integration/test_neo4j.py`` (gated behind
-``LIGHTHOUSE_INTEGRATION=1``)."""
+graph. The real pgvector backend is exercised in
+``tests/integration/`` (gated behind ``LIGHTHOUSE_TEST_PG_URL``)."""
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from lighthouse.core.graph import GraphNode, GraphSearchHit
+from lighthouse.core.flat_graph import FlatHit
 from lighthouse.librarian.agent import _parse_decision
 
 
@@ -19,18 +18,19 @@ def test_health_returns_ok(client) -> None:
     assert "version" in body
 
 
-def test_search_projects_graph_hits(client, fake_graph) -> None:
+def test_search_projects_hits(client, fake_graph) -> None:
     fake_graph.search_hits = [
-        GraphSearchHit(
-            node_id="edge-1",
+        FlatHit(
+            node_id="chunk-1",
             summary="FastAPI 0.115 supports lifespan context managers.",
-            source_node_uuid="node-a",
-            target_node_uuid="node-b",
-            valid_from=datetime(2025, 1, 1, tzinfo=UTC),
+            source="https://fastapi.tiangolo.com/",
+            published_at=datetime(2025, 1, 1, tzinfo=UTC),
+            episode_ids=["chunk-1"],
         ),
-        GraphSearchHit(
-            node_id="edge-2",
+        FlatHit(
+            node_id="chunk-2",
             summary="Pydantic v2 added ConfigDict.",
+            source="https://docs.pydantic.dev/",
         ),
     ]
 
@@ -39,15 +39,18 @@ def test_search_projects_graph_hits(client, fake_graph) -> None:
     body = r.json()
     assert body["query"] == "fastapi lifespan"
     assert len(body["hits"]) == 2
-    assert body["hits"][0]["node_id"] == "edge-1"
+    assert body["hits"][0]["node_id"] == "chunk-1"
     assert "lifespan" in body["hits"][0]["summary"]
-    assert body["hits"][0]["source_node_id"] == "node-a"
+    assert body["hits"][0]["source"] == "https://fastapi.tiangolo.com/"
     assert body["hits"][0]["valid_from"] == "2025-01-01T00:00:00+00:00"
+    # No entity layer in flat-RAG.
+    assert body["hits"][0]["source_node_id"] is None
 
 
 def test_search_respects_top_k(client, fake_graph) -> None:
     fake_graph.search_hits = [
-        GraphSearchHit(node_id=f"e-{i}", summary=f"fact {i}") for i in range(10)
+        FlatHit(node_id=f"c-{i}", summary=f"chunk {i}", source="s")
+        for i in range(10)
     ]
     r = client.get("/search", params={"q": "anything", "top_k": 3})
     assert r.status_code == 200
@@ -59,21 +62,10 @@ def test_search_rejects_empty_query(client) -> None:
     assert r.status_code == 422
 
 
-def test_fetch_returns_node(client, fake_graph) -> None:
-    fake_graph.nodes["n-1"] = GraphNode(
-        node_id="n-1",
-        name="FastAPI",
-        summary="An async Python web framework.",
-        labels=["Entity", "Framework"],
-        attributes={"language": "python"},
-    )
+def test_fetch_entity_is_inert_on_flat(client) -> None:
+    # Flat-RAG has no entity layer — fetch_entity always 404s.
     r = client.get("/fetch/n-1")
-    assert r.status_code == 200
-    body = r.json()
-    assert body["node_id"] == "n-1"
-    assert body["name"] == "FastAPI"
-    assert "Framework" in body["labels"]
-    assert body["attributes"]["language"] == "python"
+    assert r.status_code == 404
 
 
 def test_fetch_missing_returns_404(client) -> None:

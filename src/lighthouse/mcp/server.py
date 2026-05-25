@@ -1,10 +1,10 @@
 """MCP server adapter.
 
-Exposes three tools to MCP clients (Claude Desktop, Cursor, the Ship
+Exposes tools to MCP clients (Claude Desktop, Cursor, the Ship
 navigator, anything else that speaks MCP):
 
-- ``search`` — hybrid retrieval, returns ranked facts
-- ``fetch`` — pull one entity node by uuid
+- ``search`` — hybrid retrieval, returns ranked chunks
+- ``fetch_source`` — pull one chunk's full text by uuid
 - ``propose`` — submit a knowledge proposal for librarian review
 
 Why a separate adapter rather than the HTTP API doubling as MCP:
@@ -33,8 +33,7 @@ from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel, Field
 
-from lighthouse.core.flat_graph import PUBLIC_WORKSPACE
-from lighthouse.core.graph import KnowledgeGraph
+from lighthouse.core.flat_graph import PUBLIC_WORKSPACE, FlatGraph
 from lighthouse.librarian.agent import Librarian
 from lighthouse.proposals.queue import ProposalQueue
 from lighthouse.proposals.store import (
@@ -71,14 +70,11 @@ class McpSearchHit(BaseModel):
     """One hit returned by the ``search`` MCP tool.
 
     Mirrors :class:`lighthouse.api.retrieval.SearchHit` so MCP clients
-    and HTTP clients see the same shape. Kept as a distinct class so
-    the MCP wire format can evolve independently if a client needs
-    different framing.
-
-    Each hit is a *fact* (a graph edge) — a one-line natural-language
-    statement extracted from a source document. ``episode_ids`` are
-    the uuids of the source chunks the fact was extracted from; feed
-    one into ``fetch_source`` to read the original paragraphs.
+    and HTTP clients see the same shape. Each hit is an indexed chunk:
+    ``summary`` is its heading + snippet and ``episode_ids`` carries the
+    chunk uuid — feed it to ``fetch_source`` for the full text.
+    ``source_node_id`` / ``target_node_id`` / ``valid_until`` are kept
+    for wire compatibility but are always null (no entity layer).
     """
 
     node_id: str
@@ -107,18 +103,17 @@ class McpSearchResponse(BaseModel):
     the few hits are authoritative.
     """
 
-    hits: list["McpSearchHit"] = Field(default_factory=list)
+    hits: list[McpSearchHit] = Field(default_factory=list)
     coverage: Literal["ok", "thin", "empty"] = "ok"
     coverage_note: str = ""
 
 
 class McpEntity(BaseModel):
-    """One entity returned by ``fetch_fact``.
+    """Response shape of the ``fetch_entity`` compatibility tool.
 
-    A graph entity is the *thing* a fact talks about — a person, a
-    framework, a concept. Search returns facts whose summaries
-    reference entities by uuid; this tool resolves one of those uuids
-    to the entity's full record (name, summary, labels, attributes).
+    The flat-RAG engine has no entity layer, so ``fetch_entity`` always
+    returns null; this model is retained only so the tool's schema is
+    stable for older clients.
     """
 
     node_id: str
@@ -129,13 +124,11 @@ class McpEntity(BaseModel):
 
 
 class McpSource(BaseModel):
-    """One source chunk returned by ``fetch_source``.
+    """One chunk returned by ``fetch_source``.
 
-    A source is the raw ingested text the graph extracted facts and
-    entities from — typically a paragraph or short section of the
-    original article. Use this when a fact's one-line summary isn't
-    enough and you want the surrounding context in one shot rather
-    than chasing entities through multiple ``fetch_fact`` calls.
+    The raw ingested text — typically a paragraph or short section of
+    the original article. Use this when a search summary isn't enough
+    and you want the surrounding context in one shot.
     """
 
     episode_id: str
@@ -154,20 +147,14 @@ class McpProposalReceipt(BaseModel):
 
 
 def build_server(
-    graph: KnowledgeGraph | None = None,
+    graph: FlatGraph | None = None,
     *,
     store: GitProposalStore | None = None,
     librarian: Librarian | None = None,
     queue: ProposalQueue | None = None,
 ) -> FastMCP:
-    """Wire the FastMCP server against either the Graphiti
-    :class:`KnowledgeGraph` (legacy Neo4j path) or the
-    :class:`lighthouse.core.flat_graph.FlatGraph` (current
-    pgvector-backed flat-RAG path) — both expose ``search()`` and
-    ``fetch_source()`` with the same wire contract. The caller picks
-    the engine by passing the right instance.
-    """
-    """Wire a :class:`FastMCP` instance with all three tools.
+    """Wire a :class:`FastMCP` instance with all four tools against the
+    :class:`~lighthouse.core.flat_graph.FlatGraph` retrieval engine.
 
     Each dependency is a parameter so tests inject fakes without
     touching this module. Production constructs real instances in
@@ -178,7 +165,7 @@ def build_server(
     require the caller to wire the queue explicitly. Tests pass a fake
     queue to verify ``submit`` is called without spinning a real worker.
     """
-    g = graph or KnowledgeGraph()
+    g = graph or FlatGraph()
     s = store
     lib = librarian
     q = queue
@@ -188,29 +175,21 @@ def build_server(
     mcp = FastMCP(
         name="lighthouse",
         instructions=(
-            "Knowledge base for AI agents — a graph of facts extracted "
-            "from public SDLC reference material.\n\n"
+            "Knowledge base for AI agents — indexed chunks of public "
+            "SDLC reference material.\n\n"
             "Tools:\n"
-            "• `search(query, top_k)` — find facts. Returns ranked "
-            "one-line statements + each fact's source_node_id / "
-            "target_node_id (the entities it relates) and episode_ids "
-            "(the source chunks it came from).\n"
-            "• `fetch_entity(node_id)` — drill into ONE entity (person, "
-            "concept, framework) referenced by a fact. Cheap but only "
-            "returns name + summary + labels + attributes; usually you "
-            "don't need this unless the fact's summary is ambiguous.\n"
-            "• `fetch_source(episode_id)` — pull the ORIGINAL ingested "
-            "paragraph the fact was extracted from (a few KB). Prefer "
-            "this over multiple `fetch_entity` calls when the fact's "
-            "one-line summary isn't enough — one round-trip vs N.\n"
+            "• `search(query, top_k)` — hybrid (BM25 + vector + rerank) "
+            "retrieval. Returns ranked chunks: a `summary` (heading + "
+            "snippet) and an `episode_ids` uuid for each.\n"
+            "• `fetch_source(episode_id)` — pull a chunk's FULL text "
+            "(a few KB) by its `episode_ids` uuid. Use when a search "
+            "summary isn't enough.\n"
             "• `propose(content, type, ...)` — submit a knowledge "
             "proposal for the librarian's review queue. Poll status "
             "via GET /v1/proposals/{id} on the HTTP API.\n\n"
-            "Typical flow: one `search` → scan summaries → if the fact "
-            "summary suffices, use it. If you need more, `fetch_source` "
-            "on the best hit's episode_ids[0] — one call gets you the "
-            "full context. Use `fetch_entity` only when you specifically "
-            "need an entity's other attributes."
+            "Typical flow: one `search` → scan summaries → if a summary "
+            "suffices, use it; otherwise `fetch_source` on that hit's "
+            "episode_ids[0] for the full chunk."
         ),
         # We sit behind a TLS-terminating ingress that already validates
         # the Host header. FastMCP's auto-enabled DNS rebinding protection
@@ -224,17 +203,14 @@ def build_server(
     @mcp.tool(
         name="search",
         description=(
-            "Find facts in the knowledge base by natural-language query. "
-            "Hybrid retrieval: BM25 + vector similarity + cross-encoder "
-            "rerank. Each hit is one *fact* (a graph edge) — a single "
-            "natural-language statement extracted from a source. Fields:\n"
-            "• `node_id` — the fact's uuid\n"
-            "• `summary` — the one-line statement (e.g. 'X wrote Y')\n"
-            "• `source_node_id` / `target_node_id` — the entities the "
-            "fact relates; feed either into `fetch_entity`\n"
-            "• `episode_ids` — uuids of source chunks this fact came "
-            "from; feed one into `fetch_source` to read the original "
-            "paragraph.\n\n"
+            "Find relevant chunks in the knowledge base by "
+            "natural-language query. Hybrid retrieval: BM25 + vector "
+            "similarity + cross-encoder rerank. Each hit is one indexed "
+            "chunk. Fields:\n"
+            "• `node_id` — the chunk's uuid\n"
+            "• `summary` — the chunk's heading + snippet\n"
+            "• `episode_ids` — the chunk uuid; feed it to `fetch_source` "
+            "to read the full text\n\n"
             "Use 3-7 word natural queries. Lower `top_k` (default 10) "
             "if you only need the strongest match."
         ),
@@ -249,20 +225,20 @@ def build_server(
             McpSearchHit(
                 node_id=h.node_id,
                 summary=h.summary,
-                source_node_id=h.source_node_uuid or None,
-                target_node_id=h.target_node_uuid or None,
-                valid_from=h.valid_from.isoformat() if h.valid_from else None,
-                valid_until=h.valid_until.isoformat() if h.valid_until else None,
+                source_node_id=None,
+                target_node_id=None,
+                valid_from=(
+                    h.published_at.isoformat() if h.published_at else None
+                ),
+                valid_until=None,
                 episode_ids=list(h.episode_ids),
             )
             for h in hits
         ]
-        # Coverage heuristic — we don't expose raw cross-encoder scores
-        # (Graphiti's reranker already dropped sub-threshold ones), so
-        # use hit-count vs request as a proxy. Backed by audit data:
-        # domains we know are well-covered (Mobile, Security) routinely
-        # return ≥70 % of top_k; thinly-covered domains (Browser,
-        # Performance pre-Phase-9) return <40 %.
+        # Coverage heuristic — we don't expose raw cross-encoder scores,
+        # so use hit-count vs request as a proxy. Backed by audit data:
+        # well-covered domains (Mobile, Security) routinely return ≥70 %
+        # of top_k; thinly-covered domains return <40 %.
         if not wire_hits:
             coverage: Literal["ok", "thin", "empty"] = "empty"
             note = (
@@ -286,15 +262,10 @@ def build_server(
     @mcp.tool(
         name="fetch_entity",
         description=(
-            "Resolve one entity (person, concept, framework, tool) by "
-            "uuid. Use the `source_node_id` or `target_node_id` from a "
-            "prior `search` hit when the fact's one-line summary "
-            "references an entity you want more detail on (e.g. fact "
-            "'X wrote Y' → fetch_entity(uuid of Y) to see Y's other "
-            "attributes and labels).\n\n"
-            "Returns lightweight metadata (name, summary, labels, "
-            "attributes), NOT the source paragraph. For source text use "
-            "`fetch_source` — it's usually one call instead of several."
+            "Compatibility no-op on this corpus: the flat-RAG engine has "
+            "no entity layer, so this always returns null. Use "
+            "`fetch_source` with a search hit's `episode_ids` uuid to "
+            "read the underlying chunk instead."
         ),
     )
     async def fetch_entity(node_id: str) -> McpEntity | None:
@@ -312,16 +283,15 @@ def build_server(
     @mcp.tool(
         name="fetch_source",
         description=(
-            "Pull the original ingested paragraph a fact was extracted "
-            "from. Pass any uuid from a search hit's `episode_ids`.\n\n"
+            "Pull a chunk's full text. Pass the `episode_ids` uuid from "
+            "a search hit.\n\n"
             "Returns name, source URL, and content. By default truncates "
             "to ~6 KB to keep your context tight; pass `max_chars` to "
             "request a shorter (e.g. 1500 for frontier models that "
             "already know the topic well) or longer cap. A `truncated` "
             "flag on the response tells you when the body was cut.\n\n"
-            "Prefer this over multiple `fetch_entity` calls when a "
-            "fact's one-line summary is ambiguous or you need the "
-            "surrounding context. One round-trip vs N."
+            "Use this when a search summary is ambiguous or you need the "
+            "surrounding context."
         ),
     )
     async def fetch_source(
@@ -333,7 +303,7 @@ def build_server(
         if src is None:
             return None
         # Clamp to sane range — 200 chars is a single sentence (still
-        # useful for confirming a fact); 20 KB is the upper bound to
+        # useful for confirming a detail); 20 KB is the upper bound to
         # keep one fetch from blowing a 200 K context.
         cap = max(200, min(int(max_chars), 20000))
         body = src.content or ""
@@ -401,7 +371,7 @@ def build_server(
 
 
 def run_stdio(
-    graph: KnowledgeGraph | None = None,
+    graph: FlatGraph | None = None,
     *,
     store: GitProposalStore | None = None,
     librarian: Librarian | None = None,
@@ -419,7 +389,7 @@ def run_stdio(
 
 
 def run_http(
-    graph: KnowledgeGraph | None = None,
+    graph: FlatGraph | None = None,
     *,
     store: GitProposalStore | None = None,
     librarian: Librarian | None = None,

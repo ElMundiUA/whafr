@@ -70,7 +70,6 @@ async def run_audit(
     top_k: int,
     out_path: Path | None,
     summary_path: Path | None,
-    backend: str = "graphiti",
     use_summary_boost: bool = False,
     use_reranker: bool = False,
 ) -> int:
@@ -82,16 +81,9 @@ async def run_audit(
         logger.error("queries file must be a non-empty mapping {domain: [...]}: %s", queries_path)
         return 1
 
-    if backend == "flat":
-        from lighthouse.core.flat_graph import FlatGraph
+    from lighthouse.core.flat_graph import FlatGraph
 
-        graph: Any = FlatGraph()
-        logger.info("audit using FLAT backend (pgvector)")
-    else:
-        from lighthouse.core.graph import KnowledgeGraph
-
-        graph = KnowledgeGraph()
-        logger.info("audit using GRAPHITI backend (Neo4j)")
+    graph: Any = FlatGraph()
 
     # Concurrency cap — Claude judge call is the bottleneck; ~5 in
     # flight keeps p95 latency reasonable without rate-limiting.
@@ -171,15 +163,11 @@ async def _audit_one(
     use_summary_boost: bool = False,
     use_reranker: bool = False,
 ) -> QueryResult:
-    # Only FlatGraph supports use_summary_boost / use_reranker; the
-    # graphiti path would crash on unknown kwargs. Pass them only
-    # when FlatGraph is the engine (duck-checked via attribute).
     extra: dict = {}
-    if hasattr(graph, "has_unchanged_chunk"):
-        if use_summary_boost:
-            extra["use_summary_boost"] = True
-        if use_reranker:
-            extra["use_reranker"] = True
+    if use_summary_boost:
+        extra["use_summary_boost"] = True
+    if use_reranker:
+        extra["use_reranker"] = True
     async with sem:
         try:
             # The audit benches the public reference corpus.

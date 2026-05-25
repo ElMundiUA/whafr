@@ -19,26 +19,15 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # --- Graph backend (Neo4j 5.26 Community Edition) ---
-    # Neo4j replaced FalkorDB as the default backend in v0.2 for
-    # licensing reasons: Neo4j CE is GPLv3-licensed, FalkorDB is BSL
-    # (source-available, not OSS). Graphiti's Neo4jDriver speaks Bolt
-    # over the bolt:// URI scheme.
-    neo4j_uri: str = "bolt://localhost:7687"
-    neo4j_user: str = "neo4j"
-    neo4j_password: str = "neo4j_dev_password"
-    neo4j_database: str = "neo4j"
-
     # --- Anthropic (Librarian agent) ---
     anthropic_api_key: str = ""
     lighthouse_model_main: str = "claude-sonnet-4-6"
     lighthouse_model_fast: str = "claude-haiku-4-5-20251001"
 
-    # --- OpenAI (Graphiti entity extraction + embeddings) ---
-    # Graphiti needs both an LLM (for entity/relationship extraction
-    # during ingest) and an embedder (for vector retrieval). We use
-    # OpenAI for both today; Graphiti supports Gemini/Voyage/Anthropic
-    # variants if we want to swap later.
+    # --- OpenAI (embeddings + search-time reranker) ---
+    # The flat-RAG engine uses OpenAI for chunk/query embeddings
+    # (vector retrieval) and a small model (gpt-4o-mini) for the
+    # post-hybrid reranker and the relevance gate.
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
     openai_small_model: str = "gpt-4o-mini"
@@ -46,10 +35,8 @@ class Settings(BaseSettings):
     openai_embedding_dim: int = 1024
 
     # --- Flat-RAG (Postgres + pgvector) ---
-    # Dedicated Neon project. Empty string = flat path disabled;
-    # legacy Graphiti via NEO4J_* keeps running. Holding both is
-    # explicit so the A/B comparison runs against parallel
-    # backends, not a half-migrated state.
+    # The retrieval engine's database (Neon recommended). Required —
+    # an empty string makes every query raise at first use.
     lighthouse_pg_url: str = ""
 
     # --- API auth ---

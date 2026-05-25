@@ -15,9 +15,9 @@ session-manager task group, and drains both on shutdown — so SIGTERM
 in a container doesn't leave records stuck in ``evaluating`` or MCP
 sessions dangling.
 
-Tenant model: none. Isolation between Global and Project deployments
-is by running separate processes against separate Postgres+Neo4j
-stores.
+Tenant model: row-level. One engine + one Postgres serves many
+workspaces; every read/write carries a workspace_id (the reserved
+``public`` workspace holds the single-tenant reference corpus).
 """
 
 from __future__ import annotations

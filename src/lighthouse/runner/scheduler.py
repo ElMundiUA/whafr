@@ -31,10 +31,8 @@ logger = logging.getLogger(__name__)
 
 
 # ``drain`` injected for tests; defaults to the real ingest loop.
-# Graph type is Any so the scheduler works with either
-# :class:`lighthouse.core.graph.KnowledgeGraph` (Graphiti / Neo4j)
-# or :class:`lighthouse.core.flat_graph.FlatGraph` (pgvector). Both
-# expose the same surface ``drain()`` calls.
+# Graph type is Any (the :class:`~lighthouse.core.flat_graph.FlatGraph`
+# engine) so tests can swap a fake without importing it here.
 DrainFn = Callable[[Connector, Any, str], Awaitable[int]]
 
 

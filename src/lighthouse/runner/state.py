@@ -49,7 +49,7 @@ class RunState:
         }
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "RunState":
+    def from_dict(cls, d: dict[str, Any]) -> RunState:
         return cls(
             last_run_at=(
                 datetime.fromisoformat(d["last_run_at"])

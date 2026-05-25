@@ -9,8 +9,8 @@ sources no longer support.
 
 Implementation notes:
 
-- We use Anthropic directly (not Graphiti's internal LLM hook) because
-  the curator prompt is independent of the entity-extraction pipeline.
+- We use Anthropic directly for the curator prompt — it's independent
+  of the retrieval/ingest path.
 - Prompt caching is enabled on the system prompt: the rubric the
   Librarian uses is large and rarely changes, so subsequent proposals
   in the same 5-min window get a cache hit on the entire framing.

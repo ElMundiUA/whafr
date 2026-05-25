@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 
-from lighthouse.core.graph import KnowledgeGraph
+from lighthouse.core.flat_graph import FlatGraph
 from lighthouse.librarian.agent import Librarian
 from lighthouse.proposals.store import GitProposalStore, utc_now
 
@@ -31,7 +31,7 @@ async def process_proposal(
     *,
     store: GitProposalStore,
     librarian: Librarian,
-    graph: KnowledgeGraph,
+    graph: FlatGraph,
 ) -> None:
     """Drive one proposal through the full pipeline.
 

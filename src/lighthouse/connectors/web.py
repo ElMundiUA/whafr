@@ -131,8 +131,7 @@ class WebConnector(Connector):
 
         # Docling supports a one-shot conversion endpoint that takes a
         # remote URL and returns the converted document inline. We
-        # request markdown — Graphiti's entity extractor handles
-        # markdown well and we keep payloads small.
+        # request markdown — it embeds well and keeps payloads small.
         try:
             async with httpx.AsyncClient(timeout=180.0) as client:
                 resp = await client.post(

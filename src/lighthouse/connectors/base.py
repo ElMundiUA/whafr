@@ -33,10 +33,10 @@ def parse_publish_date(raw: str | None) -> datetime | None:
     that looks like a date can be extracted — better than dropping the
     document over a parse failure.
 
-    The downstream use is Graphiti's ``reference_time`` (episode
-    ``valid_at``) and a coarse "post-cutoff" tag for E22 — both can
-    tolerate day-resolution. We deliberately don't try to recover
-    hour/minute when only a date is present; that fakes precision.
+    The downstream use is the chunk's ``published_at`` and a coarse
+    "post-cutoff" tag — both can tolerate day-resolution. We
+    deliberately don't try to recover hour/minute when only a date is
+    present; that fakes precision.
     """
     if not raw:
         return None
@@ -78,12 +78,12 @@ def parse_publish_date(raw: str | None) -> datetime | None:
 
 @dataclass(slots=True)
 class SourceDocument:
-    """One unit of source content ready to feed into Graphiti as an episode.
+    """One unit of source content ready to feed into the engine.
 
-    Connectors are responsible for chunking — the graph layer does not
-    re-split. ``reference_time`` is the document's natural timestamp
-    (publish date for docs, commit time for code, etc.); Graphiti uses
-    it to age out earlier conflicting facts.
+    Connectors yield whole documents; the engine splits each body into
+    chunks at ingest. ``reference_time`` is the document's natural
+    timestamp (publish date for docs, commit time for code, etc.) and
+    becomes the chunk's ``published_at`` for time-aware filtering.
     """
 
     source_id: str
@@ -105,6 +105,6 @@ class Connector(Protocol):
 
         Implementations should be idempotent — re-running ``ingest()``
         on an unchanged source should produce the same ``source_id``
-        per document so Graphiti's dedup catches no-ops.
+        per document so the engine's delta-skip catches no-ops.
         """
         ...

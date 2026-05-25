@@ -1,31 +1,29 @@
-"""Flat-RAG graph adapter on Postgres + pgvector.
+"""Flat-RAG retrieval engine on Postgres + pgvector.
 
-A deliberately small alternative to :class:`KnowledgeGraph` that drops
-Graphiti's entity-relation extraction layer and keeps only what
-audit-evidence shows is actually load-bearing for retrieval:
+The single retrieval backend. Keeps only what audit-evidence shows is
+actually load-bearing for retrieval:
 
 - one ``chunks`` row per ingested document chunk
 - ``tsvector`` GIN index over ``name || content`` (BM25-ish via
   ``ts_rank_cd``)
 - ``vector(N)`` HNSW index over ``embedding`` (cosine)
 - ``published_at`` + optional ``version`` + optional
-  ``superseded_by`` for time-aware filtering — chunk-level
-  time-facts the Graphiti edge-level temporal invalidation never
-  meaningfully delivered for us.
+  ``superseded_by`` for time-aware filtering
 
 What this **doesn't** do (deliberate):
 - No entity extraction. Each ingest pass embeds the body and
   indexes it; no LLM call to enumerate entities/relations.
 - No cross-chunk dedup at extraction time. The chunk uuid is
-  derived from ``source_id`` + content hash so re-running an ingest
-  is idempotent without LLM-side gymnastics.
+  derived from ``workspace_id`` + ``source`` + content hash so
+  re-running an ingest is idempotent and tenant-isolated.
 - No "communities" / BFS / saga search recipes. Practical hybrid
   retrieval (BM25 + vector + RRF fusion) covers every query shape
   the bench actually uses.
 
-Lives in a separate Neon project — does not share a database with
-Ship or the Graphiti corpus. Switch between engines by env var;
-both can run simultaneously during the A/B comparison.
+Row-level multi-tenant: every read/write carries a mandatory
+``workspace_id`` and the chunk uuid folds it in, so one Postgres can
+serve many isolated workspaces (the reserved ``public`` workspace holds
+the single-tenant reference corpus).
 """
 
 from __future__ import annotations
@@ -39,15 +37,14 @@ from datetime import UTC, datetime
 from typing import Any
 
 from lighthouse.core.config import Settings, get_settings
-from lighthouse.core.graph import _split_episode_body
 from lighthouse.core.migrator import run_migrations
 
 logger = logging.getLogger(__name__)
 
 
-# Same default cap as the Graphiti path (fits comfortably in any
-# embedder's token budget). Re-exported for callers that want to
-# size their connectors symmetrically.
+# Per-chunk char cap (fits comfortably in any embedder's token
+# budget). Re-exported for callers that want to size their connectors
+# symmetrically.
 MAX_CHUNK_CHARS = 12000
 
 # Reserved workspace for the original single-tenant corpus (the public
@@ -65,9 +62,8 @@ VECTOR_OVERSAMPLE = 3
 
 @dataclass(slots=True)
 class FlatHit:
-    """One search hit. Same shape as
-    :class:`lighthouse.core.graph.GraphSearchHit` so the MCP layer
-    can project both paths identically."""
+    """One search hit from the flat (pgvector) backend — a chunk row
+    projected for the MCP / HTTP retrieval layers."""
 
     node_id: str
     summary: str
@@ -78,10 +74,61 @@ class FlatHit:
     episode_ids: list[str] = field(default_factory=list)
 
 
+@dataclass(slots=True)
+class SourceChunk:
+    """The raw ingested chunk a search hit was extracted from.
+
+    Returned by :meth:`FlatGraph.fetch_source` — agents read this when
+    the short fact summary from search isn't enough and they want the
+    surrounding text in one round-trip.
+    """
+
+    episode_id: str
+    name: str
+    source: str  # ``<connector>:<url>`` as recorded at ingest
+    content: str
+    created_at: datetime | None = None
+    valid_at: datetime | None = None
+
+
+def _split_body(body: str, *, cap: int = MAX_CHUNK_CHARS) -> list[str]:
+    """Split a long body into <=``cap``-char chunks at paragraph
+    boundaries. Falls back to a hard split when no paragraph break is
+    available inside the window — never returns an empty list.
+
+    Paragraph-aware (not sentence-aware) so chunks preserve narrative
+    units: RFC sections, OWASP/NIST paragraphs, blog posts are
+    paragraph-separated, and sentence-level splits would fragment
+    "X did Y because Z" across chunks.
+    """
+    if len(body) <= cap:
+        return [body]
+    out: list[str] = []
+    remaining = body
+    while len(remaining) > cap:
+        # Last paragraph break inside the cap window.
+        split_at = remaining.rfind("\n\n", 0, cap)
+        if split_at < cap // 2:
+            # No good paragraph break — try a sentence/word break.
+            for sep in (". ", "\n", " "):
+                idx = remaining.rfind(sep, cap // 2, cap)
+                if idx > 0:
+                    split_at = idx + len(sep)
+                    break
+            else:
+                split_at = cap
+        chunk = remaining[:split_at].strip()
+        if chunk:
+            out.append(chunk)
+        remaining = remaining[split_at:].lstrip()
+    if remaining.strip():
+        out.append(remaining.strip())
+    return out
+
+
 class FlatGraph:
-    """Flat-RAG facade. Same lifecycle as :class:`KnowledgeGraph`
-    so the runner / CLI can pick which engine to use behind a
-    settings flag."""
+    """Flat-RAG retrieval facade — the engine the runner / CLI / API
+    all use."""
 
     def __init__(self, settings: Settings | None = None) -> None:
         self._settings = settings or get_settings()
@@ -99,8 +146,7 @@ class FlatGraph:
             raise RuntimeError(
                 "LIGHTHOUSE_PG_URL is empty — set it to a Postgres "
                 "connection string (Neon recommended) to use the "
-                "flat-RAG engine. The Graphiti path keeps using "
-                "NEO4J_* and is unaffected."
+                "retrieval engine."
             )
         # Neon's pooler URL carries query parameters asyncpg won't
         # accept (channel_binding etc). Strip them safely.
@@ -142,10 +188,8 @@ class FlatGraph:
 
     # ---- write path ----------------------------------------------------
 
-    # Aliases so ``drain()`` can treat FlatGraph and KnowledgeGraph
-    # interchangeably. The Graphiti path's contract is the older,
-    # episode-named one; we adopt those names here as thin wrappers
-    # over the chunk-native API.
+    # ``*_episode`` aliases are the names ``drain()`` / proposals call;
+    # thin wrappers over the chunk-native API below.
 
     async def has_unchanged_episode(
         self,
@@ -168,8 +212,6 @@ class FlatGraph:
         workspace_id: str,
         reference_time: datetime | None = None,
         recipe: str | None = None,
-        group_id: str = "lighthouse",  # ignored — tenancy is row-level
-                                       # via workspace_id, not group_id
     ) -> str:
         return await self.upsert_document(
             name=name,
@@ -250,7 +292,7 @@ class FlatGraph:
             return ""
         ref = reference_time or datetime.now(UTC)
         full_hash = hashlib.sha256(body.encode("utf-8")).hexdigest()
-        chunks = _split_episode_body(body, cap=MAX_CHUNK_CHARS)
+        chunks = _split_body(body, cap=MAX_CHUNK_CHARS)
         recipes_arr = [recipe] if recipe else []
 
         embeddings = await self._embed_batch(chunks)
@@ -352,11 +394,10 @@ class FlatGraph:
         ``use_reranker`` (default True): after the BM25+vector RRF
         merge, re-rank the top top_k*3 candidates with gpt-4o-mini
         structured output. Audit showed this lifts mean useful from
-        2.22 → 2.33 (parity with the Graphiti baseline) and produces
-        the big per-domain wins (security 60→20%, devops 33→50%,
-        mobile useful 2.88→3.04). Costs ~$0.002 per query and
-        adds ~60 ms latency. Disable with use_reranker=False if you
-        need raw hybrid output (e.g. for comparing engines).
+        2.22 → 2.33 and produces the big per-domain wins (security
+        60→20%, devops 33→50%, mobile useful 2.88→3.04). Costs
+        ~$0.002 per query and adds ~60 ms latency. Disable with
+        use_reranker=False if you need raw hybrid output.
         """
         if not query or not query.strip():
             return []
@@ -532,8 +573,7 @@ class FlatGraph:
         return ranked[:top_k]
 
     async def fetch_source(self, chunk_id: str, *, workspace_id: str):
-        """Return the chunk row as a ``GraphSource``-shaped object so
-        the MCP server treats us identically to the Graphiti path.
+        """Return the chunk row as a :class:`SourceChunk`.
 
         No truncation here — callers (MCP, bench) handle ``max_chars``.
         Returns ``None`` when the uuid doesn't match a Chunk row.
@@ -542,8 +582,6 @@ class FlatGraph:
         """
         # Resolve short prefix → full uuid via column scan. Cheap
         # (PK lookup when full), bounded (LIMIT 1) when prefix.
-        from lighthouse.core.graph import GraphSource
-
         pool = await self._pool_lazy()
         async with pool.acquire() as conn:
             row = None
@@ -566,7 +604,7 @@ class FlatGraph:
                 )
         if row is None:
             return None
-        return GraphSource(
+        return SourceChunk(
             episode_id=str(row["uuid"]),
             name=row["name"] or "",
             source=row["source"] or "",
@@ -576,11 +614,10 @@ class FlatGraph:
         )
 
     async def fetch(self, node_id: str, *, workspace_id: str = PUBLIC_WORKSPACE):
-        """No entity layer in flat-RAG — return ``None``. Kept so the
-        MCP server can call ``fetch_entity`` against either backend
-        and get a graceful empty result on the flat side instead of
-        an AttributeError. ``workspace_id`` is accepted for call-site
-        uniformity but unused (there is nothing to scope)."""
+        """No entity layer in flat-RAG — always returns ``None``. Kept
+        so the ``fetch_entity`` MCP tool / HTTP route get a graceful
+        empty result instead of an AttributeError. ``workspace_id`` is
+        accepted for call-site uniformity but unused."""
         del workspace_id
         return None
 
