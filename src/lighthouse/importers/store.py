@@ -27,6 +27,7 @@ class ImporterRow:
     secrets_enc: bytes | None
     enabled: bool
     status: str
+    workspace_id: str
     last_run_at: datetime | None
     last_error: str | None
     created_at: datetime
@@ -60,6 +61,7 @@ def _row_to_importer(row: asyncpg.Record) -> ImporterRow:
         secrets_enc=(bytes(row["secrets_enc"]) if row["secrets_enc"] else None),
         enabled=row["enabled"],
         status=row["status"],
+        workspace_id=row["workspace_id"],
         last_run_at=row["last_run_at"],
         last_error=row["last_error"],
         created_at=row["created_at"],
@@ -85,27 +87,53 @@ def _row_to_run(row: asyncpg.Record) -> RunRow:
 # ──────────────────────────── Importers ────────────────────────────
 
 
-async def list_all(conn: asyncpg.Connection) -> list[ImporterRow]:
+async def list_all(
+    conn: asyncpg.Connection, *, workspace_id: str
+) -> list[ImporterRow]:
     rows = await conn.fetch(
         """
         SELECT id, type, name, description, recipe, config, secrets_enc,
-               enabled, status, last_run_at, last_error, created_at, updated_at
+               enabled, status, workspace_id, last_run_at, last_error,
+               created_at, updated_at
         FROM importers
+        WHERE workspace_id = $1
         ORDER BY updated_at DESC
-        """
+        """,
+        workspace_id,
     )
     return [_row_to_importer(r) for r in rows]
 
 
-async def get(conn: asyncpg.Connection, importer_id: UUID) -> ImporterRow | None:
-    row = await conn.fetchrow(
-        """
-        SELECT id, type, name, description, recipe, config, secrets_enc,
-               enabled, status, last_run_at, last_error, created_at, updated_at
-        FROM importers WHERE id = $1
-        """,
-        importer_id,
-    )
+async def get(
+    conn: asyncpg.Connection,
+    importer_id: UUID,
+    *,
+    workspace_id: str | None = None,
+) -> ImporterRow | None:
+    """Fetch one importer. Pass ``workspace_id`` to enforce tenant
+    ownership (admin routes); leave it ``None`` for trusted internal
+    callers like the run executor that already hold a claimed row."""
+    if workspace_id is None:
+        row = await conn.fetchrow(
+            """
+            SELECT id, type, name, description, recipe, config, secrets_enc,
+                   enabled, status, workspace_id, last_run_at, last_error,
+                   created_at, updated_at
+            FROM importers WHERE id = $1
+            """,
+            importer_id,
+        )
+    else:
+        row = await conn.fetchrow(
+            """
+            SELECT id, type, name, description, recipe, config, secrets_enc,
+                   enabled, status, workspace_id, last_run_at, last_error,
+                   created_at, updated_at
+            FROM importers WHERE id = $1 AND workspace_id = $2
+            """,
+            importer_id,
+            workspace_id,
+        )
     return _row_to_importer(row) if row else None
 
 
@@ -119,14 +147,17 @@ async def create(
     config: dict[str, Any],
     secrets_enc: bytes | None,
     created_by: str | None,
+    workspace_id: str,
 ) -> ImporterRow:
     row = await conn.fetchrow(
         """
         INSERT INTO importers
-          (type, name, description, recipe, config, secrets_enc, created_by)
-        VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
+          (type, name, description, recipe, config, secrets_enc,
+           created_by, workspace_id)
+        VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, $8)
         RETURNING id, type, name, description, recipe, config, secrets_enc,
-                  enabled, status, last_run_at, last_error, created_at, updated_at
+                  enabled, status, workspace_id, last_run_at, last_error,
+                  created_at, updated_at
         """,
         type_,
         name,
@@ -135,6 +166,7 @@ async def create(
         json.dumps(config),
         secrets_enc,
         created_by,
+        workspace_id,
     )
     assert row is not None
     return _row_to_importer(row)
@@ -184,7 +216,8 @@ async def update(
         UPDATE importers SET {", ".join(sets)}
         WHERE id = ${len(args)}
         RETURNING id, type, name, description, recipe, config, secrets_enc,
-                  enabled, status, last_run_at, last_error, created_at, updated_at
+                  enabled, status, workspace_id, last_run_at, last_error,
+                  created_at, updated_at
         """,
         *args,
     )

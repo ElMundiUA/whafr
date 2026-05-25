@@ -29,7 +29,7 @@ import asyncpg
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from lighthouse.api.dependencies import get_pg_pool
+from lighthouse.api.dependencies import get_pg_pool, get_workspace
 from lighthouse.importers import crypto, runner, store
 from lighthouse.importers.registry import list_importers, lookup_importer
 
@@ -118,6 +118,7 @@ class ImporterOut(BaseModel):
     has_secrets: bool
     enabled: bool
     status: str
+    workspace_id: str
     last_run_at: str | None
     last_error: str | None
     created_at: str
@@ -175,6 +176,7 @@ def _row_to_out(row: store.ImporterRow) -> ImporterOut:
         has_secrets=row.secrets_enc is not None,
         enabled=row.enabled,
         status=row.status,
+        workspace_id=row.workspace_id,
         last_run_at=row.last_run_at.isoformat() if row.last_run_at else None,
         last_error=row.last_error,
         created_at=row.created_at.isoformat(),
@@ -283,9 +285,10 @@ async def discover_route(body: DiscoverIn) -> DiscoverOut:
 )
 async def list_route(
     pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
+    workspace_id: Annotated[str, Depends(get_workspace)],
 ) -> list[ImporterOut]:
     async with pool.acquire() as conn:
-        rows = await store.list_all(conn)
+        rows = await store.list_all(conn, workspace_id=workspace_id)
     return [_row_to_out(r) for r in rows]
 
 
@@ -297,6 +300,7 @@ async def list_route(
 async def create_route(
     body: ImporterCreate,
     pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
+    workspace_id: Annotated[str, Depends(get_workspace)],
 ) -> ImporterOut:
     try:
         lookup_importer(body.type)
@@ -321,6 +325,7 @@ async def create_route(
             config=body.config,
             secrets_enc=secrets_enc,
             created_by=None,
+            workspace_id=workspace_id,
         )
     return _row_to_out(row)
 
@@ -333,9 +338,10 @@ async def create_route(
 async def get_route(
     importer_id: UUID,
     pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
+    workspace_id: Annotated[str, Depends(get_workspace)],
 ) -> ImporterOut:
     async with pool.acquire() as conn:
-        row = await store.get(conn, importer_id)
+        row = await store.get(conn, importer_id, workspace_id=workspace_id)
     if row is None:
         raise HTTPException(status_code=404, detail="not found")
     return _row_to_out(row)
@@ -350,16 +356,20 @@ async def update_route(
     importer_id: UUID,
     body: ImporterUpdate,
     pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
+    workspace_id: Annotated[str, Depends(get_workspace)],
 ) -> ImporterOut:
+    # Ownership check first — the importer must belong to the caller's
+    # workspace before we touch it.
+    async with pool.acquire() as conn:
+        existing = await store.get(conn, importer_id, workspace_id=workspace_id)
+    if existing is None:
+        raise HTTPException(status_code=404, detail="not found")
+
     secrets_enc: bytes | None = None
     keep_secrets = True
     if body.secrets is not None:
         # Caller sent a secrets dict — they intend to rotate. Empty
         # dict means "clear all secrets"; we honour that.
-        async with pool.acquire() as conn:
-            existing = await store.get(conn, importer_id)
-        if existing is None:
-            raise HTTPException(status_code=404, detail="not found")
         keep_secrets = False
         secret_payload = _filter_secrets(existing.type, body.secrets)
         if secret_payload:
@@ -393,11 +403,14 @@ async def update_route(
 async def delete_route(
     importer_id: UUID,
     pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
+    workspace_id: Annotated[str, Depends(get_workspace)],
 ) -> None:
     async with pool.acquire() as conn:
-        ok = await store.delete(conn, importer_id)
-    if not ok:
-        raise HTTPException(status_code=404, detail="not found")
+        # Ownership check so one workspace can't delete another's row.
+        existing = await store.get(conn, importer_id, workspace_id=workspace_id)
+        if existing is None:
+            raise HTTPException(status_code=404, detail="not found")
+        await store.delete(conn, importer_id)
 
 
 @router.post(
@@ -408,6 +421,7 @@ async def delete_route(
 async def run_route(
     importer_id: UUID,
     pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
+    workspace_id: Annotated[str, Depends(get_workspace)],
 ) -> RunQueuedOut:
     """Kick off a run in the background. Returns immediately with the
     importer id; poll `/{id}/runs` for the actual run row's progress.
@@ -417,7 +431,7 @@ async def run_route(
     pip-install hint instead of letting the background task swallow
     the error into the run row."""
     async with pool.acquire() as conn:
-        row = await store.get(conn, importer_id)
+        row = await store.get(conn, importer_id, workspace_id=workspace_id)
     if row is None:
         raise HTTPException(status_code=404, detail="not found")
     if row.status == "running":
@@ -438,8 +452,14 @@ async def run_route(
 async def runs_route(
     importer_id: UUID,
     pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
+    workspace_id: Annotated[str, Depends(get_workspace)],
     limit: int = 20,
 ) -> list[RunOut]:
     async with pool.acquire() as conn:
+        # Verify the parent importer belongs to the caller's workspace
+        # before exposing its run history.
+        parent = await store.get(conn, importer_id, workspace_id=workspace_id)
+        if parent is None:
+            raise HTTPException(status_code=404, detail="not found")
         rows = await store.recent_runs(conn, importer_id, limit=limit)
     return [_run_to_out(r) for r in rows]

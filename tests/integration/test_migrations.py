@@ -32,11 +32,17 @@ async def test_migrations_apply_idempotently_with_workspace_default() -> None:
     conn = await asyncpg.connect(_DSN)
     try:
         # Clean slate so the test is deterministic on a shared DB.
+        await conn.execute("DROP TABLE IF EXISTS importer_runs CASCADE")
+        await conn.execute("DROP TABLE IF EXISTS importers CASCADE")
         await conn.execute("DROP TABLE IF EXISTS chunks CASCADE")
         await conn.execute("DROP TABLE IF EXISTS schema_migrations CASCADE")
 
         applied = await run_migrations(conn, embedding_dim=1536)
-        assert applied == ["0001_baseline.sql", "0002_workspace_id.sql"]
+        assert applied == [
+            "0001_baseline.sql",
+            "0002_workspace_id.sql",
+            "0003_importers.sql",
+        ]
 
         col = await conn.fetchrow(
             """
@@ -49,6 +55,19 @@ async def test_migrations_apply_idempotently_with_workspace_default() -> None:
         assert col["is_nullable"] == "NO"
         assert "'public'" in col["column_default"]
 
+        # 0003 makes the engine self-sufficient for importers: table +
+        # tenancy column both present.
+        imp_col = await conn.fetchrow(
+            """
+            SELECT is_nullable, column_default
+            FROM information_schema.columns
+            WHERE table_name = 'importers' AND column_name = 'workspace_id'
+            """
+        )
+        assert imp_col is not None
+        assert imp_col["is_nullable"] == "NO"
+        assert "'public'" in imp_col["column_default"]
+
         # Re-run is a no-op.
         assert await run_migrations(conn, embedding_dim=1536) == []
 
@@ -59,6 +78,8 @@ async def test_migrations_apply_idempotently_with_workspace_default() -> None:
         )
         assert await conn.fetchval("SELECT workspace_id FROM chunks LIMIT 1") == "public"
     finally:
+        await conn.execute("DROP TABLE IF EXISTS importer_runs CASCADE")
+        await conn.execute("DROP TABLE IF EXISTS importers CASCADE")
         await conn.execute("DROP TABLE IF EXISTS chunks CASCADE")
         await conn.execute("DROP TABLE IF EXISTS schema_migrations CASCADE")
         await conn.close()
