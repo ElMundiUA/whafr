@@ -24,7 +24,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from lighthouse.api.dependencies import get_graph
+from lighthouse.api.dependencies import get_graph, get_workspace
 
 router = APIRouter(tags=["retrieval"])
 
@@ -82,9 +82,10 @@ class SourceResponse(BaseModel):
 async def search(
     q: Annotated[str, Query(min_length=1, description="Natural-language query")],
     graph: Annotated[Any, Depends(get_graph)],
+    workspace_id: Annotated[str, Depends(get_workspace)],
     top_k: Annotated[int, Query(ge=1, le=50)] = 10,
 ) -> SearchResponse:
-    hits = await graph.search(q, top_k=top_k)
+    hits = await graph.search(q, top_k=top_k, workspace_id=workspace_id)
     # Build response from whichever hit type the engine returned —
     # GraphSearchHit (Graphiti) carries entity uuids; FlatHit
     # (pgvector) doesn't have an entity layer so those fields are
@@ -153,10 +154,11 @@ async def fetch_legacy(
 async def fetch_source(
     episode_id: str,
     graph: Annotated[Any, Depends(get_graph)],
+    workspace_id: Annotated[str, Depends(get_workspace)],
 ) -> SourceResponse:
     if not episode_id:
         raise HTTPException(status_code=400, detail="episode_id required")
-    src = await graph.fetch_source(episode_id)
+    src = await graph.fetch_source(episode_id, workspace_id=workspace_id)
     if src is None:
         raise HTTPException(status_code=404, detail=f"source {episode_id} not found")
     return SourceResponse(

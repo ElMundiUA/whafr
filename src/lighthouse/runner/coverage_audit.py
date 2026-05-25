@@ -182,7 +182,10 @@ async def _audit_one(
             extra["use_reranker"] = True
     async with sem:
         try:
-            hits = await graph.search(query, top_k=top_k, **extra)
+            # The audit benches the public reference corpus.
+            hits = await graph.search(
+                query, top_k=top_k, workspace_id="public", **extra
+            )
         except Exception:
             logger.exception("search failed for %r — counting as gap", query)
             return QueryResult(

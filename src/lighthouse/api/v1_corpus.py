@@ -16,7 +16,7 @@ import asyncpg
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
-from lighthouse.api.dependencies import get_pg_pool
+from lighthouse.api.dependencies import get_pg_pool, get_workspace
 
 router = APIRouter(prefix="/v1/corpus", tags=["v1", "corpus"])
 
@@ -40,8 +40,10 @@ class CorpusSource(BaseModel):
 @router.get("/stats", response_model=CorpusStats)
 async def stats(
     pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
+    workspace_id: Annotated[str, Depends(get_workspace)],
 ) -> CorpusStats:
-    """Roll-up counters over the chunks table. Cheap — one indexed scan."""
+    """Roll-up counters over the chunks table, scoped to the caller's
+    workspace. Cheap — one indexed scan."""
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """
@@ -52,13 +54,17 @@ async def stats(
               COUNT(*) FILTER (WHERE embedding IS NOT NULL)::int   AS chunks_with_embedding,
               MAX(ingested_at)                                     AS last_ingest_at
             FROM chunks
-            """
+            WHERE workspace_id = $1
+            """,
+            workspace_id,
         )
         recipe_row = await conn.fetchval(
             """
             SELECT COUNT(DISTINCT r)::int
-              FROM (SELECT unnest(recipes) AS r FROM chunks) t
+              FROM (SELECT unnest(recipes) AS r FROM chunks
+                     WHERE workspace_id = $1) t
             """,
+            workspace_id,
         )
     assert row is not None
     return CorpusStats(
@@ -74,11 +80,13 @@ async def stats(
 @router.get("/sources", response_model=list[CorpusSource])
 async def sources(
     pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
+    workspace_id: Annotated[str, Depends(get_workspace)],
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
     order: Annotated[str, Query(pattern="^(chunks|recent)$")] = "chunks",
 ) -> list[CorpusSource]:
-    """Per-source roll-up. `order=chunks` ranks by chunk count
-    (largest sources first); `order=recent` by most recent ingest."""
+    """Per-source roll-up, scoped to the caller's workspace. `order=chunks`
+    ranks by chunk count (largest sources first); `order=recent` by most
+    recent ingest."""
     order_clause = (
         "MAX(ingested_at) DESC NULLS LAST"
         if order == "recent"
@@ -92,10 +100,12 @@ async def sources(
                    COALESCE(ARRAY_AGG(DISTINCT r), ARRAY[]::TEXT[]) AS recipes,
                    MAX(ingested_at)                               AS last_ingest_at
               FROM chunks, unnest(COALESCE(recipes, ARRAY[]::TEXT[])) AS r
+             WHERE workspace_id = $1
              GROUP BY source
              ORDER BY {order_clause}
-             LIMIT $1
+             LIMIT $2
             """,
+            workspace_id,
             limit,
         )
     return [

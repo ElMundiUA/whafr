@@ -29,10 +29,11 @@ from __future__ import annotations
 import logging
 from typing import Literal
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel, Field
 
+from lighthouse.core.flat_graph import PUBLIC_WORKSPACE
 from lighthouse.core.graph import KnowledgeGraph
 from lighthouse.librarian.agent import Librarian
 from lighthouse.proposals.queue import ProposalQueue
@@ -45,6 +46,25 @@ from lighthouse.proposals.store import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _workspace_from_ctx(ctx: Context) -> str:
+    """Resolve the tenant for one MCP request from its ``X-Workspace``
+    header. HTTP transports carry a raw request whose headers we read;
+    stdio (local single-tenant desktop) has none, so we fall back to the
+    reserved ``public`` workspace. The FlatGraph layer filters every read
+    on the returned value, so this is the per-request isolation boundary.
+    """
+    try:
+        request = ctx.request_context.request
+    except Exception:
+        return PUBLIC_WORKSPACE
+    headers = getattr(request, "headers", None)
+    if headers is not None:
+        ws = headers.get("x-workspace")
+        if ws:
+            return ws
+    return PUBLIC_WORKSPACE
 
 
 class McpSearchHit(BaseModel):
@@ -219,8 +239,12 @@ def build_server(
             "if you only need the strongest match."
         ),
     )
-    async def search(query: str, top_k: int = 10) -> McpSearchResponse:
-        hits = await g.search(query, top_k=top_k)
+    async def search(
+        query: str, ctx: Context, top_k: int = 10
+    ) -> McpSearchResponse:
+        hits = await g.search(
+            query, top_k=top_k, workspace_id=_workspace_from_ctx(ctx)
+        )
         wire_hits = [
             McpSearchHit(
                 node_id=h.node_id,
@@ -301,9 +325,11 @@ def build_server(
         ),
     )
     async def fetch_source(
-        episode_id: str, max_chars: int = 6000
+        episode_id: str, ctx: Context, max_chars: int = 6000
     ) -> McpSource | None:
-        src = await g.fetch_source(episode_id)
+        src = await g.fetch_source(
+            episode_id, workspace_id=_workspace_from_ctx(ctx)
+        )
         if src is None:
             return None
         # Clamp to sane range — 200 chars is a single sentence (still

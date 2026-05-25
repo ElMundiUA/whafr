@@ -215,7 +215,9 @@ class KnowledgeGraph:
         client = await self._client_lazy()
         await client.build_indices_and_constraints(delete_existing=False)
 
-    async def search(self, query: str, top_k: int = 10) -> list[GraphSearchHit]:
+    async def search(
+        self, query: str, *, workspace_id: str = "public", top_k: int = 10
+    ) -> list[GraphSearchHit]:
         """Run a hybrid (BM25 + vector + cross-encoder rerank) search.
 
         Uses Graphiti's ``EDGE_HYBRID_SEARCH_CROSS_ENCODER`` recipe (a
@@ -233,6 +235,10 @@ class KnowledgeGraph:
         Callers that need the full subgraph chase ``source_node_uuid`` /
         ``target_node_uuid`` through :meth:`fetch`.
         """
+        # Graphiti is single-tenant (Neo4j, legacy rollback path); the
+        # tenant filter lives only in the flat backend. Accept the kwarg
+        # so shared callers pass it uniformly, then ignore it.
+        del workspace_id
         from copy import deepcopy
 
         from graphiti_core.search.search_config_recipes import (
@@ -458,11 +464,14 @@ class KnowledgeGraph:
             )
         return hits
 
-    async def fetch(self, node_id: str) -> GraphNode | None:
+    async def fetch(
+        self, node_id: str, *, workspace_id: str = "public"
+    ) -> GraphNode | None:
         """Look up one entity node by uuid.
 
         Uses the Neo4j async driver directly (parameter-bound Cypher).
         """
+        del workspace_id  # single-tenant legacy path — see search()
         from neo4j import AsyncGraphDatabase
 
         driver = AsyncGraphDatabase.driver(
@@ -490,7 +499,9 @@ class KnowledgeGraph:
             attributes={},
         )
 
-    async def fetch_source(self, episode_id: str) -> GraphSource | None:
+    async def fetch_source(
+        self, episode_id: str, *, workspace_id: str = "public"
+    ) -> GraphSource | None:
         """Return the raw Episodic chunk a search hit was extracted from.
 
         Agents use this to cut round-trips: instead of N ``fetch`` calls
@@ -499,6 +510,7 @@ class KnowledgeGraph:
         doesn't match an Episodic node (it might be an Entity uuid by
         mistake — callers should distinguish).
         """
+        del workspace_id  # single-tenant legacy path — see search()
         from neo4j import AsyncGraphDatabase
         from neo4j.time import DateTime as Neo4jDateTime
 
@@ -543,12 +555,19 @@ class KnowledgeGraph:
         )
 
     async def has_unchanged_episode(
-        self, source: str, body_sha256: str, recipe: str | None = None,
+        self,
+        source: str,
+        body_sha256: str,
+        recipe: str | None = None,
+        *,
+        workspace_id: str = "public",
     ) -> bool:
         # ``recipe`` is the multi-recipe membership field used by the
         # flat backend. Graphiti doesn't model it; accept and ignore
         # so the drain caller can pass it uniformly to either backend.
-        del recipe
+        # ``workspace_id`` likewise — tenancy is row-level in the flat
+        # backend only.
+        del recipe, workspace_id
         """True if any Episodic for ``source`` already carries the
         ``lighthouse_full_body_sha256`` property equal to
         ``body_sha256``. Used by the ingest delta-skip to bypass
@@ -587,14 +606,16 @@ class KnowledgeGraph:
         name: str,
         body: str,
         source: str,
+        workspace_id: str = "public",
         reference_time: datetime | None = None,
         group_id: str = "lighthouse",
         recipe: str | None = None,
     ) -> str:
         # ``recipe`` ignored on the graphiti backend (see note in
         # has_unchanged_episode). Multi-recipe membership lives in
-        # the flat backend's chunks.recipes[] column.
-        del recipe
+        # the flat backend's chunks.recipes[] column. ``workspace_id``
+        # likewise — tenancy is row-level in the flat backend only.
+        del recipe, workspace_id
         """Feed one episode (a chunk of source text) into the graph.
 
         Graphiti handles entity extraction, dedup against prior episodes,

@@ -83,6 +83,7 @@ async def process_proposal(
                 body=record.content,
                 source=f"proposal:{record.submitted_by}",
                 reference_time=record.submitted_at,
+                workspace_id="public",
             )
             record.episode_uuid = episode_uuid
             record.status = "accepted"

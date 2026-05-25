@@ -41,7 +41,13 @@ DrainFn = Callable[[Connector, Any, str], Awaitable[int]]
 async def _default_drain(
     connector: Connector, graph: Any, source_prefix: str
 ) -> int:
-    return await drain(connector, source_prefix=source_prefix, graph=graph)
+    # The scheduled source-runner ingests the public reference corpus.
+    return await drain(
+        connector,
+        source_prefix=source_prefix,
+        workspace_id="public",
+        graph=graph,
+    )
 
 
 class SourceScheduler:

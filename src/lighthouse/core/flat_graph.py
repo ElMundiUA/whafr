@@ -50,6 +50,12 @@ logger = logging.getLogger(__name__)
 # size their connectors symmetrically.
 MAX_CHUNK_CHARS = 12000
 
+# Reserved workspace for the original single-tenant corpus (the public
+# harborgang site). Backfilled by the 0002 column default; the read/write
+# API treats a missing X-Workspace as this value so the public corpus
+# keeps working unchanged.
+PUBLIC_WORKSPACE = "public"
+
 # Search-side knobs. Settled by spike-testing against the existing
 # canonical queries; tuned more once we have an A/B audit run.
 DEFAULT_TOP_K = 10
@@ -142,9 +148,16 @@ class FlatGraph:
     # over the chunk-native API.
 
     async def has_unchanged_episode(
-        self, source: str, body_sha256: str, recipe: str | None = None,
+        self,
+        source: str,
+        body_sha256: str,
+        recipe: str | None = None,
+        *,
+        workspace_id: str,
     ) -> bool:
-        return await self.has_unchanged_chunk(source, body_sha256, recipe)
+        return await self.has_unchanged_chunk(
+            source, body_sha256, recipe, workspace_id=workspace_id
+        )
 
     async def upsert_episode(
         self,
@@ -152,21 +165,28 @@ class FlatGraph:
         name: str,
         body: str,
         source: str,
+        workspace_id: str,
         reference_time: datetime | None = None,
         recipe: str | None = None,
-        group_id: str = "lighthouse",  # ignored — flat path has no
-                                       # multi-tenant partitioning yet
+        group_id: str = "lighthouse",  # ignored — tenancy is row-level
+                                       # via workspace_id, not group_id
     ) -> str:
         return await self.upsert_document(
             name=name,
             body=body,
             source=source,
+            workspace_id=workspace_id,
             reference_time=reference_time,
             recipe=recipe,
         )
 
     async def has_unchanged_chunk(
-        self, source: str, body_sha256: str, recipe: str | None = None,
+        self,
+        source: str,
+        body_sha256: str,
+        recipe: str | None = None,
+        *,
+        workspace_id: str,
     ) -> bool:
         """Delta-skip pre-check.
 
@@ -184,16 +204,17 @@ class FlatGraph:
                 return bool(
                     await conn.fetchval(
                         "SELECT 1 FROM chunks "
-                        "WHERE source = $1 AND full_body_sha256 = $2 LIMIT 1",
-                        source, body_sha256,
+                        "WHERE source = $1 AND full_body_sha256 = $2 "
+                        "  AND workspace_id = $3 LIMIT 1",
+                        source, body_sha256, workspace_id,
                     )
                 )
             return bool(
                 await conn.fetchval(
                     "SELECT 1 FROM chunks "
                     "WHERE source = $1 AND full_body_sha256 = $2 "
-                    "  AND $3 = ANY(recipes) LIMIT 1",
-                    source, body_sha256, recipe,
+                    "  AND workspace_id = $3 AND $4 = ANY(recipes) LIMIT 1",
+                    source, body_sha256, workspace_id, recipe,
                 )
             )
 
@@ -203,6 +224,7 @@ class FlatGraph:
         name: str,
         body: str,
         source: str,
+        workspace_id: str,
         reference_time: datetime | None = None,
         url: str | None = None,
         version: str | None = None,
@@ -211,6 +233,11 @@ class FlatGraph:
         """Splits the body into chunks, embeds each, upserts as
         ``chunks`` rows. Returns the uuid of the first chunk for
         caller bookkeeping.
+
+        ``workspace_id`` scopes the row to one tenant. It's folded into
+        the chunk uuid (see :func:`_deterministic_uuid`) so the same
+        document ingested by two workspaces lands as two distinct rows
+        instead of colliding on ON CONFLICT and leaking across tenants.
 
         ``recipe`` records the role-recipe slug that just ingested
         this source. On ON CONFLICT (existing uuid for the same
@@ -234,7 +261,7 @@ class FlatGraph:
                 if len(chunks) == 1
                 else f"{name} (part {i + 1}/{len(chunks)})"
             )
-            chunk_uuid = _deterministic_uuid(source, full_hash, i)
+            chunk_uuid = _deterministic_uuid(source, full_hash, i, workspace_id)
             rows.append(
                 (
                     chunk_uuid,
@@ -250,6 +277,7 @@ class FlatGraph:
                     len(chunks),
                     _vector_literal(emb),
                     recipes_arr,
+                    workspace_id,
                 )
             )
 
@@ -261,10 +289,10 @@ class FlatGraph:
                     uuid, name, source, url, content,
                     content_sha256, full_body_sha256, published_at,
                     version, chunk_index, chunk_count, embedding,
-                    recipes
+                    recipes, workspace_id
                 ) VALUES (
                     $1, $2, $3, $4, $5,
-                    $6, $7, $8, $9, $10, $11, $12::vector, $13
+                    $6, $7, $8, $9, $10, $11, $12::vector, $13, $14
                 )
                 ON CONFLICT (uuid) DO UPDATE SET
                     name = EXCLUDED.name,
@@ -294,6 +322,7 @@ class FlatGraph:
         self,
         query: str,
         *,
+        workspace_id: str,
         top_k: int = DEFAULT_TOP_K,
         after: datetime | None = None,
         before: datetime | None = None,
@@ -340,6 +369,7 @@ class FlatGraph:
         q_embedding = (await self._embed_batch([query]))[0]
         bm25 = await self._search_bm25(
             query,
+            workspace_id=workspace_id,
             limit=top_k * BM25_OVERSAMPLE,
             after=after,
             before=before,
@@ -350,6 +380,7 @@ class FlatGraph:
         )
         vec = await self._search_vector(
             q_embedding,
+            workspace_id=workspace_id,
             limit=top_k * VECTOR_OVERSAMPLE,
             after=after,
             before=before,
@@ -500,7 +531,7 @@ class FlatGraph:
             ranked.append(h)
         return ranked[:top_k]
 
-    async def fetch_source(self, chunk_id: str):
+    async def fetch_source(self, chunk_id: str, *, workspace_id: str):
         """Return the chunk row as a ``GraphSource``-shaped object so
         the MCP server treats us identically to the Graphiti path.
 
@@ -520,16 +551,18 @@ class FlatGraph:
                 uid = _uuid.UUID(chunk_id)
                 row = await conn.fetchrow(
                     "SELECT uuid, name, source, url, content, "
-                    "published_at, ingested_at FROM chunks WHERE uuid = $1",
-                    uid,
+                    "published_at, ingested_at FROM chunks "
+                    "WHERE uuid = $1 AND workspace_id = $2",
+                    uid, workspace_id,
                 )
             except (ValueError, AttributeError):
                 # Short prefix — fall back to LIKE on the uuid string.
                 row = await conn.fetchrow(
                     "SELECT uuid, name, source, url, content, "
                     "published_at, ingested_at FROM chunks "
-                    "WHERE replace(uuid::text, '-', '') LIKE $1 LIMIT 1",
-                    str(chunk_id).lower() + "%",
+                    "WHERE replace(uuid::text, '-', '') LIKE $1 "
+                    "  AND workspace_id = $2 LIMIT 1",
+                    str(chunk_id).lower() + "%", workspace_id,
                 )
         if row is None:
             return None
@@ -542,11 +575,13 @@ class FlatGraph:
             valid_at=row["published_at"],
         )
 
-    async def fetch(self, node_id: str):
+    async def fetch(self, node_id: str, *, workspace_id: str = PUBLIC_WORKSPACE):
         """No entity layer in flat-RAG — return ``None``. Kept so the
         MCP server can call ``fetch_entity`` against either backend
         and get a graceful empty result on the flat side instead of
-        an AttributeError."""
+        an AttributeError. ``workspace_id`` is accepted for call-site
+        uniformity but unused (there is nothing to scope)."""
+        del workspace_id
         return None
 
     # ---- internals -----------------------------------------------------
@@ -613,6 +648,7 @@ class FlatGraph:
         self,
         query: str,
         *,
+        workspace_id: str,
         limit: int,
         after: datetime | None,
         before: datetime | None,
@@ -627,6 +663,8 @@ class FlatGraph:
         tsv_col = "tsv_boosted" if use_summary_boost else "tsv"
         clauses = [f"{tsv_col} @@ websearch_to_tsquery('english', $1)"]
         params: list[Any] = [query]
+        params.append(workspace_id)
+        clauses.append(f"workspace_id = ${len(params)}")
         if not include_superseded:
             clauses.append("superseded_by IS NULL")
         if after is not None:
@@ -667,6 +705,7 @@ class FlatGraph:
         self,
         embedding: list[float],
         *,
+        workspace_id: str,
         limit: int,
         after: datetime | None,
         before: datetime | None,
@@ -679,6 +718,8 @@ class FlatGraph:
         vec_lit = _vector_literal(embedding)
         clauses = ["TRUE"]
         params: list[Any] = []
+        params.append(workspace_id)
+        clauses.append(f"workspace_id = ${len(params)}")
         if not include_superseded:
             clauses.append("superseded_by IS NULL")
         if after is not None:
@@ -734,10 +775,19 @@ def _vector_literal(emb: list[float]) -> str:
     return "[" + ",".join(f"{v:.6f}" for v in emb) + "]"
 
 
-def _deterministic_uuid(source: str, full_hash: str, chunk_index: int) -> str:
-    """Stable uuid for re-ingest idempotency. Same body + same chunk
-    index → same uuid → INSERT ... ON CONFLICT no-ops."""
-    base = f"{source}:{full_hash}:{chunk_index}"
+def _deterministic_uuid(
+    source: str, full_hash: str, chunk_index: int, workspace_id: str
+) -> str:
+    """Stable uuid for re-ingest idempotency, scoped per workspace.
+
+    Same workspace + body + chunk index → same uuid → INSERT ... ON
+    CONFLICT no-ops (idempotent re-ingest). ``workspace_id`` MUST be in
+    the hash: without it two tenants ingesting the same document derive
+    the same uuid, so the second write's ON CONFLICT DO UPDATE would
+    overwrite the first tenant's row — a cross-tenant leak and recipe
+    bleed. With it, identical docs in different workspaces stay distinct
+    rows."""
+    base = f"{workspace_id}:{source}:{full_hash}:{chunk_index}"
     return str(_uuid.UUID(hashlib.md5(base.encode("utf-8")).hexdigest()))
 
 

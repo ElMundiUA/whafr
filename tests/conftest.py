@@ -41,14 +41,16 @@ class FakeGraph(KnowledgeGraph):
         self.search_hits: list[GraphSearchHit] = []
         self.nodes: dict[str, GraphNode] = {}
         self.ingested: list[dict[str, str]] = []
+        self.last_search_workspace: str | None = None
         self.initialized = False
 
     async def initialize(self) -> None:  # type: ignore[override]
         self.initialized = True
 
     async def search(  # type: ignore[override]
-        self, query: str, top_k: int = 10
+        self, query: str, *, workspace_id: str = "public", top_k: int = 10
     ) -> list[GraphSearchHit]:
+        self.last_search_workspace = workspace_id
         return list(self.search_hits[:top_k])
 
     async def fetch(self, node_id: str) -> GraphNode | None:  # type: ignore[override]
@@ -60,6 +62,7 @@ class FakeGraph(KnowledgeGraph):
         name: str,
         body: str,
         source: str,
+        workspace_id: str = "public",
         reference_time: datetime | None = None,
     ) -> str:
         self.ingested.append(
@@ -67,6 +70,7 @@ class FakeGraph(KnowledgeGraph):
                 "name": name,
                 "body": body,
                 "source": source,
+                "workspace_id": workspace_id,
                 "reference_time": (reference_time or datetime.now(UTC)).isoformat(),
             }
         )

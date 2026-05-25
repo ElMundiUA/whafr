@@ -24,7 +24,8 @@ async def drain(
     connector: Connector,
     *,
     source_prefix: str,
-    graph: "KnowledgeGraph | Any | None" = None,
+    workspace_id: str,
+    graph: KnowledgeGraph | Any | None = None,
     gate: RelevanceGate | None = None,
 ) -> int:
     """Run ``connector.ingest()`` and upsert each document as an episode.
@@ -72,7 +73,10 @@ async def drain(
             body_hash = hashlib.sha256(doc.body.encode("utf-8")).hexdigest()
             try:
                 if await g.has_unchanged_episode(
-                    source_canonical, body_hash, recipe=source_prefix
+                    source_canonical,
+                    body_hash,
+                    recipe=source_prefix,
+                    workspace_id=workspace_id,
                 ):
                     unchanged += 1
                     logger.debug(
@@ -93,6 +97,7 @@ async def drain(
                     source=source_canonical,
                     reference_time=doc.reference_time,
                     recipe=source_prefix,
+                    workspace_id=workspace_id,
                 )
             except Exception:
                 # Graphiti can raise Pydantic ValidationError on the

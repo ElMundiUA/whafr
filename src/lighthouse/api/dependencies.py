@@ -13,14 +13,31 @@ import logging
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
+
+from fastapi import Header
 
 from lighthouse.core.config import get_settings
+from lighthouse.core.flat_graph import PUBLIC_WORKSPACE
 from lighthouse.librarian.agent import Librarian
 from lighthouse.proposals.queue import ProposalQueue
 from lighthouse.proposals.store import GitProposalStore
 
 logger = logging.getLogger(__name__)
+
+
+async def get_workspace(
+    x_workspace: Annotated[str | None, Header()] = None,
+) -> str:
+    """Resolve the tenant for a request from the ``X-Workspace`` header.
+
+    A missing header maps to the reserved ``public`` workspace so the
+    original single-tenant corpus (the harborgang public site) keeps
+    working unchanged. Consumers that need isolation (Ship, per its
+    workspace) send ``X-Workspace: <id>`` and only ever see their own
+    rows — the FlatGraph layer filters every read on this value.
+    """
+    return x_workspace or PUBLIC_WORKSPACE
 
 
 @lru_cache(maxsize=1)

@@ -311,7 +311,9 @@ async def _ingest_markdown(path: Path) -> int:
     from lighthouse.connectors.markdown import MarkdownConnector
     from lighthouse.ingest import drain
 
-    await drain(MarkdownConnector(path), source_prefix="markdown")
+    await drain(
+        MarkdownConnector(path), source_prefix="markdown", workspace_id="public"
+    )
     return 0
 
 
@@ -319,7 +321,7 @@ async def _ingest_web(urls: list[str]) -> int:
     from lighthouse.connectors.web import WebConnector
     from lighthouse.ingest import drain
 
-    await drain(WebConnector(urls), source_prefix="web")
+    await drain(WebConnector(urls), source_prefix="web", workspace_id="public")
     return 0
 
 
@@ -336,7 +338,11 @@ async def _ingest_github(slug: str, *, branch: str, ext: list[str] | None) -> in
         branch=branch,
         file_extensions=ext if ext else None,
     )
-    await drain(connector, source_prefix=f"github:{slug}@{branch}")
+    await drain(
+        connector,
+        source_prefix=f"github:{slug}@{branch}",
+        workspace_id="public",
+    )
     return 0
 
 

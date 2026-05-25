@@ -116,7 +116,11 @@ async def run_importer(
     # count counters yet (drain returns chunk count), so items_total
     # stays None and chunks_added carries the work signal.
     try:
-        n_chunks = await drain(connector, source_prefix=row.recipe)
+        # K3 will read workspace_id from the importer row; until the
+        # column exists, importer-driven ingest targets the public corpus.
+        n_chunks = await drain(
+            connector, source_prefix=row.recipe, workspace_id="public"
+        )
     except Exception as exc:
         msg = f"drain failed: {exc}\n{traceback.format_exc()}"
         await _persist_failure(pool, importer_id, run_id, msg)
