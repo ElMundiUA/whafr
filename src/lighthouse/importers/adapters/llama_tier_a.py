@@ -379,6 +379,7 @@ class JiraImporter(LlamaHubImporter):
 
 @register
 class GitLabImporter(LlamaHubImporter):
+    supports_discovery = True
     meta = ImporterMeta(
         type="gitlab",
         display_name="GitLab repository",
@@ -420,7 +421,58 @@ class GitLabImporter(LlamaHubImporter):
             },
         },
         secret_keys=("private_token",),
+        discovery_required=("private_token",),
     )
+
+    def discover(
+        self,
+        config: Mapping[str, Any],
+        secrets: Mapping[str, str],
+    ) -> list[DiscoveredItem]:
+        import httpx
+
+        token = secrets.get("private_token") or ""
+        if not token:
+            raise ValueError("private_token required to list accessible projects")
+        base = str(config.get("base_url") or "https://gitlab.com").rstrip("/")
+        out: list[DiscoveredItem] = []
+        headers = {"PRIVATE-TOKEN": token}
+        with httpx.Client(timeout=15.0) as client:
+            for page in range(1, 6):
+                r = client.get(
+                    f"{base}/api/v4/projects",
+                    headers=headers,
+                    params={
+                        "membership": "true",
+                        "per_page": 100,
+                        "page": page,
+                        "order_by": "last_activity_at",
+                        "simple": "true",
+                    },
+                )
+                r.raise_for_status()
+                rows = r.json()
+                if not rows:
+                    break
+                for proj in rows:
+                    pid = str(proj.get("id") or "")
+                    path = str(proj.get("path_with_namespace") or proj.get("name") or pid)
+                    branch = proj.get("default_branch") or "main"
+                    out.append(
+                        DiscoveredItem(
+                            id=pid,
+                            name=path,
+                            kind="project",
+                            hint=proj.get("description"),
+                            config_patch={
+                                "project_id": pid,
+                                "branch": branch,
+                            },
+                        )
+                    )
+                if len(rows) < 100:
+                    break
+        return out
 
     def make_reader(self, config: Mapping[str, Any], secrets: Mapping[str, str]) -> Any:
         cls = import_reader(
@@ -451,6 +503,7 @@ class GitLabImporter(LlamaHubImporter):
 
 @register
 class BitbucketImporter(LlamaHubImporter):
+    supports_discovery = True
     meta = ImporterMeta(
         type="bitbucket",
         display_name="Bitbucket repository",
@@ -487,7 +540,57 @@ class BitbucketImporter(LlamaHubImporter):
             },
         },
         secret_keys=("app_password",),
+        discovery_required=("username", "app_password"),
     )
+
+    def discover(
+        self,
+        config: Mapping[str, Any],
+        secrets: Mapping[str, str],
+    ) -> list[DiscoveredItem]:
+        import httpx
+
+        username = str(config.get("username") or "").strip()
+        password = secrets.get("app_password") or ""
+        if not username or not password:
+            raise ValueError(
+                "username + app_password required to list accessible repos"
+            )
+        out: list[DiscoveredItem] = []
+        url: str | None = (
+            "https://api.bitbucket.org/2.0/repositories"
+            "?role=member&pagelen=100&fields=values.workspace.slug,"
+            "values.slug,values.name,values.description,values.mainbranch.name,next"
+        )
+        with httpx.Client(timeout=15.0, auth=(username, password)) as client:
+            pages = 0
+            while url and pages < 5:
+                r = client.get(url)
+                r.raise_for_status()
+                body = r.json()
+                for item in body.get("values", []):
+                    ws = (item.get("workspace") or {}).get("slug") or ""
+                    slug = item.get("slug") or ""
+                    if not ws or not slug:
+                        continue
+                    full = f"{ws}/{slug}"
+                    branch = (item.get("mainbranch") or {}).get("name") or "main"
+                    out.append(
+                        DiscoveredItem(
+                            id=full,
+                            name=full,
+                            kind="repo",
+                            hint=item.get("description"),
+                            config_patch={
+                                "workspace": ws,
+                                "repo_slug": slug,
+                                "branch": branch,
+                            },
+                        )
+                    )
+                url = body.get("next")
+                pages += 1
+        return out
 
     def make_reader(self, config: Mapping[str, Any], secrets: Mapping[str, str]) -> Any:
         cls = import_reader(
@@ -511,6 +614,7 @@ class BitbucketImporter(LlamaHubImporter):
 
 @register
 class LinearImporter(LlamaHubImporter):
+    supports_discovery = True
     meta = ImporterMeta(
         type="linear",
         display_name="Linear issues",
@@ -536,7 +640,52 @@ class LinearImporter(LlamaHubImporter):
             },
         },
         secret_keys=("api_key",),
+        discovery_required=("api_key",),
     )
+
+    def discover(
+        self,
+        config: Mapping[str, Any],
+        secrets: Mapping[str, str],
+    ) -> list[DiscoveredItem]:
+        import httpx
+
+        api_key = secrets.get("api_key") or ""
+        if not api_key:
+            raise ValueError("api_key required to list teams")
+        query = "{ teams(first: 100) { nodes { id name key description } } }"
+        out: list[DiscoveredItem] = []
+        with httpx.Client(timeout=15.0) as client:
+            r = client.post(
+                "https://api.linear.app/graphql",
+                headers={
+                    "Authorization": api_key,
+                    "Content-Type": "application/json",
+                },
+                json={"query": query},
+            )
+            r.raise_for_status()
+            body = r.json()
+            if body.get("errors"):
+                raise ValueError(
+                    f"linear graphql error: {body['errors']}"
+                )
+            for team in (
+                body.get("data", {}).get("teams", {}).get("nodes", [])
+            ):
+                tid = str(team.get("id") or "")
+                name = team.get("name") or tid
+                key = team.get("key") or ""
+                out.append(
+                    DiscoveredItem(
+                        id=tid,
+                        name=f"{name} ({key})" if key else name,
+                        kind="team",
+                        hint=team.get("description"),
+                        config_patch={"team_id": tid},
+                    )
+                )
+        return out
 
     def make_reader(self, config: Mapping[str, Any], secrets: Mapping[str, str]) -> Any:
         cls = import_reader(

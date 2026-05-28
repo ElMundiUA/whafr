@@ -444,6 +444,7 @@ class GoogleDriveImporter(LlamaHubImporter):
 
 @register
 class AsanaImporter(LlamaHubImporter):
+    supports_discovery = True
     meta = ImporterMeta(
         type="asana",
         display_name="Asana",
@@ -472,7 +473,52 @@ class AsanaImporter(LlamaHubImporter):
             },
         },
         secret_keys=("asana_token",),
+        discovery_required=("asana_token",),
     )
+
+    def discover(
+        self,
+        config: Mapping[str, Any],
+        secrets: Mapping[str, str],
+    ) -> list[DiscoveredItem]:
+        import httpx
+
+        token = secrets.get("asana_token") or ""
+        if not token:
+            raise ValueError("asana_token required to list accessible projects")
+        out: list[DiscoveredItem] = []
+        headers = {"Authorization": f"Bearer {token}"}
+        with httpx.Client(timeout=15.0, headers=headers) as client:
+            r = client.get(
+                "https://app.asana.com/api/1.0/projects",
+                params={
+                    "opt_fields": "name,workspace.name,workspace.gid,notes",
+                    "limit": 100,
+                    "archived": "false",
+                },
+            )
+            r.raise_for_status()
+            for proj in r.json().get("data", []):
+                pid = str(proj.get("gid") or "")
+                if not pid:
+                    continue
+                ws = proj.get("workspace") or {}
+                ws_id = str(ws.get("gid") or "")
+                ws_name = ws.get("name") or ""
+                name = proj.get("name") or pid
+                out.append(
+                    DiscoveredItem(
+                        id=pid,
+                        name=f"{name} — {ws_name}" if ws_name else name,
+                        kind="project",
+                        hint=proj.get("notes"),
+                        config_patch={
+                            "project_id": pid,
+                            **({"workspace_id": ws_id} if ws_id else {}),
+                        },
+                    )
+                )
+        return out
 
     def make_reader(self, config: Mapping[str, Any], secrets: Mapping[str, str]) -> Any:
         cls = import_reader(
@@ -496,6 +542,7 @@ class AsanaImporter(LlamaHubImporter):
 
 @register
 class TrelloImporter(LlamaHubImporter):
+    supports_discovery = True
     meta = ImporterMeta(
         type="trello",
         display_name="Trello",
@@ -520,7 +567,48 @@ class TrelloImporter(LlamaHubImporter):
             },
         },
         secret_keys=("api_token",),
+        discovery_required=("api_key", "api_token"),
     )
+
+    def discover(
+        self,
+        config: Mapping[str, Any],
+        secrets: Mapping[str, str],
+    ) -> list[DiscoveredItem]:
+        import httpx
+
+        api_key = str(config.get("api_key") or "").strip()
+        api_token = secrets.get("api_token") or ""
+        if not api_key or not api_token:
+            raise ValueError(
+                "api_key + api_token required to list accessible boards"
+            )
+        out: list[DiscoveredItem] = []
+        with httpx.Client(timeout=15.0) as client:
+            r = client.get(
+                "https://api.trello.com/1/members/me/boards",
+                params={
+                    "key": api_key,
+                    "token": api_token,
+                    "fields": "name,desc,closed",
+                    "filter": "open",
+                },
+            )
+            r.raise_for_status()
+            for board in r.json():
+                bid = str(board.get("id") or "")
+                if not bid or board.get("closed"):
+                    continue
+                out.append(
+                    DiscoveredItem(
+                        id=bid,
+                        name=str(board.get("name") or bid),
+                        kind="board",
+                        hint=board.get("desc"),
+                        config_patch={"board_id": bid},
+                    )
+                )
+        return out
 
     def make_reader(self, config: Mapping[str, Any], secrets: Mapping[str, str]) -> Any:
         cls = import_reader(

@@ -13,12 +13,13 @@ from typing import Any
 
 from lighthouse.connectors.base import Connector
 from lighthouse.connectors.github_releases import GitHubReleasesConnector
-from lighthouse.importers.base import ImporterMeta, LighthouseImporter
+from lighthouse.importers.base import DiscoveredItem, ImporterMeta, LighthouseImporter
 from lighthouse.importers.registry import register
 
 
 @register
 class GithubReleasesImporter(LighthouseImporter):
+    supports_discovery = True
     meta = ImporterMeta(
         type="github_releases",
         display_name="GitHub releases",
@@ -68,7 +69,53 @@ class GithubReleasesImporter(LighthouseImporter):
             },
         },
         secret_keys=("github_token",),
+        discovery_required=("github_token",),
     )
+
+    def discover(
+        self,
+        config: Mapping[str, Any],
+        secrets: Mapping[str, str],
+    ) -> list[DiscoveredItem]:
+        """List repos the token can see. Picking one sets ``owner`` +
+        ``repo`` — the importer then indexes that repo's releases."""
+        import httpx
+
+        token = secrets.get("github_token") or ""
+        if not token:
+            raise ValueError("github_token required to list accessible repos")
+        out: list[DiscoveredItem] = []
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+        }
+        with httpx.Client(timeout=15.0) as client:
+            for page in range(1, 6):
+                r = client.get(
+                    "https://api.github.com/user/repos",
+                    headers=headers,
+                    params={"per_page": 100, "page": page, "sort": "updated"},
+                )
+                r.raise_for_status()
+                rows = r.json()
+                if not rows:
+                    break
+                for repo in rows:
+                    owner = repo.get("owner", {}).get("login", "")
+                    name = repo.get("name", "")
+                    full = f"{owner}/{name}"
+                    out.append(
+                        DiscoveredItem(
+                            id=full,
+                            name=full,
+                            kind="repo",
+                            hint=repo.get("description"),
+                            config_patch={"owner": owner, "repo": name},
+                        )
+                    )
+                if len(rows) < 100:
+                    break
+        return out
 
     def build_connector(
         self,
