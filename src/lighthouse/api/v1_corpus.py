@@ -16,9 +16,13 @@ import asyncpg
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
-from lighthouse.api.dependencies import get_pg_pool, get_workspace
+from lighthouse.api.dependencies import get_pg_pool, get_workspace, require_admin
 
-router = APIRouter(prefix="/v1/corpus", tags=["v1", "corpus"])
+router = APIRouter(
+    prefix="/v1/corpus",
+    tags=["v1", "corpus"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 class CorpusStats(BaseModel):

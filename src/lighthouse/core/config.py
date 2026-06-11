@@ -56,6 +56,34 @@ class Settings(BaseSettings):
     # "no auth" — fine for local dev, never for a public deployment.
     lighthouse_proposal_api_key: str = ""
 
+    # Shared bearer for the admin surface (/v1/importers, /v1/webhooks,
+    # /v1/corpus, /v1/analytics, /v1/keys). Unset → admin endpoints
+    # return 401 unless LIGHTHOUSE_INSECURE_ADMIN=true explicitly opts
+    # into open admin for local development.
+    lighthouse_admin_token: str = ""
+    lighthouse_insecure_admin: bool = False
+
+    # When true, /v1/search, /v1/fetch_* and the MCP tools require a
+    # per-workspace API key (Bearer lh_…, managed via /v1/keys); the
+    # workspace is derived from the key, never from the client header.
+    # Default false keeps the single-tenant/public-corpus behaviour.
+    lighthouse_retrieval_auth_required: bool = False
+
+    # Per-(workspace, client-IP) sliding-window limit on /v1/search.
+    # 0 disables. In-process only — multiply by replica count, and put
+    # a real limiter at the ingress for serious deployments.
+    lighthouse_search_rate_limit_per_minute: int = 0
+
+    # --- Search gap classifier ---
+    # When enabled, every logged search additionally gets its hits
+    # rated for usefulness by Claude Haiku (fire-and-forget, off the
+    # request path; see core/usefulness.py). Searches whose average
+    # rating falls below the useful-threshold are flagged as coverage
+    # gaps even though hits came back — vector search almost never
+    # returns zero hits, so this is what actually catches "uncertain
+    # answers". Costs one Haiku call per search; off by default.
+    lighthouse_gap_classifier_enabled: bool = False
+
     # --- Sources ---
     lighthouse_markdown_source: str = "./data/sources/markdown"
 

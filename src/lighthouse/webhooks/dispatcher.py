@@ -36,16 +36,21 @@ async def emit_event(
     pool: asyncpg.Pool,
     event: str,
     payload: dict[str, Any],
+    *,
+    workspace_id: str = "public",
 ) -> int:
-    """Enqueue `event` for every subscribed webhook.
+    """Enqueue `event` for every webhook subscribed IN THIS WORKSPACE.
 
-    Returns the number of delivery rows inserted. Idempotent at the
-    schema level — duplicate calls just create duplicate deliveries;
-    consumers should be event-id-tolerant.
+    Tenant isolation happens here: a webhook only ever receives events
+    from its own workspace (0009 added the column; pre-existing rows
+    live in 'public'). Returns the number of delivery rows inserted.
+    Idempotent at the schema level — duplicate calls just create
+    duplicate deliveries; consumers should be event-id-tolerant.
     """
     body = {
         "event": event,
         "ts": datetime.now(UTC).isoformat(),
+        "workspace_id": workspace_id,
         "data": payload,
     }
     body_json = json.dumps(body)
@@ -55,20 +60,24 @@ async def emit_event(
             """
             SELECT id FROM webhooks
              WHERE enabled = TRUE
+               AND workspace_id = $2
                AND ($1 = ANY(events) OR '*' = ANY(events))
             """,
             event,
+            workspace_id,
         )
         for r in rows:
             await conn.execute(
                 """
                 INSERT INTO webhook_deliveries
-                  (webhook_id, event, payload, status, next_attempt_at)
-                VALUES ($1, $2, $3::jsonb, 'pending', NOW())
+                  (webhook_id, event, payload, status, next_attempt_at,
+                   workspace_id)
+                VALUES ($1, $2, $3::jsonb, 'pending', NOW(), $4)
                 """,
                 r["id"],
                 event,
                 body_json,
+                workspace_id,
             )
             n += 1
     if n:

@@ -33,7 +33,7 @@ from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel, Field
 
-from lighthouse.core.flat_graph import PUBLIC_WORKSPACE, FlatGraph
+from lighthouse.core.flat_graph import FlatGraph
 from lighthouse.librarian.agent import Librarian
 from lighthouse.proposals.queue import ProposalQueue
 from lighthouse.proposals.store import (
@@ -47,23 +47,36 @@ from lighthouse.proposals.store import (
 logger = logging.getLogger(__name__)
 
 
-def _workspace_from_ctx(ctx: Context) -> str:
-    """Resolve the tenant for one MCP request from its ``X-Workspace``
-    header. HTTP transports carry a raw request whose headers we read;
-    stdio (local single-tenant desktop) has none, so we fall back to the
-    reserved ``public`` workspace. The FlatGraph layer filters every read
-    on the returned value, so this is the per-request isolation boundary.
+async def _workspace_from_ctx(ctx: Context) -> str:
+    """Resolve the tenant for one MCP request — same rules as the HTTP
+    retrieval surface (:func:`lighthouse.core.auth.authenticate_retrieval`):
+
+    - ``Authorization: Bearer lh_…`` binds the request to the key's
+      workspace (an X-Workspace contradicting it is rejected);
+    - with ``LIGHTHOUSE_RETRIEVAL_AUTH_REQUIRED=true`` a valid key is
+      mandatory;
+    - otherwise the legacy header-or-public fallback applies. stdio
+      (local single-tenant desktop) has no headers → public workspace.
+
+    Auth failures raise; FastMCP surfaces them as tool errors.
     """
     try:
         request = ctx.request_context.request
     except Exception:
-        return PUBLIC_WORKSPACE
-    headers = getattr(request, "headers", None)
-    if headers is not None:
-        ws = headers.get("x-workspace")
-        if ws:
-            return ws
-    return PUBLIC_WORKSPACE
+        request = None
+    headers = getattr(request, "headers", None) if request is not None else None
+    authorization = headers.get("authorization") if headers is not None else None
+    x_workspace = headers.get("x-workspace") if headers is not None else None
+
+    from lighthouse.api.dependencies import get_pg_pool
+    from lighthouse.core.auth import authenticate_retrieval
+
+    auth = await authenticate_retrieval(
+        authorization=authorization,
+        x_workspace=x_workspace,
+        pool_factory=get_pg_pool,
+    )
+    return auth.workspace_id
 
 
 class McpSearchHit(BaseModel):
@@ -219,7 +232,7 @@ def build_server(
         query: str, ctx: Context, top_k: int = 10
     ) -> McpSearchResponse:
         hits = await g.search(
-            query, top_k=top_k, workspace_id=_workspace_from_ctx(ctx)
+            query, top_k=top_k, workspace_id=await _workspace_from_ctx(ctx)
         )
         wire_hits = [
             McpSearchHit(
@@ -298,7 +311,7 @@ def build_server(
         episode_id: str, ctx: Context, max_chars: int = 6000
     ) -> McpSource | None:
         src = await g.fetch_source(
-            episode_id, workspace_id=_workspace_from_ctx(ctx)
+            episode_id, workspace_id=await _workspace_from_ctx(ctx)
         )
         if src is None:
             return None

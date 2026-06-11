@@ -29,6 +29,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from lighthouse import __version__
 from lighthouse.api.admin_importers import router as importers_router
@@ -39,13 +40,50 @@ from lighthouse.api.dependencies import (
 )
 from lighthouse.api.proposal import router as proposal_router
 from lighthouse.api.retrieval import router as retrieval_router
+from lighthouse.api.v1_analytics import router as v1_analytics_router
 from lighthouse.api.v1_corpus import router as v1_corpus_router
+from lighthouse.api.v1_keys import router as v1_keys_router
 from lighthouse.api.v1_webhooks import router as v1_webhooks_router
 from lighthouse.importers import store as importer_store
 from lighthouse.mcp.server import build_server as build_mcp_server
 from lighthouse.webhooks.dispatcher import run_worker as run_webhook_worker
 
 logger = logging.getLogger(__name__)
+
+
+def _preflight_warnings() -> None:
+    """Loud startup diagnostics for the misconfigurations that
+    otherwise surface as confusing failures mid-flight."""
+    import os
+
+    from lighthouse.core.auth import admin_token_configured, insecure_admin_allowed
+    from lighthouse.core.config import get_settings
+
+    if not admin_token_configured():
+        if insecure_admin_allowed():
+            logger.warning(
+                "admin surface is OPEN (LIGHTHOUSE_INSECURE_ADMIN=true) — "
+                "never run this configuration on a reachable network"
+            )
+        else:
+            logger.error(
+                "LIGHTHOUSE_ADMIN_TOKEN is not set — every admin endpoint "
+                "(/v1/importers, /v1/webhooks, /v1/corpus, /v1/analytics, "
+                "/v1/keys, the /ui admin panel) will return 401. Set the "
+                "token, or LIGHTHOUSE_INSECURE_ADMIN=true for local dev."
+            )
+    if not os.environ.get("LIGHTHOUSE_SECRETS_KEY"):
+        logger.warning(
+            "LIGHTHOUSE_SECRETS_KEY is not set — creating importers with "
+            "credentials (Notion, Jira, S3, …) will fail. Generate one: "
+            "python -c \"from cryptography.fernet import Fernet; "
+            "print(Fernet.generate_key().decode())\""
+        )
+    if not get_settings().openai_api_key:
+        logger.warning(
+            "OPENAI_API_KEY is not set — running in keyword-only (BM25) "
+            "search mode; no embeddings will be computed or queried"
+        )
 
 
 def create_app() -> FastAPI:
@@ -58,6 +96,7 @@ def create_app() -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        _preflight_warnings()
         queue = get_proposal_queue()
         try:
             n = await queue.bootstrap()
@@ -72,7 +111,20 @@ def create_app() -> FastAPI:
         webhook_worker_task: asyncio.Task[None] | None = None
         try:
             pool = await get_pg_pool()
+            # Apply pending SQL migrations up-front. Previously only the
+            # ingest paths ran them (via FlatGraph.initialize), so an
+            # API-only process never saw new tables (query_log broke
+            # /v1/analytics on otherwise-healthy deployments).
+            from lighthouse.core.config import get_settings
+            from lighthouse.core.migrator import run_migrations
+
             async with pool.acquire() as conn:
+                applied = await run_migrations(
+                    conn,
+                    embedding_dim=int(get_settings().openai_embedding_dim),
+                )
+                if applied:
+                    logger.info("applied migrations: %s", ", ".join(applied))
                 swept = await importer_store.sweep_orphans(conn)
             if swept:
                 logger.info("importer sweep: marked %d orphan run(s) as cancelled", swept)
@@ -127,10 +179,18 @@ def create_app() -> FastAPI:
     )
     app.include_router(v1_corpus_router)
     app.include_router(v1_webhooks_router)
+    app.include_router(v1_analytics_router)
+    app.include_router(v1_keys_router)
 
     # MCP (streamable-http) mounted at /mcp/ — its task-group lifetime
     # is owned by the lifespan above.
     app.mount("/mcp", mcp_server.streamable_http_app())
+
+    # Built-in admin UI — static SPA over the /v1 surface. Ships in the
+    # wheel; admin token + workspace are configured in the UI itself.
+    from lighthouse.ui import STATIC_DIR
+
+    app.mount("/ui", StaticFiles(directory=STATIC_DIR, html=True), name="ui")
 
     return app
 

@@ -135,6 +135,16 @@ class FakeLibrarian(Librarian):
         return self.next_decision, self.next_reason  # type: ignore[return-value]
 
 
+@pytest.fixture(autouse=True)
+def _insecure_admin(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Admin endpoints reject by default when LIGHTHOUSE_ADMIN_TOKEN is
+    unset; unit tests opt into open admin the same way local dev does.
+    Tests that exercise the auth itself override these env vars."""
+    monkeypatch.setenv("LIGHTHOUSE_INSECURE_ADMIN", "true")
+    monkeypatch.delenv("LIGHTHOUSE_ADMIN_TOKEN", raising=False)
+    monkeypatch.delenv("LIGHTHOUSE_RETRIEVAL_AUTH_REQUIRED", raising=False)
+
+
 @pytest.fixture
 def fake_graph() -> FakeGraph:
     return FakeGraph()

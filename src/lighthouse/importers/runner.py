@@ -83,6 +83,7 @@ async def run_importer(
             "run_id": str(run_id),
             "triggered_by": triggered_by,
         },
+        workspace_id=row.workspace_id,
     )
 
     # Decrypt + build connector outside the txn — these can be slow
@@ -90,18 +91,27 @@ async def run_importer(
     try:
         cls = lookup_importer(row.type)
     except KeyError as exc:
-        await _persist_failure(pool, importer_id, run_id, str(exc))
+        await _persist_failure(
+            pool, importer_id, run_id, str(exc),
+            workspace_id=row.workspace_id,
+        )
         raise RunnerError(str(exc)) from exc
 
     try:
         secrets = crypto.decrypt_secrets(row.secrets_enc)
     except crypto.MissingMasterKeyError as exc:
         if row.secrets_enc:
-            await _persist_failure(pool, importer_id, run_id, str(exc))
+            await _persist_failure(
+                pool, importer_id, run_id, str(exc),
+                workspace_id=row.workspace_id,
+            )
             raise
         secrets = {}
     except crypto.SecretsCorruptError as exc:
-        await _persist_failure(pool, importer_id, run_id, str(exc))
+        await _persist_failure(
+            pool, importer_id, run_id, str(exc),
+            workspace_id=row.workspace_id,
+        )
         raise
 
     importer = cls()
@@ -109,7 +119,7 @@ async def run_importer(
         connector = importer.build_connector(row.config, secrets)
     except Exception as exc:  # adapter bug or bad config
         msg = f"build_connector failed: {exc}\n{traceback.format_exc()}"
-        await _persist_failure(pool, importer_id, run_id, msg)
+        await _persist_failure(pool, importer_id, run_id, msg, workspace_id=row.workspace_id)
         raise
 
     # Drain — the bulk of the work happens here. We don't have item-
@@ -123,7 +133,7 @@ async def run_importer(
         )
     except Exception as exc:
         msg = f"drain failed: {exc}\n{traceback.format_exc()}"
-        await _persist_failure(pool, importer_id, run_id, msg)
+        await _persist_failure(pool, importer_id, run_id, msg, workspace_id=row.workspace_id)
         raise
 
     async with pool.acquire() as conn:
@@ -150,6 +160,7 @@ async def run_importer(
             "status": "success",
             "chunks_added": n_chunks,
         },
+        workspace_id=row.workspace_id,
     )
     return run_id
 
@@ -159,6 +170,8 @@ async def _persist_failure(
     importer_id: UUID,
     run_id: UUID,
     error_text: str,
+    *,
+    workspace_id: str = "public",
 ) -> None:
     """Best-effort: persist a runner failure to the run row + flip the
     importer back to 'error', emit importer.run.finished with
@@ -191,6 +204,7 @@ async def _persist_failure(
                 "status": "error",
                 "error": error_text[:1000],
             },
+            workspace_id=workspace_id,
         )
     except Exception:
         logger.exception("Failed to persist importer-run failure")
