@@ -1,0 +1,48 @@
+# Lighthouse Engine — local / single-node deployment.
+#
+#   docker compose up --build
+#
+# Engine on http://localhost:8000 (admin UI at /ui/, MCP at /mcp/).
+# Migrations run automatically on engine startup.
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: lighthouse
+      POSTGRES_PASSWORD: lighthouse
+      POSTGRES_DB: lighthouse
+    volumes:
+      - lighthouse-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lighthouse -d lighthouse"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  engine:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      LIGHTHOUSE_PG_URL: postgresql://lighthouse:lighthouse@db:5432/lighthouse
+    # Optional overrides — copy .env.example to .env and fill in what
+    # you need. Notably:
+    #
+    #   OPENAI_API_KEY     — optional. Without it the engine runs in
+    #                        keyword-only search mode (BM25, no vector
+    #                        retrieval, no rerank). Set it to enable
+    #                        full hybrid search.
+    #   ANTHROPIC_API_KEY  — optional. Enables the librarian agent and
+    #                        the LLM gap classifier.
+    #   LIGHTHOUSE_ADMIN_TOKEN — required for any non-local deployment;
+    #                        gates the admin UI/API.
+    env_file:
+      - path: .env
+        required: false
+
+volumes:
+  lighthouse-pgdata:
