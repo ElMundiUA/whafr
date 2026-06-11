@@ -17,7 +17,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -25,13 +24,9 @@ from typing import Any  # noqa: F401  — used in type hints below
 
 import yaml
 
+from lighthouse.core.usefulness import USEFUL_THRESHOLD, score_hits
+
 logger = logging.getLogger(__name__)
-
-
-# Threshold below which a query result is considered "not useful enough
-# to ground an answer". 3.0/5 is the audit convention used in the
-# series of manual audit waves (avg of 5 hits scored 1-5).
-USEFUL_THRESHOLD = 3.0
 
 
 @dataclass
@@ -197,7 +192,7 @@ async def _audit_one(
         # cosine similarity alone would be brittle on this corpus.
         scores: list[int] = []
         if hits:
-            scores = await _score_hits(query, [h.summary for h in hits])
+            scores = await score_hits(query, [h.summary for h in hits])
         avg = sum(scores) / len(scores) if scores else 0.0
         return QueryResult(
             domain=domain,
@@ -208,59 +203,6 @@ async def _audit_one(
             coverage=coverage,
             is_gap=avg < USEFUL_THRESHOLD,
         )
-
-
-async def _score_hits(query: str, summaries: list[str]) -> list[int]:
-    """Ask Claude Haiku to rate each hit 1..5 for usefulness vs query.
-
-    Returns one int per summary, in the same order. On API failure
-    returns all zeros (counted as gap) rather than aborting the audit.
-    """
-    from anthropic import AsyncAnthropic
-
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        logger.warning("ANTHROPIC_API_KEY missing — scoring everything as 0")
-        return [0] * len(summaries)
-    client = AsyncAnthropic(api_key=api_key)
-
-    bullets = "\n".join(f"{i + 1}. {s}" for i, s in enumerate(summaries))
-    prompt = (
-        f"Query: {query!r}\n\n"
-        f"Candidate facts retrieved from a knowledge base:\n{bullets}\n\n"
-        "Rate EACH candidate 1-5 on whether it would help an engineer "
-        "answer the query:\n"
-        "  1 = irrelevant or wrong topic\n"
-        "  3 = on-topic but generic\n"
-        "  5 = directly answers / canonical reference\n\n"
-        f"Reply with EXACTLY {len(summaries)} integers separated by spaces. "
-        "No prose. Example: '4 2 5 1 3'."
-    )
-    try:
-        resp = await client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=80,
-            temperature=0,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        text = "".join(
-            b.text for b in resp.content if getattr(b, "type", "") == "text"
-        ).strip()
-    except Exception:
-        logger.exception("scoring %r failed — treating as zero", query)
-        return [0] * len(summaries)
-
-    out: list[int] = []
-    for tok in text.replace(",", " ").split():
-        try:
-            n = int(tok)
-            out.append(max(1, min(n, 5)))
-        except ValueError:
-            continue
-    # Pad / truncate so caller can rely on length alignment.
-    if len(out) < len(summaries):
-        out.extend([0] * (len(summaries) - len(out)))
-    return out[: len(summaries)]
 
 
 def _render_markdown(report: AuditReport) -> str:

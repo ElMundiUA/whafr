@@ -13,10 +13,17 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Any
 
-from fastapi import Header
+from fastapi import Header, HTTPException, Request
 
+from lighthouse.core.auth import (
+    RetrievalAuth,
+    authenticate_retrieval,
+    check_admin,
+)
 from lighthouse.core.config import get_settings
 from lighthouse.core.flat_graph import PUBLIC_WORKSPACE
+from lighthouse.core.query_log import QueryLogger
+from lighthouse.core.ratelimit import SlidingWindowLimiter
 from lighthouse.librarian.agent import Librarian
 from lighthouse.proposals.queue import ProposalQueue
 from lighthouse.proposals.store import GitProposalStore
@@ -25,15 +32,53 @@ from lighthouse.proposals.store import GitProposalStore
 async def get_workspace(
     x_workspace: Annotated[str | None, Header()] = None,
 ) -> str:
-    """Resolve the tenant for a request from the ``X-Workspace`` header.
+    """Resolve the tenant for an ADMIN request from the ``X-Workspace``
+    header. Admin routes are gated by the operator's shared bearer
+    (see :func:`require_admin`), so cross-workspace selection via the
+    header is intended — the operator administers every tenant.
 
-    A missing header maps to the reserved ``public`` workspace so the
-    original single-tenant corpus (the harborgang public site) keeps
-    working unchanged. Consumers that need isolation (Ship, per its
-    workspace) send ``X-Workspace: <id>`` and only ever see their own
-    rows — the FlatGraph layer filters every read on this value.
+    Retrieval routes must NOT use this: they resolve the workspace via
+    :func:`get_retrieval_auth`, which binds it to the API key.
     """
     return x_workspace or PUBLIC_WORKSPACE
+
+
+def require_admin(
+    authorization: Annotated[str | None, Header()] = None,
+) -> None:
+    """Shared admin guard — see :func:`lighthouse.core.auth.check_admin`."""
+    check_admin(authorization)
+
+
+async def get_retrieval_auth(
+    request: Request,
+    authorization: Annotated[str | None, Header()] = None,
+    x_workspace: Annotated[str | None, Header()] = None,
+) -> RetrievalAuth:
+    """Auth-aware workspace resolution for retrieval routes, plus the
+    per-(workspace, ip) rate limit on the way in."""
+    # The pool is fetched lazily (only when a key is actually presented),
+    # so we can't declare it via Depends — resolve any test/deployment
+    # override by hand to keep the dependency_overrides seam working.
+    pool_factory = request.app.dependency_overrides.get(get_pg_pool, get_pg_pool)
+    auth = await authenticate_retrieval(
+        authorization=authorization,
+        x_workspace=x_workspace,
+        pool_factory=pool_factory,
+    )
+    limit = get_settings().lighthouse_search_rate_limit_per_minute
+    if limit > 0:
+        client_ip = request.client.host if request.client else "unknown"
+        if not _rate_limiter().allow(f"{auth.workspace_id}:{client_ip}", limit):
+            raise HTTPException(
+                status_code=429, detail="rate limit exceeded — retry later"
+            )
+    return auth
+
+
+@lru_cache(maxsize=1)
+def _rate_limiter() -> SlidingWindowLimiter:
+    return SlidingWindowLimiter()
 
 
 @lru_cache(maxsize=1)
@@ -47,6 +92,17 @@ def get_graph() -> Any:
     from lighthouse.core.flat_graph import FlatGraph
 
     return FlatGraph()
+
+
+@lru_cache(maxsize=1)
+def get_query_logger() -> QueryLogger:
+    """Process-singleton fire-and-forget search analytics logger.
+
+    Tests override via ``app.dependency_overrides[get_query_logger]``
+    with a recording fake; the real one inserts into ``query_log`` and
+    swallows every failure (analytics never break retrieval).
+    """
+    return QueryLogger()
 
 
 @lru_cache(maxsize=1)

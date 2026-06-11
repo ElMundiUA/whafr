@@ -24,9 +24,13 @@ import asyncpg
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from lighthouse.api.dependencies import get_pg_pool
+from lighthouse.api.dependencies import get_pg_pool, get_workspace, require_admin
 
-router = APIRouter(prefix="/v1/webhooks", tags=["v1", "webhooks"])
+router = APIRouter(
+    prefix="/v1/webhooks",
+    tags=["v1", "webhooks"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 # ───────────────────────── Schemas ─────────────────────────
@@ -100,6 +104,7 @@ def _to_out(row: asyncpg.Record) -> WebhookOut:
 @router.get("/", response_model=list[WebhookOut])
 async def list_all(
     pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
+    workspace_id: Annotated[str, Depends(get_workspace)],
 ) -> list[WebhookOut]:
     async with pool.acquire() as conn:
         rows = await conn.fetch(
@@ -107,8 +112,10 @@ async def list_all(
             SELECT id, url, events, enabled, description, created_at,
                    last_delivery_at, last_status, last_error
               FROM webhooks
+             WHERE workspace_id = $1
              ORDER BY created_at DESC
             """,
+            workspace_id,
         )
     return [_to_out(r) for r in rows]
 
@@ -117,13 +124,15 @@ async def list_all(
 async def create(
     body: WebhookCreate,
     pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
+    workspace_id: Annotated[str, Depends(get_workspace)],
 ) -> WebhookCreated:
     secret_val = body.secret or pysecrets.token_urlsafe(32)
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """
-            INSERT INTO webhooks (url, secret, events, description, enabled)
-            VALUES ($1, $2, $3, $4, $5)
+            INSERT INTO webhooks (url, secret, events, description, enabled,
+                                  workspace_id)
+            VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING id, url, events, enabled, description, created_at,
                       last_delivery_at, last_status, last_error
             """,
@@ -132,6 +141,7 @@ async def create(
             body.events,
             body.description,
             body.enabled,
+            workspace_id,
         )
     assert row is not None
     base = _to_out(row)
@@ -142,15 +152,17 @@ async def create(
 async def get(
     webhook_id: UUID,
     pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
+    workspace_id: Annotated[str, Depends(get_workspace)],
 ) -> WebhookOut:
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """
             SELECT id, url, events, enabled, description, created_at,
                    last_delivery_at, last_status, last_error
-              FROM webhooks WHERE id = $1
+              FROM webhooks WHERE id = $1 AND workspace_id = $2
             """,
             webhook_id,
+            workspace_id,
         )
     if row is None:
         raise HTTPException(status_code=404, detail="not found")
@@ -162,6 +174,7 @@ async def update(
     webhook_id: UUID,
     body: WebhookUpdate,
     pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
+    workspace_id: Annotated[str, Depends(get_workspace)],
 ) -> Any:
     sets: list[str] = []
     args: list[Any] = []
@@ -183,13 +196,14 @@ async def update(
         sets.append(f"secret = ${len(args) + 1}")
         args.append(new_secret)
     if not sets:
-        return await get(webhook_id, pool)
+        return await get(webhook_id, pool, workspace_id)
     args.append(webhook_id)
+    args.append(workspace_id)
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             f"""
             UPDATE webhooks SET {", ".join(sets)}
-             WHERE id = ${len(args)}
+             WHERE id = ${len(args) - 1} AND workspace_id = ${len(args)}
             RETURNING id, url, events, enabled, description, created_at,
                       last_delivery_at, last_status, last_error
             """,
@@ -207,9 +221,14 @@ async def update(
 async def delete(
     webhook_id: UUID,
     pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
+    workspace_id: Annotated[str, Depends(get_workspace)],
 ) -> None:
     async with pool.acquire() as conn:
-        r = await conn.execute("DELETE FROM webhooks WHERE id = $1", webhook_id)
+        r = await conn.execute(
+            "DELETE FROM webhooks WHERE id = $1 AND workspace_id = $2",
+            webhook_id,
+            workspace_id,
+        )
     if not r.endswith(" 1"):
         raise HTTPException(status_code=404, detail="not found")
 
@@ -218,19 +237,23 @@ async def delete(
 async def deliveries(
     webhook_id: UUID,
     pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
+    workspace_id: Annotated[str, Depends(get_workspace)],
     limit: int = 50,
 ) -> list[DeliveryOut]:
     async with pool.acquire() as conn:
         rows = await conn.fetch(
             """
-            SELECT id, webhook_id, event, status, attempts, next_attempt_at,
-                   last_status, last_error, created_at, delivered_at
-              FROM webhook_deliveries
-             WHERE webhook_id = $1
-             ORDER BY created_at DESC
-             LIMIT $2
+            SELECT d.id, d.webhook_id, d.event, d.status, d.attempts,
+                   d.next_attempt_at, d.last_status, d.last_error,
+                   d.created_at, d.delivered_at
+              FROM webhook_deliveries d
+              JOIN webhooks w ON w.id = d.webhook_id
+             WHERE d.webhook_id = $1 AND w.workspace_id = $2
+             ORDER BY d.created_at DESC
+             LIMIT $3
             """,
             webhook_id,
+            workspace_id,
             limit,
         )
     return [DeliveryOut(**dict(r)) for r in rows]
@@ -241,19 +264,23 @@ async def redeliver(
     webhook_id: UUID,
     delivery_id: UUID,
     pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
+    workspace_id: Annotated[str, Depends(get_workspace)],
 ) -> dict[str, str]:
     """Reset a delivery row to `pending` + next_attempt_at=NOW. The
     worker picks it up on the next tick."""
     async with pool.acquire() as conn:
         r = await conn.execute(
             """
-            UPDATE webhook_deliveries
+            UPDATE webhook_deliveries d
                SET status = 'pending', next_attempt_at = NOW(),
                    attempts = 0, last_error = NULL
-             WHERE id = $1 AND webhook_id = $2
+              FROM webhooks w
+             WHERE d.id = $1 AND d.webhook_id = $2
+               AND w.id = d.webhook_id AND w.workspace_id = $3
             """,
             delivery_id,
             webhook_id,
+            workspace_id,
         )
     if not r.endswith(" 1"):
         raise HTTPException(status_code=404, detail="delivery not found")
@@ -264,13 +291,18 @@ async def redeliver(
 async def test(
     webhook_id: UUID,
     pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
+    workspace_id: Annotated[str, Depends(get_workspace)],
 ) -> dict[str, Any]:
     """Enqueue a synthetic `ping` event for this webhook only.
 
     Useful for first-time setup — verifies URL + signing + receiver
     parsing without waiting for a real importer run."""
     async with pool.acquire() as conn:
-        wh = await conn.fetchrow("SELECT id FROM webhooks WHERE id = $1", webhook_id)
+        wh = await conn.fetchrow(
+            "SELECT id FROM webhooks WHERE id = $1 AND workspace_id = $2",
+            webhook_id,
+            workspace_id,
+        )
         if wh is None:
             raise HTTPException(status_code=404, detail="not found")
         body = {
@@ -281,12 +313,14 @@ async def test(
         d_row = await conn.fetchrow(
             """
             INSERT INTO webhook_deliveries
-              (webhook_id, event, payload, status, next_attempt_at)
-            VALUES ($1, 'ping', $2::jsonb, 'pending', NOW())
+              (webhook_id, event, payload, status, next_attempt_at,
+               workspace_id)
+            VALUES ($1, 'ping', $2::jsonb, 'pending', NOW(), $3)
             RETURNING id
             """,
             webhook_id,
             json.dumps(body),
+            workspace_id,
         )
     assert d_row is not None
     return {"delivery_id": str(d_row["id"])}

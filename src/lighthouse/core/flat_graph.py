@@ -295,7 +295,14 @@ class FlatGraph:
         chunks = _split_body(body, cap=MAX_CHUNK_CHARS)
         recipes_arr = [recipe] if recipe else []
 
-        embeddings = await self._embed_batch(chunks)
+        if self._embeddings_enabled():
+            embeddings: list[Any] = await self._embed_batch(chunks)
+        else:
+            # Keyword-only mode: chunks land with NULL embeddings and
+            # are reachable via BM25; backfill by re-ingesting once an
+            # OPENAI_API_KEY is configured.
+            self._warn_keyword_only()
+            embeddings = [None] * len(chunks)
         rows: list[tuple] = []
         for i, (chunk, emb) in enumerate(zip(chunks, embeddings, strict=True)):
             chunk_name = (
@@ -317,7 +324,7 @@ class FlatGraph:
                     version,
                     i,
                     len(chunks),
-                    _vector_literal(emb),
+                    _vector_literal(emb) if emb is not None else None,
                     recipes_arr,
                     workspace_id,
                 )
@@ -407,7 +414,6 @@ class FlatGraph:
             [] if include_release_notes else ["gh-releases-", "rss-"]
         )
 
-        q_embedding = (await self._embed_batch([query]))[0]
         bm25 = await self._search_bm25(
             query,
             workspace_id=workspace_id,
@@ -419,16 +425,23 @@ class FlatGraph:
             include_superseded=include_superseded,
             use_summary_boost=use_summary_boost,
         )
-        vec = await self._search_vector(
-            q_embedding,
-            workspace_id=workspace_id,
-            limit=top_k * VECTOR_OVERSAMPLE,
-            after=after,
-            before=before,
-            version=version,
-            excluded_prefixes=excluded_prefixes,
-            include_superseded=include_superseded,
-        )
+        vec: list[FlatHit] = []
+        if self._embeddings_enabled():
+            q_embedding = (await self._embed_batch([query]))[0]
+            vec = await self._search_vector(
+                q_embedding,
+                workspace_id=workspace_id,
+                limit=top_k * VECTOR_OVERSAMPLE,
+                after=after,
+                before=before,
+                version=version,
+                excluded_prefixes=excluded_prefixes,
+                include_superseded=include_superseded,
+            )
+        else:
+            # Keyword-only mode (no OPENAI_API_KEY): BM25 carries the
+            # whole search; RRF fusion below degrades to BM25 ranking.
+            self._warn_keyword_only()
 
         # RRF fusion with BM25 weighted slightly higher (audit
         # evidence has BM25 as the stronger signal). k=60 is the
@@ -622,6 +635,18 @@ class FlatGraph:
         return None
 
     # ---- internals -----------------------------------------------------
+
+    def _embeddings_enabled(self) -> bool:
+        return bool(self._settings.openai_api_key)
+
+    def _warn_keyword_only(self) -> None:
+        """One warning per process, not one per request."""
+        if not getattr(self, "_keyword_only_warned", False):
+            self._keyword_only_warned = True
+            logger.warning(
+                "OPENAI_API_KEY not set — keyword-only (BM25) mode: "
+                "vector retrieval and embeddings are disabled"
+            )
 
     async def _embed_batch(self, texts: list[str]) -> list[list[float]]:
         """Batch embedding via OpenAI. Two budgets to respect:

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lighthouse — Admin</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗼</text></svg>">
+</head>
+<body>
+  <div id="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">🗼</div>
+        <div class="brand-name">Lighthouse</div>
+      </div>
+      <nav>
+        <a href="#/" data-route="/"><span class="nav-ico">▦</span> Dashboard</a>
+        <a href="#/search" data-route="/search"><span class="nav-ico">💬</span> Search</a>
+        <div class="nav-section">Configuration</div>
+        <a href="#/sources" data-route="/sources"><span class="nav-ico">▤</span> Sources</a>
+        <a href="#/keys" data-route="/keys"><span class="nav-ico">⚿</span> API keys</a>
+        <a href="#/webhooks" data-route="/webhooks"><span class="nav-ico">⚓</span> Webhooks</a>
+        <div class="nav-section">Analytics</div>
+        <a href="#/gaps" data-route="/gaps"><span class="nav-ico">▢</span> Coverage gaps</a>
+        <a href="#/questions" data-route="/questions"><span class="nav-ico">≡</span> Top questions</a>
+        <a href="#/source-analytics" data-route="/source-analytics"><span class="nav-ico">⊿</span> Source analytics</a>
+      </nav>
+      <div class="sidebar-foot">
+        <button id="settings-btn" class="ghost-btn">⚙ Connection</button>
+      </div>
+    </aside>
+    <main id="main"></main>
+  </div>
+
+  <dialog id="settings-dialog">
+    <form method="dialog" class="dialog-body">
+      <h2>Connection</h2>
+      <label>Workspace
+        <input id="set-workspace" placeholder="public">
+      </label>
+      <label>Admin token <span class="muted">(LIGHTHOUSE_ADMIN_TOKEN, optional)</span>
+        <input id="set-token" type="password" placeholder="Bearer token">
+      </label>
+      <div class="dialog-actions">
+        <button value="cancel" class="ghost-btn">Cancel</button>
+        <button value="save" id="settings-save" class="primary-btn">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

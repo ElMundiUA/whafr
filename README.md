@@ -22,6 +22,26 @@ Apache-2.0.
 > This repo carries the engine itself — code, SDKs, recipe authoring,
 > internals. Pin a `sha-*` tag from there.
 
+## Quickstart
+
+```bash
+git clone https://github.com/ElMundiUA/whafr.git && cd whafr
+cp .env.example .env   # OPENAI_API_KEY optional — keyword-only search without it
+docker compose up --build
+```
+
+Admin UI at <http://localhost:8000/ui/>, MCP at `/mcp/`. Full
+walkthrough — first importer, verifying search, connecting Claude
+Code — in [`QUICKSTART.md`](QUICKSTART.md).
+
+## Versioning
+
+The `/v1` HTTP surface is intended to stay stable. The engine itself
+is 0.x pre-1.0 — anything else (schema, admin UI, importer configs)
+may break between minor releases. See [`CHANGELOG.md`](CHANGELOG.md).
+
+Telemetry: none — the engine phones home to no one.
+
 ## What's in here
 
 ```

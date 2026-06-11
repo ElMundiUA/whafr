@@ -19,12 +19,19 @@ its own auth.
 
 from __future__ import annotations
 
+import time
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from lighthouse.api.dependencies import get_graph, get_workspace
+from lighthouse.api.dependencies import (
+    get_graph,
+    get_query_logger,
+    get_retrieval_auth,
+)
+from lighthouse.core.auth import RetrievalAuth
+from lighthouse.core.query_log import QueryLogger
 
 router = APIRouter(tags=["retrieval"])
 
@@ -82,10 +89,27 @@ class SourceResponse(BaseModel):
 async def search(
     q: Annotated[str, Query(min_length=1, description="Natural-language query")],
     graph: Annotated[Any, Depends(get_graph)],
-    workspace_id: Annotated[str, Depends(get_workspace)],
+    auth: Annotated[RetrievalAuth, Depends(get_retrieval_auth)],
+    query_logger: Annotated[QueryLogger, Depends(get_query_logger)],
     top_k: Annotated[int, Query(ge=1, le=50)] = 10,
 ) -> SearchResponse:
-    hits = await graph.search(q, top_k=top_k, workspace_id=workspace_id)
+    started = time.monotonic()
+    hits = await graph.search(q, top_k=top_k, workspace_id=auth.workspace_id)
+    # Analytics: fire-and-forget; a failed insert never fails the search.
+    sources_in_rank_order = list(
+        dict.fromkeys(h.source for h in hits if h.source)
+    )
+    query_logger.log(
+        workspace_id=auth.workspace_id,
+        query=q,
+        top_k=top_k,
+        hit_count=len(hits),
+        top_sources=sources_in_rank_order,
+        summaries=[h.summary for h in hits],
+        top_score=float(hits[0].score) if hits else None,
+        api_key_id=auth.api_key_id,
+        latency_ms=int((time.monotonic() - started) * 1000),
+    )
     # Flat-RAG hits are chunks: no entity layer, so source_node_id /
     # target_node_id / valid_until stay None. valid_from carries the
     # chunk's published_at.
@@ -117,6 +141,7 @@ def _iso_or_none(v: Any) -> str | None:
 async def fetch_entity(
     node_id: str,
     graph: Annotated[Any, Depends(get_graph)],
+    auth: Annotated[RetrievalAuth, Depends(get_retrieval_auth)],
 ) -> EntityResponse:
     if not node_id:
         raise HTTPException(status_code=400, detail="node_id required")
@@ -137,8 +162,9 @@ async def fetch_entity(
 async def fetch_legacy(
     node_id: str,
     graph: Annotated[Any, Depends(get_graph)],
+    auth: Annotated[RetrievalAuth, Depends(get_retrieval_auth)],
 ) -> EntityResponse:
-    return await fetch_entity(node_id, graph)
+    return await fetch_entity(node_id, graph, auth)
 
 
 @router.get("/v1/fetch_source/{episode_id}", response_model=SourceResponse)
@@ -146,11 +172,11 @@ async def fetch_legacy(
 async def fetch_source(
     episode_id: str,
     graph: Annotated[Any, Depends(get_graph)],
-    workspace_id: Annotated[str, Depends(get_workspace)],
+    auth: Annotated[RetrievalAuth, Depends(get_retrieval_auth)],
 ) -> SourceResponse:
     if not episode_id:
         raise HTTPException(status_code=400, detail="episode_id required")
-    src = await graph.fetch_source(episode_id, workspace_id=workspace_id)
+    src = await graph.fetch_source(episode_id, workspace_id=auth.workspace_id)
     if src is None:
         raise HTTPException(status_code=404, detail=f"source {episode_id} not found")
     return SourceResponse(

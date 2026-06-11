@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -30,6 +29,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from lighthouse.api.dependencies import get_pg_pool, get_workspace
+from lighthouse.core.auth import check_admin
 from lighthouse.core.config import get_settings
 from lighthouse.importers import crypto, provisioning, runner, store
 from lighthouse.importers.registry import list_importers, lookup_importer
@@ -65,17 +65,13 @@ def _spawn_run(pool: asyncpg.Pool, importer_id: UUID) -> None:
 def _require_admin(
     authorization: Annotated[str | None, Header()] = None,
 ) -> None:
-    """Optional Bearer-token guard. If LIGHTHOUSE_ADMIN_TOKEN is unset
-    the endpoint is open (engine deployments behind a private network
-    policy don't need belt-and-braces auth). If set, every request
-    must carry `Authorization: Bearer <token>`."""
-    expected = os.environ.get("LIGHTHOUSE_ADMIN_TOKEN")
-    if not expected:
-        return
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="admin token required")
-    if authorization.removeprefix("Bearer ").strip() != expected:
-        raise HTTPException(status_code=401, detail="bad admin token")
+    """Admin bearer guard (shared logic in lighthouse.core.auth).
+
+    Unset token now REJECTS by default — LIGHTHOUSE_INSECURE_ADMIN=true
+    is the explicit local-dev opt-out. The pre-0.1 behaviour (open when
+    unset) shipped one misconfigured env var away from a public admin
+    surface."""
+    check_admin(authorization)
 
 
 # ────────────────────────── Schemas ──────────────────────────
