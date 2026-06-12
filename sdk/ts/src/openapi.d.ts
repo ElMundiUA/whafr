@@ -219,13 +219,15 @@ export interface paths {
         put?: never;
         /**
          * Run Route
-         * @description Kick off a run in the background. Returns immediately with the
-         *     importer id; poll `/{id}/runs` for the actual run row's progress.
+         * @description Enqueue a run. The row is durable — a pod restart between this
+         *     request and execution can't lose it; the run-queue worker (started
+         *     from the API lifespan, one per replica) claims and executes it.
+         *     Poll `/{id}/runs` for progress; the returned run_id is the actual
+         *     `importer_runs.id` (it used to echo the importer id).
          *
-         *     We instantiate the importer up-front (without running it) so a
-         *     missing optional-dep package fails the request with a 422 +
-         *     pip-install hint instead of letting the background task swallow
-         *     the error into the run row.
+         *     We resolve the importer type up-front so a missing optional-dep
+         *     package fails the request with a pip-install hint instead of
+         *     burying the error in the run row.
          */
         post: operations["run_route_admin_importers__importer_id__run_post"];
         delete?: never;
@@ -364,13 +366,15 @@ export interface paths {
         put?: never;
         /**
          * Run Route
-         * @description Kick off a run in the background. Returns immediately with the
-         *     importer id; poll `/{id}/runs` for the actual run row's progress.
+         * @description Enqueue a run. The row is durable — a pod restart between this
+         *     request and execution can't lose it; the run-queue worker (started
+         *     from the API lifespan, one per replica) claims and executes it.
+         *     Poll `/{id}/runs` for progress; the returned run_id is the actual
+         *     `importer_runs.id` (it used to echo the importer id).
          *
-         *     We instantiate the importer up-front (without running it) so a
-         *     missing optional-dep package fails the request with a 422 +
-         *     pip-install hint instead of letting the background task swallow
-         *     the error into the run row.
+         *     We resolve the importer type up-front so a missing optional-dep
+         *     package fails the request with a pip-install hint instead of
+         *     burying the error in the run row.
          */
         post: operations["run_route_v1_importers__importer_id__run_post"];
         delete?: never;
