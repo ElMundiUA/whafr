@@ -11,6 +11,18 @@ surface is intended to stay stable.
 
 ### Added
 
+- Durable importer-run queue (migration 0011): `POST /{id}/run` now
+  persists a `queued` run row (and returns the real run id); a
+  run-queue worker claims rows with `FOR UPDATE SKIP LOCKED`
+  (replica-safe) and executes them. The boot sweep re-queues a run
+  orphaned by a pod restart once before cancelling — runs are no
+  longer silently lost.
+- `/metrics` Prometheus endpoint: HTTP requests/latency by route
+  template, searches by workspace/gap, importer runs by status,
+  webhook delivery outcomes.
+- Configurable asyncpg pool bounds (`LIGHTHOUSE_PG_POOL_MIN/MAX`;
+  the old hardcoded max of 5 queued up under load).
+
 - `GET /v1/usage` — billing-shaped rollups over `query_log`: searches
   per API key (keyless legacy traffic = null key) and per day, scoped
   to the workspace. Read-side only; quota enforcement is deliberately

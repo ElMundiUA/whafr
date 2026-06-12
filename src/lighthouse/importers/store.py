@@ -300,6 +300,59 @@ async def start_run(
     return row["id"]
 
 
+async def enqueue_run(
+    conn: asyncpg.Connection,
+    importer_id: UUID,
+    *,
+    triggered_by: str | None,
+) -> UUID:
+    """Persist a run request BEFORE any work happens — the durable
+    handoff to the run worker. Survives pod restarts by construction."""
+    row = await conn.fetchrow(
+        """
+        INSERT INTO importer_runs (importer_id, status, triggered_by)
+        VALUES ($1, 'queued', $2)
+        RETURNING id
+        """,
+        importer_id,
+        triggered_by,
+    )
+    assert row is not None
+    await conn.execute(
+        "UPDATE importers SET status = 'queued', updated_at = NOW() WHERE id = $1",
+        importer_id,
+    )
+    return row["id"]
+
+
+async def claim_queued_run(
+    conn: asyncpg.Connection,
+) -> tuple[UUID, UUID] | None:
+    """Atomically claim the oldest queued run → 'running'.
+
+    FOR UPDATE SKIP LOCKED makes concurrent workers (and replicas)
+    safe: each queued row is claimed by exactly one. Returns
+    ``(run_id, importer_id)`` or None when the queue is empty.
+    Call inside a transaction."""
+    row = await conn.fetchrow(
+        """
+        UPDATE importer_runs
+           SET status = 'running', started_at = NOW()
+         WHERE id = (
+                 SELECT id FROM importer_runs
+                  WHERE status = 'queued'
+                  ORDER BY started_at
+                  FOR UPDATE SKIP LOCKED
+                  LIMIT 1
+               )
+        RETURNING id, importer_id
+        """,
+    )
+    if row is None:
+        return None
+    return row["id"], row["importer_id"]
+
+
 async def finish_run(
     conn: asyncpg.Connection,
     run_id: UUID,
@@ -327,23 +380,50 @@ async def finish_run(
     )
 
 
-async def sweep_orphans(conn: asyncpg.Connection) -> int:
-    """Mark any importer / importer_run still in ``running`` as
-    cancelled. Called on API startup so a pod kill mid-crawl doesn't
-    leave the importer perma-stuck.
+# Crash-retry budget: a 'running' orphan found at boot is re-queued
+# this many times before being cancelled, so a run that reliably kills
+# its pod can't crash-loop forever.
+MAX_REQUEUES = 1
 
-    Returns the number of runs flipped — useful to log."""
-    n = await conn.fetchval(
+
+async def sweep_orphans(conn: asyncpg.Connection) -> int:
+    """Recover runs stranded by a pod kill mid-crawl.
+
+    Orphaned 'running' runs are RE-QUEUED (up to :data:`MAX_REQUEUES`
+    crashes per run) so the work actually happens; beyond the budget
+    they're cancelled. Importer rows are synced to match. Returns the
+    number of runs re-queued — useful to log."""
+    requeued = await conn.fetchval(
         """
-        WITH stuck AS (
+        WITH r AS (
             UPDATE importer_runs
-               SET status = 'cancelled',
-                   finished_at = NOW(),
-                   error_text = COALESCE(error_text, 'pod restart')
-             WHERE status = 'running'
+               SET status = 'queued',
+                   requeues = requeues + 1,
+                   error_text = COALESCE(error_text, 'requeued after pod restart')
+             WHERE status = 'running' AND requeues < $1
             RETURNING id
         )
-        SELECT count(*) FROM stuck
+        SELECT count(*) FROM r
+        """,
+        MAX_REQUEUES,
+    )
+    await conn.execute(
+        """
+        UPDATE importer_runs
+           SET status = 'cancelled',
+               finished_at = NOW(),
+               error_text = COALESCE(error_text, 'pod restart (requeue budget exhausted)')
+         WHERE status = 'running'
+        """,
+    )
+    # Importer rows follow their runs: anything with a queued run shows
+    # 'queued'; the rest of the stuck ones go back to 'idle'.
+    await conn.execute(
+        """
+        UPDATE importers
+           SET status = 'queued', updated_at = NOW()
+         WHERE status IN ('running', 'queued')
+           AND id IN (SELECT importer_id FROM importer_runs WHERE status = 'queued')
         """,
     )
     await conn.execute(
@@ -353,9 +433,10 @@ async def sweep_orphans(conn: asyncpg.Connection) -> int:
                last_error = COALESCE(last_error, 'pod restart while running'),
                updated_at = NOW()
          WHERE status IN ('running', 'queued')
+           AND id NOT IN (SELECT importer_id FROM importer_runs WHERE status = 'queued')
         """,
     )
-    return int(n or 0)
+    return int(requeued or 0)
 
 
 async def recent_runs(

@@ -25,11 +25,16 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
+
+from lighthouse.core.metrics import HTTP_LATENCY, HTTP_REQUESTS
+from lighthouse.core.metrics import render as render_metrics
 
 from lighthouse import __version__
 from lighthouse.api.admin_importers import router as importers_router
@@ -48,6 +53,7 @@ from lighthouse.api.v1_usage import router as v1_usage_router
 from lighthouse.api.v1_webhooks import router as v1_webhooks_router
 from lighthouse.api.v1_workspaces import router as v1_workspaces_router
 from lighthouse.importers import store as importer_store
+from lighthouse.importers.runner import run_queue_worker
 from lighthouse.mcp.server import build_server as build_mcp_server
 from lighthouse.webhooks.dispatcher import run_worker as run_webhook_worker
 
@@ -107,11 +113,12 @@ def create_app() -> FastAPI:
                 logger.info("bootstrapped %d pending proposals from store", n)
         except Exception:
             logger.exception("proposal queue bootstrap failed")
-        # Reset any importer rows / runs stranded by the previous pod —
-        # asyncio.create_task'd runs don't survive a SIGTERM, so on each
-        # boot we sweep stuck rows back to a usable state. Cheap: at
-        # most a few rows in flight at once.
+        # Recover importer runs stranded by the previous pod: the boot
+        # sweep re-queues orphaned 'running' rows (once per run) and the
+        # run-queue worker below picks them up. Cheap: at most a few
+        # rows in flight at once.
         webhook_worker_task: asyncio.Task[None] | None = None
+        run_worker_task: asyncio.Task[None] | None = None
         try:
             pool = await get_pg_pool()
             # Apply pending SQL migrations up-front. Previously only the
@@ -130,11 +137,16 @@ def create_app() -> FastAPI:
                     logger.info("applied migrations: %s", ", ".join(applied))
                 swept = await importer_store.sweep_orphans(conn)
             if swept:
-                logger.info("importer sweep: marked %d orphan run(s) as cancelled", swept)
+                logger.info("importer sweep: re-queued %d orphan run(s)", swept)
             # Webhook delivery worker — drains `webhook_deliveries` queue,
             # POSTs to subscribers with HMAC, retries with backoff.
             webhook_worker_task = asyncio.create_task(
                 run_webhook_worker(pool), name="webhook-worker"
+            )
+            # Importer run-queue worker — claims queued runs (SKIP
+            # LOCKED, replica-safe) and executes them.
+            run_worker_task = asyncio.create_task(
+                run_queue_worker(pool), name="run-queue-worker"
             )
         except Exception:
             logger.exception("importer orphan-sweep / webhook-worker init failed")
@@ -146,10 +158,11 @@ def create_app() -> FastAPI:
                     await queue.drain()
                 except Exception:
                     logger.exception("proposal queue drain failed")
-                if webhook_worker_task is not None:
-                    webhook_worker_task.cancel()
-                    with contextlib.suppress(asyncio.CancelledError, Exception):
-                        await webhook_worker_task
+                for task in (webhook_worker_task, run_worker_task):
+                    if task is not None:
+                        task.cancel()
+                        with contextlib.suppress(asyncio.CancelledError, Exception):
+                            await task
                 try:
                     await close_pg_pool()
                 except Exception:
@@ -175,6 +188,31 @@ def create_app() -> FastAPI:
     @app.get("/health", tags=["meta"])
     async def health() -> dict[str, str]:
         return {"status": "ok", "version": __version__}
+
+    @app.get("/metrics", tags=["meta"], include_in_schema=False)
+    async def metrics() -> Response:
+        """Prometheus exposition. Unauthenticated by convention —
+        scrapers live inside the network; firewall it at the ingress
+        for public deployments (noted in SECURITY.md)."""
+        body, content_type = render_metrics()
+        return Response(content=body, media_type=content_type)
+
+    @app.middleware("http")
+    async def _http_metrics(request: Request, call_next: Any) -> Any:
+        started = time.monotonic()
+        response = await call_next(request)
+        route = request.scope.get("route")
+        # Route templates only — raw paths would explode cardinality.
+        template = getattr(route, "path", None)
+        if template:
+            method = request.method
+            HTTP_REQUESTS.labels(
+                method=method, route=template, status=str(response.status_code)
+            ).inc()
+            HTTP_LATENCY.labels(method=method, route=template).observe(
+                time.monotonic() - started
+            )
+        return response
 
     app.include_router(retrieval_router)
     app.include_router(proposal_router)

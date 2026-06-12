@@ -136,15 +136,16 @@ async def get_pg_pool() -> Any:
 
     from lighthouse.core.flat_graph import _strip_neon_extras
 
-    url = get_settings().lighthouse_pg_url
+    settings = get_settings()
+    url = settings.lighthouse_pg_url
     if not url:
         raise RuntimeError(
             "LIGHTHOUSE_PG_URL not set — admin importers need Postgres."
         )
     _PG_POOL = await asyncpg.create_pool(
         dsn=_strip_neon_extras(url),
-        min_size=1,
-        max_size=5,
+        min_size=settings.lighthouse_pg_pool_min,
+        max_size=settings.lighthouse_pg_pool_max,
         command_timeout=60,
         statement_cache_size=0,
     )

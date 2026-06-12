@@ -43,6 +43,10 @@ Things to know before exposing an engine beyond localhost:
   password; rotating it invalidates stored importer secrets.
 - **Rate limiting** for search is available via
   `LIGHTHOUSE_SEARCH_RATE_LIMIT_PER_MINUTE` (0 = off).
+- **`/metrics` (Prometheus) is unauthenticated** by scraping
+  convention. It exposes route/latency/counter telemetry (no query
+  text, no corpus content) — still, firewall it at the ingress on
+  public deployments.
 
 ## Data flows to third parties
 

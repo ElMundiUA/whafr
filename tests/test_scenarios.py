@@ -101,6 +101,18 @@ class TestS1SoloDevScratch:
         with make_client(fake_graph, FakePool()) as client:
             assert client.get("/ui/").status_code == 200
 
+    def test_metrics_endpoint(self, fake_graph) -> None:
+        """Prometheus exposition: searches and HTTP requests show up
+        with route templates (never raw paths)."""
+        fake_graph.search_hits = []
+        with make_client(fake_graph, FakePool()) as client:
+            client.get("/v1/search", params={"q": "metrics probe"})
+            res = client.get("/metrics")
+        assert res.status_code == 200
+        assert "lighthouse_searches_total" in res.text
+        assert 'route="/v1/search"' in res.text
+        assert "metrics probe" not in res.text  # no raw query leakage
+
 
 # ─────────────────────────────────────────────────────────────────
 # S2 — solo dev, existing docs: gap triage lifecycle
@@ -144,13 +156,41 @@ class TestS2ExistingDocs:
 
     def test_importer_run_conflict_guard(self, fake_graph) -> None:
         """Clicking Run twice during a crawl must not start a second
-        run — the second click is a clean 409."""
-        running = importer_row(secrets=False)
-        running["status"] = "running"
-        pool = FakePool([("FROM importers", running)])
+        run — the second click is a clean 409 (also for queued)."""
+        for busy in ("running", "queued"):
+            imp = importer_row(secrets=False)
+            imp["status"] = busy
+            pool = FakePool([("FROM importers", imp)])
+            with make_client(fake_graph, pool) as client:
+                res = client.post(f"/v1/importers/{imp['id']}/run")
+            assert res.status_code == 409, busy
+            assert busy in res.json()["detail"]
+
+    def test_run_is_enqueued_durably(self, fake_graph) -> None:
+        """POST /run persists a queued row and returns the REAL run id
+        (it used to echo the importer id) — the run-queue worker picks
+        it up; a pod restart in between can't lose it."""
+        imp = importer_row(secrets=False)
+        run_id = uuid4()
+        pool = FakePool([
+            ("FROM importers", imp),
+            ("INSERT INTO importer_runs", {"id": run_id}),
+        ])
         with make_client(fake_graph, pool) as client:
-            res = client.post(f"/v1/importers/{running['id']}/run")
-        assert res.status_code == 409
+            res = client.post(f"/v1/importers/{imp['id']}/run")
+        assert res.status_code == 200
+        body = res.json()
+        assert body["run_id"] == str(run_id)
+        assert body["status"] == "queued"
+        insert_q, _ = next(
+            (q, a) for q, a in pool.conn.executed
+            if "INSERT INTO importer_runs" in q
+        )
+        assert "'queued'" in insert_q
+        # The importer row reflects the pending work.
+        assert any(
+            "SET status = 'queued'" in q for q, _ in pool.conn.executed
+        )
 
 
 # ─────────────────────────────────────────────────────────────────
