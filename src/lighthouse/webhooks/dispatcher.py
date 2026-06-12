@@ -22,6 +22,7 @@ from typing import Any
 import asyncpg
 import httpx
 
+from lighthouse.core.metrics import WEBHOOK_DELIVERIES
 from lighthouse.webhooks.signing import sign_payload
 
 logger = logging.getLogger(__name__)
@@ -111,6 +112,7 @@ async def _attempt_once(
         status = r.status_code
         response_text = r.text[:2000]
         ok = 200 <= status < 300
+        WEBHOOK_DELIVERIES.labels(outcome="delivered" if ok else "failed").inc()
         async with pool.acquire() as conn:
             if ok:
                 await conn.execute(
@@ -164,6 +166,7 @@ async def _mark_failure(
 ) -> None:
     attempts = row["attempts"] + 1
     if attempts >= MAX_ATTEMPTS:
+        WEBHOOK_DELIVERIES.labels(outcome="dead").inc()
         await conn.execute(
             """
             UPDATE webhook_deliveries

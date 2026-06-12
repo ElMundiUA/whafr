@@ -31,6 +31,7 @@ from lighthouse.api.dependencies import (
     get_retrieval_auth,
 )
 from lighthouse.core.auth import RetrievalAuth
+from lighthouse.core.metrics import SEARCHES
 from lighthouse.core.query_log import QueryLogger
 
 router = APIRouter(tags=["retrieval"])
@@ -95,6 +96,9 @@ async def search(
 ) -> SearchResponse:
     started = time.monotonic()
     hits = await graph.search(q, top_k=top_k, workspace_id=auth.workspace_id)
+    SEARCHES.labels(
+        workspace=auth.workspace_id, gap=str(not hits).lower()
+    ).inc()
     # Analytics: fire-and-forget; a failed insert never fails the search.
     sources_in_rank_order = list(
         dict.fromkeys(h.source for h in hits if h.source)

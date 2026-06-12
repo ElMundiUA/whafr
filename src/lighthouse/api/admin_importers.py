@@ -31,7 +31,7 @@ from pydantic import BaseModel, Field
 from lighthouse.api.dependencies import get_pg_pool, get_workspace
 from lighthouse.core.auth import check_admin
 from lighthouse.core.config import get_settings
-from lighthouse.importers import crypto, provisioning, runner, store
+from lighthouse.importers import crypto, provisioning, store
 from lighthouse.importers.registry import list_importers, lookup_importer
 
 logger = logging.getLogger(__name__)
@@ -40,24 +40,6 @@ logger = logging.getLogger(__name__)
 #   /admin/importers/*  (legacy, in-cluster admin UI)
 #   /v1/importers/*     (external SDK-stable, semver-locked)
 router = APIRouter(tags=["importers"])
-
-# Strong references to fire-and-forget runner tasks. Without holding
-# them somewhere Python may GC the Task while it's still running.
-_INFLIGHT: set[asyncio.Task[Any]] = set()
-
-
-def _spawn_run(pool: asyncpg.Pool, importer_id: UUID) -> None:
-    async def _go() -> None:
-        try:
-            await runner.run_importer(
-                pool, importer_id, triggered_by="admin-ui"
-            )
-        except Exception:
-            logger.exception("importer run failed: %s", importer_id)
-
-    task = asyncio.create_task(_go(), name=f"import-{importer_id}")
-    _INFLIGHT.add(task)
-    task.add_done_callback(_INFLIGHT.discard)
 
 
 # ────────────────────────── Auth ──────────────────────────
@@ -444,25 +426,30 @@ async def run_route(
     pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
     workspace_id: Annotated[str, Depends(get_workspace)],
 ) -> RunQueuedOut:
-    """Kick off a run in the background. Returns immediately with the
-    importer id; poll `/{id}/runs` for the actual run row's progress.
+    """Enqueue a run. The row is durable — a pod restart between this
+    request and execution can't lose it; the run-queue worker (started
+    from the API lifespan, one per replica) claims and executes it.
+    Poll `/{id}/runs` for progress; the returned run_id is the actual
+    `importer_runs.id` (it used to echo the importer id).
 
-    We instantiate the importer up-front (without running it) so a
-    missing optional-dep package fails the request with a 422 +
-    pip-install hint instead of letting the background task swallow
-    the error into the run row."""
+    We resolve the importer type up-front so a missing optional-dep
+    package fails the request with a pip-install hint instead of
+    burying the error in the run row."""
     async with pool.acquire() as conn:
         row = await store.get(conn, importer_id, workspace_id=workspace_id)
     if row is None:
         raise HTTPException(status_code=404, detail="not found")
-    if row.status == "running":
-        raise HTTPException(status_code=409, detail="already running")
+    if row.status in ("running", "queued"):
+        raise HTTPException(status_code=409, detail=f"already {row.status}")
     try:
         lookup_importer(row.type)
     except KeyError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    _spawn_run(pool, importer_id)
-    return RunQueuedOut(run_id=importer_id, importer_id=importer_id)
+    async with pool.acquire() as conn:
+        run_id = await store.enqueue_run(
+            conn, importer_id, triggered_by="admin-ui"
+        )
+    return RunQueuedOut(run_id=run_id, importer_id=importer_id)
 
 
 @router.get(

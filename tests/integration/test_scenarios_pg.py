@@ -733,3 +733,103 @@ async def _cleanup_http(conn: asyncpg.Connection) -> None:
     await conn.execute(
         "DELETE FROM coverage_gap_status WHERE workspace_id LIKE 'scenario-h-%'"
     )
+
+
+# ─────────────────────────────────────────────────────────────────
+# S2/S4 — durable importer-run queue (enqueue → claim → crash → requeue)
+# ─────────────────────────────────────────────────────────────────
+
+
+async def test_run_queue_durability(monkeypatch) -> None:
+    """The run lifecycle that used to live in asyncio tasks: enqueue is
+    a durable row; a crash mid-run is re-queued once by the boot sweep
+    and executed; a second crash cancels (no crash-loop)."""
+    import lighthouse.importers.adapters  # noqa: F401 — registry side effect
+    from lighthouse.importers import runner, store
+
+    monkeypatch.setenv("LIGHTHOUSE_PG_URL", _DSN)
+    monkeypatch.setenv("OPENAI_API_KEY", "")
+    get_settings.cache_clear()
+
+    conn = await asyncpg.connect(_DSN)
+    try:
+        await run_migrations(conn, embedding_dim=_DIM)
+        await conn.execute(
+            "DELETE FROM importer_runs WHERE importer_id IN "
+            "(SELECT id FROM importers WHERE workspace_id = 'scenario-queue')"
+        )
+        await conn.execute(
+            "DELETE FROM importers WHERE workspace_id = 'scenario-queue'"
+        )
+        imp = await store.create(
+            conn, type_="url_list", name="Queue test", description=None,
+            recipe="scenario-queue", config={"urls": ""}, secrets_enc=None,
+            created_by=None, workspace_id="scenario-queue",
+        )
+
+        # 1. Enqueue is durable: a queued row + the importer shows it.
+        run_id = await store.enqueue_run(conn, imp.id, triggered_by="test")
+        assert await conn.fetchval(
+            "SELECT status FROM importer_runs WHERE id = $1", run_id
+        ) == "queued"
+        assert await conn.fetchval(
+            "SELECT status FROM importers WHERE id = $1", imp.id
+        ) == "queued"
+
+        # 2. Claim flips it to running; the queue is then empty.
+        async with conn.transaction():
+            claimed = await store.claim_queued_run(conn)
+        assert claimed == (run_id, imp.id)
+        async with conn.transaction():
+            assert await store.claim_queued_run(conn) is None
+
+        # 3. "Pod dies" mid-run → boot sweep re-queues (budget 1).
+        await conn.execute(
+            "UPDATE importers SET status = 'running' WHERE id = $1", imp.id
+        )
+        assert await store.sweep_orphans(conn) == 1
+        row = await conn.fetchrow(
+            "SELECT status, requeues FROM importer_runs WHERE id = $1", run_id
+        )
+        assert (row["status"], row["requeues"]) == ("queued", 1)
+        assert await conn.fetchval(
+            "SELECT status FROM importers WHERE id = $1", imp.id
+        ) == "queued"
+
+        # 4. The worker path claims and executes it for real (empty
+        #    url_list → 0 chunks, success).
+        pool = await asyncpg.create_pool(
+            _DSN, min_size=1, max_size=2, statement_cache_size=0
+        )
+        try:
+            assert await runner.process_one_queued(pool) is True
+        finally:
+            await pool.close()
+        row = await conn.fetchrow(
+            "SELECT status, chunks_added FROM importer_runs WHERE id = $1",
+            run_id,
+        )
+        assert (row["status"], row["chunks_added"]) == ("success", 0)
+        assert await conn.fetchval(
+            "SELECT status FROM importers WHERE id = $1", imp.id
+        ) == "idle"
+
+        # 5. A run that crashes AGAIN (budget spent) is cancelled, not
+        #    crash-looped.
+        await conn.execute(
+            "UPDATE importer_runs SET status = 'running' WHERE id = $1", run_id
+        )
+        assert await store.sweep_orphans(conn) == 0
+        assert await conn.fetchval(
+            "SELECT status FROM importer_runs WHERE id = $1", run_id
+        ) == "cancelled"
+    finally:
+        await conn.execute(
+            "DELETE FROM importer_runs WHERE importer_id IN "
+            "(SELECT id FROM importers WHERE workspace_id = 'scenario-queue')"
+        )
+        await conn.execute(
+            "DELETE FROM importers WHERE workspace_id = 'scenario-queue'"
+        )
+        await conn.close()
+        get_settings.cache_clear()

@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     # The retrieval engine's database (Neon recommended). Required —
     # an empty string makes every query raise at first use.
     lighthouse_pg_url: str = ""
+    # Admin/API asyncpg pool bounds. The old hardcoded max of 5 queued
+    # up under load; size to expected concurrent admin+retrieval QPS.
+    lighthouse_pg_pool_min: int = 1
+    lighthouse_pg_pool_max: int = 10
 
     # --- Per-workspace S3 ingestion ---
     # When a workspace is set up, the engine provisions a per-workspace

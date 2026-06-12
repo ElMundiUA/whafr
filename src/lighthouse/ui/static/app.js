@@ -362,7 +362,11 @@ function importerDrawer(imp) {
           el("tr", {}, ...["Started", "Status", "Items", "Chunks"].map((h) => el("th", {}, h))),
           ...runs.map((r) => el("tr", {},
             el("td", {}, fmtDate(r.started_at)),
-            el("td", {}, pill(r.status, r.status === "succeeded" ? "ok" : r.status === "failed" ? "err" : r.status === "running" ? "run" : "")),
+            el("td", {}, pill(r.status,
+              r.status === "success" ? "ok"
+              : r.status === "error" ? "err"
+              : r.status === "running" ? "run"
+              : r.status === "queued" ? "warn" : "")),
             el("td", { class: "num" }, `${r.items_done}${r.items_total ? "/" + r.items_total : ""}`),
             el("td", { class: "num" }, fmtNum(r.chunks_added)))))
       : el("div", { class: "empty" }, "No runs yet"));
