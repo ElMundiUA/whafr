@@ -1,9 +1,9 @@
-# Lighthouse Engine documentation
+# Lighthouse documentation
 
 Stack-deep technical docs for integrators. Marketing pages live at
 [lighthouse.harborgang.com](https://lighthouse.harborgang.com).
 Operator-side guides (Compose, Helm, Postgres providers, backups,
-upgrades) live at [harborgang.com/whafr](https://harborgang.com/whafr).
+upgrades) live at [harborgang.com/lighthouse](https://harborgang.com/lighthouse).
 
 ## Start here
 

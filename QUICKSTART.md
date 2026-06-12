@@ -1,6 +1,6 @@
 # Quickstart — zero to MCP endpoint in 10 minutes
 
-> Lighthouse Engine is **pre-alpha (0.0.x)**. The `/v1` HTTP surface is
+> Lighthouse is **pre-alpha (0.0.x)**. The `/v1` HTTP surface is
 > intended to stay stable, but everything else — schema, admin UI,
 > importer configs — may change between releases. Don't bet production
 > traffic on it yet.
@@ -10,8 +10,8 @@ Prerequisites: Docker with Compose v2.
 ## 1. Clone and configure
 
 ```bash
-git clone https://github.com/ElMundiUA/whafr.git
-cd whafr
+git clone https://github.com/ElMundiUA/lighthouse.git
+cd lighthouse
 cp .env.example .env
 ```
 

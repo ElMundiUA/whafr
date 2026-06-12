@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Lighthouse Engine are documented here.
+All notable changes to Lighthouse are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -8,6 +8,14 @@ Pre-1.0: minor releases may contain breaking changes; the `/v1` HTTP
 surface is intended to stay stable.
 
 ## [Unreleased]
+
+### Changed
+
+- Brand consolidation: the repo is now just **Lighthouse** (renamed
+  from `whafr`; "Lighthouse Engine" wording dropped). One product,
+  two ways to run it — self-hosted (this repo) and Lighthouse Cloud.
+  Old GitHub URLs redirect. Added TRADEMARK.md and an explicit
+  "what will always be free" promise to the README.
 
 ### Added
 
