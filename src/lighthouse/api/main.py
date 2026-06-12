@@ -35,6 +35,7 @@ from lighthouse import __version__
 from lighthouse.api.admin_importers import router as importers_router
 from lighthouse.api.dependencies import (
     close_pg_pool,
+    get_graph,
     get_pg_pool,
     get_proposal_queue,
 )
@@ -44,6 +45,7 @@ from lighthouse.api.v1_analytics import router as v1_analytics_router
 from lighthouse.api.v1_corpus import router as v1_corpus_router
 from lighthouse.api.v1_keys import router as v1_keys_router
 from lighthouse.api.v1_webhooks import router as v1_webhooks_router
+from lighthouse.api.v1_workspaces import router as v1_workspaces_router
 from lighthouse.importers import store as importer_store
 from lighthouse.mcp.server import build_server as build_mcp_server
 from lighthouse.webhooks.dispatcher import run_worker as run_webhook_worker
@@ -151,6 +153,13 @@ def create_app() -> FastAPI:
                     await close_pg_pool()
                 except Exception:
                     logger.exception("admin asyncpg pool close failed")
+                # The retrieval engine holds its own asyncpg pool
+                # (lazy, lru-cached singleton) — drain it too so a
+                # SIGTERM'd pod leaves no half-open connections.
+                try:
+                    await get_graph().close()
+                except Exception:
+                    logger.exception("graph pool close failed")
 
     app = FastAPI(
         title="Lighthouse",
@@ -181,6 +190,7 @@ def create_app() -> FastAPI:
     app.include_router(v1_webhooks_router)
     app.include_router(v1_analytics_router)
     app.include_router(v1_keys_router)
+    app.include_router(v1_workspaces_router)
 
     # MCP (streamable-http) mounted at /mcp/ — its task-group lifetime
     # is owned by the lifespan above.

@@ -25,8 +25,10 @@ from __future__ import annotations
 import hashlib
 import hmac
 import inspect
+import logging
 import os
 import secrets as pysecrets
+import time
 from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
@@ -35,7 +37,20 @@ from fastapi import HTTPException
 
 from lighthouse.core.config import get_settings
 
+logger = logging.getLogger(__name__)
+
 KEY_PREFIX = "lh_"
+
+# Per-workspace require_auth flags, cached so the keyless hot path costs
+# one indexed SELECT per workspace per TTL instead of per request.
+_WS_AUTH_TTL_SECONDS = 30.0
+_ws_auth_cache: dict[str, tuple[float, bool]] = {}
+
+
+def invalidate_workspace_auth_cache() -> None:
+    """Called after PUT /v1/workspaces so a flag flip applies promptly
+    (within one process; other replicas converge within the TTL)."""
+    _ws_auth_cache.clear()
 
 
 # ───────────────────────── key material ─────────────────────────
@@ -136,8 +151,45 @@ async def authenticate_retrieval(
             status_code=401,
             detail="API key required (Authorization: Bearer lh_…)",
         )
-    # Legacy resolution: trusted header or the public corpus.
-    return RetrievalAuth(workspace_id=x_workspace or PUBLIC_WORKSPACE)
+    # Legacy resolution: trusted header or the public corpus — unless
+    # this specific workspace opted into key-only access.
+    workspace_id = x_workspace or PUBLIC_WORKSPACE
+    if await _workspace_requires_auth(workspace_id, pool_factory):
+        raise HTTPException(
+            status_code=401,
+            detail=(
+                f"workspace {workspace_id!r} requires an API key "
+                "(Authorization: Bearer lh_…)"
+            ),
+        )
+    return RetrievalAuth(workspace_id=workspace_id)
+
+
+async def _workspace_requires_auth(workspace_id: str, pool_factory: Any) -> bool:
+    """Per-workspace require_auth flag (table `workspaces`), TTL-cached.
+
+    Fails OPEN on lookup errors: if the DB is unreachable the search
+    itself is about to fail anyway, and a missing table (pre-0010
+    deployment mid-upgrade) must not lock anyone out."""
+    now = time.monotonic()
+    cached = _ws_auth_cache.get(workspace_id)
+    if cached is not None and cached[0] > now:
+        return cached[1]
+    required = False
+    try:
+        maybe = pool_factory()
+        pool = await maybe if inspect.isawaitable(maybe) else maybe
+        async with pool.acquire() as conn:
+            required = bool(
+                await conn.fetchval(
+                    "SELECT require_auth FROM workspaces WHERE id = $1",
+                    workspace_id,
+                )
+            )
+    except Exception:
+        logger.debug("workspace auth-flag lookup failed", exc_info=True)
+    _ws_auth_cache[workspace_id] = (now + _WS_AUTH_TTL_SECONDS, required)
+    return required
 
 
 def _retrieval_auth_required() -> bool:

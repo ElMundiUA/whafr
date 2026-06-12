@@ -102,7 +102,7 @@ def get_query_logger() -> QueryLogger:
     with a recording fake; the real one inserts into ``query_log`` and
     swallows every failure (analytics never break retrieval).
     """
-    return QueryLogger()
+    return QueryLogger(pool_factory=get_pg_pool)
 
 
 @lru_cache(maxsize=1)

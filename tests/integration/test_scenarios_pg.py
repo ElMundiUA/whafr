@@ -52,17 +52,11 @@ pytestmark = pytest.mark.skipif(
     not _DSN, reason="set LIGHTHOUSE_TEST_PG_URL to run scenario integration tests"
 )
 
-_ALL_MIGRATIONS = [
-    "0001_baseline.sql",
-    "0002_workspace_id.sql",
-    "0003_importers.sql",
-    "0004_importer_workspace_name_unique.sql",
-    "0005_webhooks.sql",
-    "0006_query_log.sql",
-    "0007_query_log_scores.sql",
-    "0008_api_keys.sql",
-    "0009_webhooks_workspace.sql",
-]
+# Derived from the migrations directory so this never goes stale when a
+# migration lands (the hardcoded variant broke twice already).
+from lighthouse.core import migrator as _migrator  # noqa: E402
+
+_ALL_MIGRATIONS = sorted(p.name for p in _migrator._MIGRATIONS_DIR.glob("*.sql"))
 
 _ALL_TABLES = [
     "webhook_deliveries",
@@ -72,6 +66,7 @@ _ALL_TABLES = [
     "query_log",
     "coverage_gap_status",
     "api_keys",
+    "workspaces",
     "chunks",
     "schema_migrations",
 ]

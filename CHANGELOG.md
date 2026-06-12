@@ -11,6 +11,19 @@ surface is intended to stay stable.
 
 ### Added
 
+- Workspace registry with per-workspace auth policy (migration 0010):
+  `GET/PUT /v1/workspaces` + a Workspaces page in `/ui`. A workspace
+  with `require_auth = true` rejects keyless retrieval even while the
+  instance-wide default stays open — closes the mixed-mode gap where
+  any tenant was readable by guessing its id.
+- `POST /v1/webhooks/{id}/deliveries/requeue-dead` (+ UI button):
+  bulk-requeue deliveries whose retries were exhausted.
+- `POST /v1/analytics/gaps/prune?days=N`: garbage-collect gap-triage
+  state for query clusters nobody asks anymore.
+- Persona-based scenario suite: `docs/scenarios.md` plus journey tests
+  (`tests/test_scenarios.py`) and a real-Postgres end-to-end suite
+  (`tests/integration/test_scenarios_pg.py`, gated on
+  `LIGHTHOUSE_TEST_PG_URL`).
 - Built-in admin UI served at `/ui` (importers, runs, webhooks).
 - Query analytics and coverage-gap reporting: `query_log` table and
   `/v1/analytics` endpoints.
@@ -18,14 +31,14 @@ surface is intended to stay stable.
   search-hit usefulness with Claude Haiku, off the request path, to
   flag low-quality coverage even when hits come back.
 - Per-workspace API keys for retrieval
-  (`LIGHTHOUSE_RETRIEVAL_AUTH_REQUIRED`). *(In progress.)*
+  (`LIGHTHOUSE_RETRIEVAL_AUTH_REQUIRED`).
 - Auth hardening: `LIGHTHOUSE_ADMIN_TOKEN` moved into Settings,
   explicit `LIGHTHOUSE_INSECURE_ADMIN` opt-out, search rate limiting
-  (`LIGHTHOUSE_SEARCH_RATE_LIMIT_PER_MINUTE`). *(In progress.)*
+  (`LIGHTHOUSE_SEARCH_RATE_LIMIT_PER_MINUTE`).
 - Keyword-only (BM25) degraded search mode when no `OPENAI_API_KEY`
-  is configured. *(In progress.)*
+  is configured.
 - Docker packaging: `Dockerfile`, `docker-compose.yml`,
-  `QUICKSTART.md`, `SECURITY.md`. *(This batch.)*
+  `QUICKSTART.md`, `SECURITY.md`.
 - Per-workspace importer tenancy and per-workspace S3 importer
   provisioning.
 - Webhook workspace isolation (migration 0005) and the
@@ -43,6 +56,8 @@ surface is intended to stay stable.
 ### Fixed
 
 - Migrations now run automatically on API startup.
+- `QueryLogger` accepts an injectable pool factory; the API lifespan
+  closes the retrieval engine's asyncpg pool on shutdown.
 
 ## [0.0.1] - 2026-06
 

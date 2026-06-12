@@ -635,6 +635,49 @@ async function keysPage() {
   } catch (err) { card.replaceChildren(errorBox(err)); }
 }
 
+// ── Workspaces ──
+
+async function workspacesPage() {
+  main.replaceChildren(pageHead("Workspaces",
+    el("button", { class: "primary-btn", onclick: async () => {
+      const id = prompt("Workspace id (e.g. 'team-platform'):");
+      if (!id) return;
+      try {
+        await api(`/v1/workspaces/${encodeURIComponent(id)}`, {
+          method: "PUT", body: JSON.stringify({ require_auth: false }) });
+        workspacesPage();
+      } catch (err) { toast(err.message); }
+    } }, "+ Register workspace")));
+  const card = el("div", { class: "card", style: "padding:0" });
+  main.append(
+    el("p", { class: "muted", style: "margin-top:-8px" },
+      "Require keys = keyless callers get 401 for this workspace even while the instance default stays open."),
+    card);
+  try {
+    const rows = await api("/v1/workspaces/");
+    card.replaceChildren(rows.length
+      ? el("table", {},
+          el("tr", {}, ...["Workspace", "Keyless access", "Created", ""].map((h) => el("th", {}, h))),
+          ...rows.map((w) => el("tr", {},
+            el("td", {}, el("strong", {}, w.id),
+              w.description ? el("div", { class: "muted", style: "font-size:12px" }, w.description) : null),
+            el("td", {}, w.require_auth ? pill("Keys required", "warn") : pill("Open", "ok")),
+            el("td", {}, fmtDate(w.created_at)),
+            el("td", { style: "text-align:right" },
+              el("button", { class: "ghost-btn", onclick: async () => {
+                try {
+                  await api(`/v1/workspaces/${encodeURIComponent(w.id)}`, {
+                    method: "PUT",
+                    body: JSON.stringify({ require_auth: !w.require_auth }) });
+                  toast(`${w.id}: ${w.require_auth ? "open to keyless" : "keys required"}`);
+                  workspacesPage();
+                } catch (err) { toast(err.message); }
+              } }, w.require_auth ? "Allow keyless" : "Require keys")))))
+      : el("div", { class: "empty" },
+          "No registered workspaces — tenants still work unregistered; register one to manage its auth policy."));
+  } catch (err) { card.replaceChildren(errorBox(err)); }
+}
+
 // ── Webhooks ──
 
 async function webhooksPage() {
@@ -660,6 +703,14 @@ async function webhooksPage() {
                 try { await api(`/v1/webhooks/${wh.id}/test`, { method: "POST" }); toast("Test event queued"); }
                 catch (err) { toast(err.message); }
               } }, "Test"),
+              " ",
+              el("button", { class: "ghost-btn", title: "Requeue deliveries whose retries were exhausted",
+                onclick: async () => {
+                  try {
+                    const r = await api(`/v1/webhooks/${wh.id}/deliveries/requeue-dead`, { method: "POST" });
+                    toast(r.requeued ? `Requeued ${r.requeued} dead deliveries` : "No dead deliveries");
+                  } catch (err) { toast(err.message); }
+                } }, "Requeue dead"),
               " ",
               el("button", { class: "danger-btn", onclick: async () => {
                 if (!confirm(`Delete webhook ${wh.url}?`)) return;
@@ -703,6 +754,7 @@ const routes = {
   "/search": searchPage,
   "/sources": sourcesPage,
   "/keys": keysPage,
+  "/workspaces": workspacesPage,
   "/webhooks": webhooksPage,
   "/gaps": gapsPage,
   "/questions": questionsPage,
