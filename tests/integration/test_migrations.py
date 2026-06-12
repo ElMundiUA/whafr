@@ -18,6 +18,7 @@ import os
 import asyncpg
 import pytest
 
+from lighthouse.core import migrator
 from lighthouse.core.migrator import run_migrations
 
 _DSN = os.environ.get("LIGHTHOUSE_TEST_PG_URL")
@@ -26,27 +27,44 @@ pytestmark = pytest.mark.skipif(
     not _DSN, reason="set LIGHTHOUSE_TEST_PG_URL to run migration integration test"
 )
 
+# Every table any migration creates — dropped for a clean slate. Extend
+# when a migration adds a table (the assertion below catches forgotten
+# migration FILES automatically, but not forgotten table names here).
+_ALL_TABLES = (
+    "webhook_deliveries",
+    "webhooks",
+    "importer_runs",
+    "importers",
+    "query_log",
+    "coverage_gap_status",
+    "api_keys",
+    "chunks",
+    "schema_migrations",
+)
+
+
+async def _drop_all(conn: asyncpg.Connection) -> None:
+    for t in _ALL_TABLES:
+        await conn.execute(f"DROP TABLE IF EXISTS {t} CASCADE")
+
 
 @pytest.mark.asyncio
 async def test_migrations_apply_idempotently_with_workspace_default() -> None:
     conn = await asyncpg.connect(_DSN)
     try:
         # Clean slate so the test is deterministic on a shared DB.
-        await conn.execute("DROP TABLE IF EXISTS webhook_deliveries CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS webhooks CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS importer_runs CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS importers CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS chunks CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS schema_migrations CASCADE")
+        await _drop_all(conn)
 
         applied = await run_migrations(conn, embedding_dim=1536)
-        assert applied == [
-            "0001_baseline.sql",
-            "0002_workspace_id.sql",
-            "0003_importers.sql",
-            "0004_importer_workspace_name_unique.sql",
-            "0005_webhooks.sql",
-        ]
+        # Expected list derives from the migrations directory so this
+        # test doesn't go stale every time a migration lands (it did:
+        # it hardcoded 0001–0005 and broke when 0006–0009 shipped).
+        expected = sorted(
+            p.name for p in migrator._MIGRATIONS_DIR.glob("*.sql")
+        )
+        assert applied == expected
+        assert applied[0] == "0001_baseline.sql"
+        assert len(applied) >= 9
 
         col = await conn.fetchrow(
             """
@@ -82,10 +100,5 @@ async def test_migrations_apply_idempotently_with_workspace_default() -> None:
         )
         assert await conn.fetchval("SELECT workspace_id FROM chunks LIMIT 1") == "public"
     finally:
-        await conn.execute("DROP TABLE IF EXISTS webhook_deliveries CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS webhooks CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS importer_runs CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS importers CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS chunks CASCADE")
-        await conn.execute("DROP TABLE IF EXISTS schema_migrations CASCADE")
+        await _drop_all(conn)
         await conn.close()

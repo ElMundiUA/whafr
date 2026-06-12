@@ -504,11 +504,13 @@ class FlatGraph:
         if not candidates or top_k <= 0:
             return candidates[:top_k]
 
-        from openai import AsyncOpenAI
-
         s = self._settings
         if not s.openai_api_key:
             return candidates[:top_k]
+        # Import below the no-key early-out so keyword-only (BM25)
+        # deployments don't pay for it on every search.
+        from openai import AsyncOpenAI
+
         client = AsyncOpenAI(api_key=s.openai_api_key)
 
         # Trim each candidate to a short snippet — full content would
