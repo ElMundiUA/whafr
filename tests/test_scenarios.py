@@ -350,6 +350,103 @@ class TestS6BrownfieldUpgrade:
         _, insert_args = pool.conn.executed[1]
         assert insert_args[-1] == "public"
 
+    def test_per_workspace_require_auth_flag(self, fake_graph) -> None:
+        """The mixed-mode fix: one workspace flips require_auth on and
+        keyless callers lose it, while unflagged workspaces (and the
+        instance default) stay open."""
+        from lighthouse.core.auth import invalidate_workspace_auth_cache
+
+        flagged_pool = FakePool([
+            ("SELECT require_auth FROM workspaces", True),
+            ("UPDATE api_keys", key_row("team-a")),
+        ])
+        with make_client(fake_graph, flagged_pool) as client:
+            # Keyless → 401 for the flagged workspace…
+            res = client.get(
+                "/v1/search", params={"q": "x"},
+                headers={"X-Workspace": "team-a"},
+            )
+            assert res.status_code == 401
+            assert "team-a" in res.json()["detail"]
+            # …but a key for it still works.
+            res = client.get(
+                "/v1/search", params={"q": "x"},
+                headers={"Authorization": f"Bearer {KEY_PREFIX}a"},
+            )
+            assert res.status_code == 200
+
+        invalidate_workspace_auth_cache()
+        open_pool = FakePool([("SELECT require_auth FROM workspaces", None)])
+        with make_client(fake_graph, open_pool) as client:
+            assert client.get(
+                "/v1/search", params={"q": "x"},
+                headers={"X-Workspace": "team-open"},
+            ).status_code == 200
+
+    def test_workspace_registry_upsert_and_list(self, fake_graph) -> None:
+        row = {"id": "team-a", "require_auth": True, "description": None,
+               "created_at": NOW, "updated_at": NOW}
+        pool = FakePool([
+            ("INSERT INTO workspaces", row),
+            ("FROM workspaces ORDER BY id", [row]),
+        ])
+        with make_client(fake_graph, pool) as client:
+            res = client.put("/v1/workspaces/team-a", json={"require_auth": True})
+            assert res.status_code == 200
+            assert res.json()["require_auth"] is True
+            upsert_q, args = pool.conn.executed[0]
+            assert "ON CONFLICT (id) DO UPDATE" in upsert_q
+            assert args[0] == "team-a"
+
+            res = client.get("/v1/workspaces/")
+            assert res.status_code == 200
+            assert res.json()[0]["id"] == "team-a"
+
+            # Garbage ids are rejected before touching SQL.
+            assert client.put(
+                "/v1/workspaces/bad%20id", json={}
+            ).status_code == 422
+
+    def test_dead_webhook_deliveries_requeue(self, fake_graph) -> None:
+        pool = FakePool([("SET status = 'pending'", "UPDATE 2")])
+        with make_client(fake_graph, pool) as client:
+            res = client.post(
+                f"/v1/webhooks/{uuid4()}/deliveries/requeue-dead",
+                headers={"X-Workspace": "team-a"},
+            )
+        assert res.status_code == 200
+        assert res.json() == {"requeued": 2}
+        q, args = pool.conn.executed[0]
+        assert "status = 'dead'" in q
+        assert args[1] == "team-a"
+
+    def test_gap_status_prune(self, fake_graph) -> None:
+        pool = FakePool([("DELETE FROM coverage_gap_status", "DELETE 3")])
+        with make_client(fake_graph, pool) as client:
+            res = client.post(
+                "/v1/analytics/gaps/prune?days=30",
+                headers={"X-Workspace": "team-a"},
+            )
+        assert res.status_code == 200
+        assert res.json() == {"pruned": 3}
+        q, args = pool.conn.executed[0]
+        assert "NOT EXISTS" in q
+        assert args == ("team-a", 30)
+
+    async def test_query_logger_accepts_injected_pool(self) -> None:
+        """The DI seam the integration suite had to hack around: a
+        custom pool_factory is honored end-to-end."""
+        from lighthouse.core.query_log import QueryLogger
+
+        pool = FakePool()
+        logger = QueryLogger(pool_factory=lambda: pool)
+        await logger._insert(
+            workspace_id="w", query="q", top_k=5, hit_count=1,
+            top_sources=["s"], summaries=[], top_score=None,
+            api_key_id=None, latency_ms=1,
+        )
+        assert "INSERT INTO query_log" in pool.conn.executed[0][0]
+
     def test_usage_attribution_flows_to_query_log(self, fake_graph) -> None:
         """Billing prerequisite: searches made with a key carry the key
         id into the analytics log."""

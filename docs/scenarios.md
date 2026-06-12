@@ -158,28 +158,26 @@ product doesn't do yet:
   endpoint itself accepts unauthenticated session creation; an ingress
   rule is still recommended for public deployments.
 
-Found while running the real-Postgres scenario suite:
+Found while running the real-Postgres scenario suite — all four FIXED
+since:
 
-- **Mixed-mode tenancy is a footgun** (S5/S6): with retrieval auth OFF
-  (the default), keyless callers can read ANY workspace by guessing its
-  id — even in a deployment where other teams use keys. Auth is
-  all-or-nothing per instance; a per-workspace "require keys" flag (or
-  simply defaulting the flag on in multi-workspace setups) would close
-  it. Documented loudly in SECURITY.md until then.
-- **Dead webhook deliveries are inert**: after retries exhaust there is
-  no replay path (`redeliver` exists per-delivery, but nothing lists or
-  bulk-requeues `dead` rows in the UI).
-- **Orphan gap-triage rows**: `PATCH /v1/analytics/gaps/status` upserts
-  state for arbitrary strings (even never-asked queries) and nothing
-  GCs `coverage_gap_status`.
-- **QueryLogger / FlatGraph pool lifecycle**: both create loop-bound
-  asyncpg pools outside the DI seam (module global / lru_cache); fine
-  in production (one loop), awkward for embedders and tests — needs an
-  explicit close hook.
-- **`openai` is an import-time dependency even in keyword-only mode**
-  (`_rerank` imports before its no-key early-out). Move the import
-  below the check to make the BM25-only install truly minimal.
+- ~~Mixed-mode tenancy footgun~~ → migration 0010 adds a `workspaces`
+  registry with a per-workspace `require_auth` flag (`PUT
+  /v1/workspaces/{id}`, Workspaces page in /ui): a flagged workspace
+  rejects keyless retrieval even while the instance default stays open.
+  TTL-cached 30s; fails open if the table is unreachable (the search
+  would fail anyway).
+- ~~Dead webhook deliveries inert~~ → `POST
+  /v1/webhooks/{id}/deliveries/requeue-dead` (+ UI button) bulk-resets
+  exhausted deliveries onto the retry curve.
+- ~~Orphan gap-triage rows~~ → `POST /v1/analytics/gaps/prune?days=N`
+  deletes triage state for clusters with no logged query in the window.
+- ~~Pool lifecycle outside the DI seam~~ → `QueryLogger` takes an
+  injectable `pool_factory`; the API lifespan now closes the FlatGraph
+  pool on shutdown alongside the admin pool.
+- ~~`openai` import in keyword-only mode~~ → import moved below the
+  no-key early-out.
 - `tests/integration/test_migrations.py` had hardcoded the 0001–0005
-  list and silently broke when 0006–0009 landed — fixed to derive the
-  expectation from the migrations directory; a reminder that the
-  PG-gated suite isn't in CI yet.
+  list and silently broke when 0006–0009 landed — fixed (expectation
+  now derives from the migrations directory; same fix applied to the
+  scenario suite). Reminder: the PG-gated suite isn't in CI yet.

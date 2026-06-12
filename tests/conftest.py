@@ -143,6 +143,11 @@ def _insecure_admin(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("LIGHTHOUSE_INSECURE_ADMIN", "true")
     monkeypatch.delenv("LIGHTHOUSE_ADMIN_TOKEN", raising=False)
     monkeypatch.delenv("LIGHTHOUSE_RETRIEVAL_AUTH_REQUIRED", raising=False)
+    # Per-workspace auth flags are TTL-cached module-wide — never let
+    # one test's flag leak into the next.
+    from lighthouse.core.auth import invalidate_workspace_auth_cache
+
+    invalidate_workspace_auth_cache()
 
 
 @pytest.fixture

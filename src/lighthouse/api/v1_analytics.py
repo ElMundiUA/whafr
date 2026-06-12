@@ -273,6 +273,36 @@ async def set_gap_status(
     )
 
 
+@router.post("/gaps/prune")
+async def prune_gap_statuses(
+    pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
+    workspace_id: Annotated[str, Depends(get_workspace)],
+    days: Annotated[int, Query(ge=1, le=3650)] = 90,
+) -> dict[str, int]:
+    """Garbage-collect triage state for clusters nobody asks anymore.
+
+    Deletes ``coverage_gap_status`` rows whose query has no query_log
+    entry in the trailing window — including orphans created by triaging
+    a never-logged string. Triage state for live clusters is untouched.
+    """
+    async with pool.acquire() as conn:
+        r = await conn.execute(
+            """
+            DELETE FROM coverage_gap_status s
+             WHERE s.workspace_id = $1
+               AND NOT EXISTS (
+                     SELECT 1 FROM query_log q
+                      WHERE q.workspace_id = s.workspace_id
+                        AND lower(btrim(q.query)) = s.query_norm
+                        AND q.created_at >= NOW() - make_interval(days => $2)
+                   )
+            """,
+            workspace_id,
+            days,
+        )
+    return {"pruned": int(r.split()[-1])}
+
+
 @router.get("/source-usage", response_model=list[SourceUsageOut])
 async def source_usage(
     pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],

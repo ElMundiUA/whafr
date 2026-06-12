@@ -40,7 +40,16 @@ _INFLIGHT: set[asyncio.Task[None]] = set()
 
 
 class QueryLogger:
-    """Appends search events to the ``query_log`` table."""
+    """Appends search events to the ``query_log`` table.
+
+    ``pool_factory`` (sync or async callable returning an asyncpg-pool-
+    shaped object) keeps the Postgres seam injectable — embedders and
+    tests pass their own; the default lazily resolves the API's shared
+    pool.
+    """
+
+    def __init__(self, pool_factory: Any = None) -> None:
+        self._pool_factory = pool_factory
 
     def log(
         self,
@@ -130,6 +139,11 @@ class QueryLogger:
         return sum(scores) / len(scores) if scores else None
 
     async def _pool(self) -> Any:
+        import inspect
+
+        if self._pool_factory is not None:
+            maybe = self._pool_factory()
+            return await maybe if inspect.isawaitable(maybe) else maybe
         from lighthouse.api.dependencies import get_pg_pool
 
         return await get_pg_pool()

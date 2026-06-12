@@ -287,6 +287,32 @@ async def redeliver(
     return {"status": "requeued"}
 
 
+@router.post("/{webhook_id}/deliveries/requeue-dead")
+async def requeue_dead(
+    webhook_id: UUID,
+    pool: Annotated[asyncpg.Pool, Depends(get_pg_pool)],
+    workspace_id: Annotated[str, Depends(get_workspace)],
+) -> dict[str, int]:
+    """Bulk-requeue every `dead` delivery of this webhook (attempts
+    exhausted). Resets the retry counter so the worker walks the full
+    backoff curve again — use after fixing the receiver."""
+    async with pool.acquire() as conn:
+        r = await conn.execute(
+            """
+            UPDATE webhook_deliveries d
+               SET status = 'pending', next_attempt_at = NOW(),
+                   attempts = 0, last_error = NULL
+              FROM webhooks w
+             WHERE d.webhook_id = $1 AND d.status = 'dead'
+               AND w.id = d.webhook_id AND w.workspace_id = $2
+            """,
+            webhook_id,
+            workspace_id,
+        )
+    # asyncpg returns e.g. "UPDATE 3".
+    return {"requeued": int(r.split()[-1])}
+
+
 @router.post("/{webhook_id}/test", status_code=202)
 async def test(
     webhook_id: UUID,
