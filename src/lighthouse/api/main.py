@@ -33,9 +33,6 @@ from typing import Any
 from fastapi import FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
 
-from lighthouse.core.metrics import HTTP_LATENCY, HTTP_REQUESTS
-from lighthouse.core.metrics import render as render_metrics
-
 from lighthouse import __version__
 from lighthouse.api.admin_importers import router as importers_router
 from lighthouse.api.dependencies import (
@@ -52,6 +49,8 @@ from lighthouse.api.v1_keys import router as v1_keys_router
 from lighthouse.api.v1_usage import router as v1_usage_router
 from lighthouse.api.v1_webhooks import router as v1_webhooks_router
 from lighthouse.api.v1_workspaces import router as v1_workspaces_router
+from lighthouse.core.metrics import HTTP_LATENCY, HTTP_REQUESTS
+from lighthouse.core.metrics import render as render_metrics
 from lighthouse.importers import store as importer_store
 from lighthouse.importers.runner import run_queue_worker
 from lighthouse.mcp.server import build_server as build_mcp_server

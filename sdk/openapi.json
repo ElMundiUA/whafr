@@ -922,7 +922,7 @@
           "importers"
         ],
         "summary": "Run Route",
-        "description": "Kick off a run in the background. Returns immediately with the\nimporter id; poll `/{id}/runs` for the actual run row's progress.\n\nWe instantiate the importer up-front (without running it) so a\nmissing optional-dep package fails the request with a 422 +\npip-install hint instead of letting the background task swallow\nthe error into the run row.",
+        "description": "Enqueue a run. The row is durable \u2014 a pod restart between this\nrequest and execution can't lose it; the run-queue worker (started\nfrom the API lifespan, one per replica) claims and executes it.\nPoll `/{id}/runs` for progress; the returned run_id is the actual\n`importer_runs.id` (it used to echo the importer id).\n\nWe resolve the importer type up-front so a missing optional-dep\npackage fails the request with a pip-install hint instead of\nburying the error in the run row.",
         "operationId": "run_route_admin_importers__importer_id__run_post",
         "parameters": [
           {
@@ -1643,7 +1643,7 @@
           "importers"
         ],
         "summary": "Run Route",
-        "description": "Kick off a run in the background. Returns immediately with the\nimporter id; poll `/{id}/runs` for the actual run row's progress.\n\nWe instantiate the importer up-front (without running it) so a\nmissing optional-dep package fails the request with a 422 +\npip-install hint instead of letting the background task swallow\nthe error into the run row.",
+        "description": "Enqueue a run. The row is durable \u2014 a pod restart between this\nrequest and execution can't lose it; the run-queue worker (started\nfrom the API lifespan, one per replica) claims and executes it.\nPoll `/{id}/runs` for progress; the returned run_id is the actual\n`importer_runs.id` (it used to echo the importer id).\n\nWe resolve the importer type up-front so a missing optional-dep\npackage fails the request with a pip-install hint instead of\nburying the error in the run row.",
         "operationId": "run_route_v1_importers__importer_id__run_post",
         "parameters": [
           {
