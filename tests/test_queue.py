@@ -17,8 +17,6 @@ from __future__ import annotations
 
 import asyncio
 
-import pytest
-
 from lighthouse.proposals.queue import ProposalQueue
 from lighthouse.proposals.store import (
     ProposalRecord,

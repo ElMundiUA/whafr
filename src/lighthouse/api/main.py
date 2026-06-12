@@ -44,6 +44,7 @@ from lighthouse.api.retrieval import router as retrieval_router
 from lighthouse.api.v1_analytics import router as v1_analytics_router
 from lighthouse.api.v1_corpus import router as v1_corpus_router
 from lighthouse.api.v1_keys import router as v1_keys_router
+from lighthouse.api.v1_usage import router as v1_usage_router
 from lighthouse.api.v1_webhooks import router as v1_webhooks_router
 from lighthouse.api.v1_workspaces import router as v1_workspaces_router
 from lighthouse.importers import store as importer_store
@@ -191,6 +192,7 @@ def create_app() -> FastAPI:
     app.include_router(v1_analytics_router)
     app.include_router(v1_keys_router)
     app.include_router(v1_workspaces_router)
+    app.include_router(v1_usage_router)
 
     # MCP (streamable-http) mounted at /mcp/ — its task-group lifetime
     # is owned by the lifespan above.

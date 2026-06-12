@@ -24,7 +24,6 @@ from lighthouse.proposals.store import (
 )
 from lighthouse.proposals.worker import process_proposal
 
-
 # --- store ----------------------------------------------------------------
 
 

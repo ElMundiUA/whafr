@@ -11,6 +11,14 @@ surface is intended to stay stable.
 
 ### Added
 
+- `GET /v1/usage` — billing-shaped rollups over `query_log`: searches
+  per API key (keyless legacy traffic = null key) and per day, scoped
+  to the workspace. Read-side only; quota enforcement is deliberately
+  deferred until plans exist.
+- CI workflow (`.github/workflows/ci.yml`): ruff + the full pytest
+  suite against a pgvector service container, so the PG-gated
+  integration scenarios finally run on every push/PR.
+
 - Workspace registry with per-workspace auth policy (migration 0010):
   `GET/PUT /v1/workspaces` + a Workspaces page in `/ui`. A workspace
   with `require_auth = true` rejects keyless retrieval even while the

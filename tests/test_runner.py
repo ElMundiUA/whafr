@@ -31,7 +31,6 @@ from lighthouse.runner.config import (
 from lighthouse.runner.scheduler import SourceScheduler
 from lighthouse.runner.state import RunState, StateStore
 
-
 # --- duration parsing ---------------------------------------------------
 
 
