@@ -1,31 +1,39 @@
-# Lighthouse Engine
+# Lighthouse
 
-Open-source retrieval layer for grounded coding agents. Hybrid BM25 +
-pgvector + cross-encoder rerank, served over HTTP + MCP. Pluggable
-importer layer covering 30 source types out of the box: docs (sitemap,
-github), team knowledge (Notion, Confluence, Slack, Linear, Jira),
-storage (S3, GCS, Azure Blob, Google Drive, Box), structured data
-(Postgres, MongoDB, Airtable), forums (Reddit, Stack Overflow), and
-more.
+**Your docs as an MCP knowledge server — one container + Postgres,
+Apache-2.0.** The open-source counterpart to hosted answer engines
+like kapa.ai: hybrid BM25 + pgvector + cross-encoder retrieval over
+HTTP + MCP, with a built-in admin UI, coverage-gap analytics, and a
+pluggable importer layer covering 30 source types out of the box —
+docs (sitemap, github), team knowledge (Notion, Confluence, Slack,
+Linear, Jira), storage (S3, GCS, Azure Blob, Google Drive, Box),
+structured data (Postgres, MongoDB, Airtable), forums (Reddit,
+Stack Overflow), and more.
 
-Same code powers two products:
+One product, two ways to run it:
 
-- **[lighthouse.harborgang.com](https://lighthouse.harborgang.com)** —
-  hosted SaaS over a curated SDLC corpus (RFCs, OWASP, NIST,
-  framework docs).
-- **Engine** — self-hosted, bring-your-own-corpus. This repo.
+- **Self-host** — this repo. Your hardware, your corpus, free.
+- **[Lighthouse Cloud](https://lighthouse.harborgang.com)** — we run
+  it: a curated SDLC corpus (RFCs, OWASP, NIST, framework docs) today,
+  hosted private corpora next.
 
-Apache-2.0.
+## What will always be free
+
+The engine in this repo is Apache-2.0 and complete: retrieval, MCP
+server, all 30 importers, the admin UI, analytics, API keys and
+multi-workspace tenancy. We will never move an existing feature out
+of the open-source engine behind a paywall. Paid offerings sell
+operations, curation, and scale — not withheld code.
 
 > **Looking to run this?** Operator-side docs (Compose, Helm, K8s,
-> backups, upgrades) live on [harborgang.com/whafr](https://harborgang.com/whafr).
+> backups, upgrades) live on [harborgang.com/lighthouse](https://harborgang.com/lighthouse).
 > This repo carries the engine itself — code, SDKs, recipe authoring,
 > internals. Pin a `sha-*` tag from there.
 
 ## Quickstart
 
 ```bash
-git clone https://github.com/ElMundiUA/whafr.git && cd whafr
+git clone https://github.com/ElMundiUA/lighthouse.git && cd lighthouse
 cp .env.example .env   # OPENAI_API_KEY optional — keyword-only search without it
 docker compose up --build
 ```

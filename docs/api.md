@@ -1,4 +1,4 @@
-# Lighthouse Engine REST API
+# Lighthouse REST API
 
 Stable API surface under `/v1/*`. Generated OpenAPI schema lives at
 `/openapi.json`; interactive explorer at `/docs` (Swagger UI) and

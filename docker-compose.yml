@@ -1,4 +1,4 @@
-# Lighthouse Engine — local / single-node deployment.
+# Lighthouse — local / single-node deployment.
 #
 #   docker compose up --build
 #

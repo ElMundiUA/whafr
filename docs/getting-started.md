@@ -1,8 +1,8 @@
-# Getting started with Lighthouse Engine
+# Getting started with Lighthouse
 
 Point a client at a running engine and make your first call. If you
 need to *bring* an engine up first, the operator-side walkthrough lives
-on [harborgang.com/whafr](https://harborgang.com/whafr) — Compose, Helm,
+on [harborgang.com/lighthouse](https://harborgang.com/lighthouse) — Compose, Helm,
 Postgres providers, backups, upgrades. This page picks up after a
 healthy `/v1/health`.
 
@@ -90,5 +90,5 @@ Within a few minutes you'll see `status: success` with a non-zero
 - [`sdk-python.md`](sdk-python.md) — Python client.
 - [`role-recipes.md`](role-recipes.md) — what a recipe is, how to author one.
 - [`flat-rag-migration.md`](flat-rag-migration.md) — the retrieval engine internals.
-- [harborgang.com/whafr](https://harborgang.com/whafr) — operator
+- [harborgang.com/lighthouse](https://harborgang.com/lighthouse) — operator
   guide (Compose, Helm, env vars, secrets, upgrades).
