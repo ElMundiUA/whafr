@@ -62,6 +62,38 @@
               "default": 10,
               "title": "Top K"
             }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
           }
         ],
         "responses": {
@@ -104,6 +136,38 @@
               "type": "string",
               "title": "Node Id"
             }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
           }
         ],
         "responses": {
@@ -145,6 +209,38 @@
             "schema": {
               "type": "string",
               "title": "Episode Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
             }
           }
         ],
@@ -405,6 +501,22 @@
               ],
               "title": "Authorization"
             }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
           }
         ],
         "responses": {
@@ -457,6 +569,22 @@
               ],
               "title": "Authorization"
             }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
           }
         ],
         "requestBody": {
@@ -469,6 +597,73 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImporterOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/importers/provision/s3": {
+      "post": {
+        "tags": [
+          "admin",
+          "importers"
+        ],
+        "summary": "Provision S3 Route",
+        "description": "Idempotently provision the per-workspace S3 importer for the\ncaller's workspace (from ``X-Workspace``). Safe to call on every\nworkspace setup \u2014 repeat calls return the existing importer.",
+        "operationId": "provision_s3_route_admin_importers_provision_s3_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -527,6 +722,22 @@
               ],
               "title": "Authorization"
             }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
           }
         ],
         "responses": {
@@ -584,6 +795,22 @@
                 }
               ],
               "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
             }
           }
         ],
@@ -653,6 +880,22 @@
               ],
               "title": "Authorization"
             }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
           }
         ],
         "responses": {
@@ -706,6 +949,22 @@
                 }
               ],
               "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
             }
           }
         ],
@@ -776,6 +1035,22 @@
                 }
               ],
               "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
             }
           }
         ],
@@ -947,6 +1222,22 @@
               ],
               "title": "Authorization"
             }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
           }
         ],
         "responses": {
@@ -999,6 +1290,22 @@
               ],
               "title": "Authorization"
             }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
           }
         ],
         "requestBody": {
@@ -1011,6 +1318,73 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImporterOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/importers/provision/s3": {
+      "post": {
+        "tags": [
+          "v1",
+          "importers"
+        ],
+        "summary": "Provision S3 Route",
+        "description": "Idempotently provision the per-workspace S3 importer for the\ncaller's workspace (from ``X-Workspace``). Safe to call on every\nworkspace setup \u2014 repeat calls return the existing importer.",
+        "operationId": "provision_s3_route_v1_importers_provision_s3_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1069,6 +1443,22 @@
               ],
               "title": "Authorization"
             }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
           }
         ],
         "responses": {
@@ -1126,6 +1516,22 @@
                 }
               ],
               "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
             }
           }
         ],
@@ -1195,6 +1601,22 @@
               ],
               "title": "Authorization"
             }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
           }
         ],
         "responses": {
@@ -1248,6 +1670,22 @@
                 }
               ],
               "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
             }
           }
         ],
@@ -1319,6 +1757,22 @@
               ],
               "title": "Authorization"
             }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
           }
         ],
         "responses": {
@@ -1356,8 +1810,42 @@
           "corpus"
         ],
         "summary": "Stats",
-        "description": "Roll-up counters over the chunks table. Cheap \u2014 one indexed scan.",
+        "description": "Roll-up counters over the chunks table, scoped to the caller's\nworkspace. Cheap \u2014 one indexed scan.",
         "operationId": "stats_v1_corpus_stats_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -1365,6 +1853,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CorpusStats"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -1379,7 +1877,7 @@
           "corpus"
         ],
         "summary": "Sources",
-        "description": "Per-source roll-up. `order=chunks` ranks by chunk count\n(largest sources first); `order=recent` by most recent ingest.",
+        "description": "Per-source roll-up, scoped to the caller's workspace. `order=chunks`\nranks by chunk count (largest sources first); `order=recent` by most\nrecent ingest.",
         "operationId": "sources_v1_corpus_sources_get",
         "parameters": [
           {
@@ -1403,6 +1901,38 @@
               "pattern": "^(chunks|recent)$",
               "default": "chunks",
               "title": "Order"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
             }
           }
         ],
@@ -1442,17 +1972,61 @@
         ],
         "summary": "List All",
         "operationId": "list_all_v1_webhooks__get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/WebhookOut"
                   },
-                  "type": "array",
                   "title": "Response List All V1 Webhooks  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -1466,15 +2040,49 @@
         ],
         "summary": "Create",
         "operationId": "create_v1_webhooks__post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/WebhookCreate"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -1518,6 +2126,38 @@
               "format": "uuid",
               "title": "Webhook Id"
             }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
           }
         ],
         "responses": {
@@ -1559,6 +2199,38 @@
               "type": "string",
               "format": "uuid",
               "title": "Webhook Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
             }
           }
         ],
@@ -1620,6 +2292,38 @@
               "format": "uuid",
               "title": "Webhook Id"
             }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
           }
         ],
         "responses": {
@@ -1666,6 +2370,38 @@
               "type": "integer",
               "default": 50,
               "title": "Limit"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
             }
           }
         ],
@@ -1726,6 +2462,38 @@
               "format": "uuid",
               "title": "Delivery Id"
             }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
           }
         ],
         "responses": {
@@ -1739,6 +2507,87 @@
                     "type": "string"
                   },
                   "title": "Response Redeliver V1 Webhooks  Webhook Id  Deliveries  Delivery Id  Redeliver Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/webhooks/{webhook_id}/deliveries/requeue-dead": {
+      "post": {
+        "tags": [
+          "v1",
+          "webhooks"
+        ],
+        "summary": "Requeue Dead",
+        "description": "Bulk-requeue every `dead` delivery of this webhook (attempts\nexhausted). Resets the retry counter so the worker walks the full\nbackoff curve again \u2014 use after fixing the receiver.",
+        "operationId": "requeue_dead_v1_webhooks__webhook_id__deliveries_requeue_dead_post",
+        "parameters": [
+          {
+            "name": "webhook_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Webhook Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Requeue Dead V1 Webhooks  Webhook Id  Deliveries Requeue Dead Post"
                 }
               }
             }
@@ -1775,6 +2624,38 @@
               "format": "uuid",
               "title": "Webhook Id"
             }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
           }
         ],
         "responses": {
@@ -1786,6 +2667,963 @@
                   "type": "object",
                   "additionalProperties": true,
                   "title": "Response Test V1 Webhooks  Webhook Id  Test Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analytics/overview": {
+      "get": {
+        "tags": [
+          "v1",
+          "analytics"
+        ],
+        "summary": "Overview",
+        "operationId": "overview_v1_analytics_overview_get",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1,
+              "default": 30,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverviewOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analytics/top-queries": {
+      "get": {
+        "tags": [
+          "v1",
+          "analytics"
+        ],
+        "summary": "Top Queries",
+        "operationId": "top_queries_v1_analytics_top_queries_get",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1,
+              "default": 30,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TopQueryOut"
+                  },
+                  "title": "Response Top Queries V1 Analytics Top Queries Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analytics/gaps": {
+      "get": {
+        "tags": [
+          "v1",
+          "analytics"
+        ],
+        "summary": "Gaps",
+        "description": "Zero-hit query clusters \u2014 the corpus' coverage gaps. Resolved /\nignored clusters are hidden unless ``include_resolved`` is set, so\ntriaged gaps stop cluttering the dashboard.",
+        "operationId": "gaps_v1_analytics_gaps_get",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1,
+              "default": 30,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "include_resolved",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Resolved"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GapOut"
+                  },
+                  "title": "Response Gaps V1 Analytics Gaps Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analytics/gaps/status": {
+      "patch": {
+        "tags": [
+          "v1",
+          "analytics"
+        ],
+        "summary": "Set Gap Status",
+        "operationId": "set_gap_status_v1_analytics_gaps_status_patch",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GapStatusIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GapOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analytics/gaps/prune": {
+      "post": {
+        "tags": [
+          "v1",
+          "analytics"
+        ],
+        "summary": "Prune Gap Statuses",
+        "description": "Garbage-collect triage state for clusters nobody asks anymore.\n\nDeletes ``coverage_gap_status`` rows whose query has no query_log\nentry in the trailing window \u2014 including orphans created by triaging\na never-logged string. Triage state for live clusters is untouched.",
+        "operationId": "prune_gap_statuses_v1_analytics_gaps_prune_post",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 3650,
+              "minimum": 1,
+              "default": 90,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Prune Gap Statuses V1 Analytics Gaps Prune Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/analytics/source-usage": {
+      "get": {
+        "tags": [
+          "v1",
+          "analytics"
+        ],
+        "summary": "Source Usage",
+        "description": "References per source \u2014 how often each indexed source actually\nshows up in search results. Sources with many chunks but no\nreferences are dead weight; heavily-referenced ones deserve more\ningest attention.",
+        "operationId": "source_usage_v1_analytics_source_usage_get",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1,
+              "default": 30,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SourceUsageOut"
+                  },
+                  "title": "Response Source Usage V1 Analytics Source Usage Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/keys/": {
+      "get": {
+        "tags": [
+          "v1",
+          "keys"
+        ],
+        "summary": "List Keys",
+        "operationId": "list_keys_v1_keys__get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/KeyOut"
+                  },
+                  "title": "Response List Keys V1 Keys  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "v1",
+          "keys"
+        ],
+        "summary": "Create Key",
+        "operationId": "create_key_v1_keys__post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeyCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeyCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/keys/{key_id}": {
+      "delete": {
+        "tags": [
+          "v1",
+          "keys"
+        ],
+        "summary": "Revoke Key",
+        "description": "Soft-revoke: the key stops authenticating immediately but the\nrow (and query_log attribution) is kept.",
+        "operationId": "revoke_key_v1_keys__key_id__delete",
+        "parameters": [
+          {
+            "name": "key_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Key Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeyOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/": {
+      "get": {
+        "tags": [
+          "v1",
+          "workspaces"
+        ],
+        "summary": "List Workspaces",
+        "description": "The registry \u2014 registered workspaces with their auth policy.\n(Tenants that never registered still work; they just have no row\nhere and default to the instance-wide policy.)",
+        "operationId": "list_workspaces_v1_workspaces__get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkspaceOut"
+                  },
+                  "title": "Response List Workspaces V1 Workspaces  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace_id}": {
+      "put": {
+        "tags": [
+          "v1",
+          "workspaces"
+        ],
+        "summary": "Upsert Workspace",
+        "operationId": "upsert_workspace_v1_workspaces__workspace_id__put",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[a-zA-Z0-9_.\\-]+$",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceUpsert"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/usage/": {
+      "get": {
+        "tags": [
+          "v1",
+          "usage"
+        ],
+        "summary": "Usage",
+        "operationId": "usage_v1_usage__get",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1,
+              "default": 30,
+              "title": "Days"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-workspace",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageOut"
                 }
               }
             }
@@ -1890,6 +3728,49 @@
           "last_ingest_at"
         ],
         "title": "CorpusStats"
+      },
+      "DayPoint": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Day"
+          },
+          "questions": {
+            "type": "integer",
+            "title": "Questions"
+          },
+          "gaps": {
+            "type": "integer",
+            "title": "Gaps"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "questions",
+          "gaps"
+        ],
+        "title": "DayPoint"
+      },
+      "DayUsage": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Day"
+          },
+          "searches": {
+            "type": "integer",
+            "title": "Searches"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "searches"
+        ],
+        "title": "DayUsage"
       },
       "DeliveryOut": {
         "properties": {
@@ -2095,6 +3976,61 @@
         "title": "EntityResponse",
         "description": "One entity returned by ``/fetch_entity``."
       },
+      "GapOut": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "last_asked_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Asked At"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "open"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query",
+          "count",
+          "last_asked_at"
+        ],
+        "title": "GapOut"
+      },
+      "GapStatusIn": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Query"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "planned",
+              "resolved",
+              "ignored"
+            ],
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query",
+          "status"
+        ],
+        "title": "GapStatusIn"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -2205,6 +4141,10 @@
             "type": "string",
             "title": "Status"
           },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
           "last_run_at": {
             "anyOf": [
               {
@@ -2247,6 +4187,7 @@
           "has_secrets",
           "enabled",
           "status",
+          "workspace_id",
           "last_run_at",
           "last_error",
           "created_at",
@@ -2383,6 +4324,268 @@
         },
         "type": "object",
         "title": "ImporterUpdate"
+      },
+      "KeyCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "KeyCreate"
+      },
+      "KeyCreated": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Scopes"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "secret": {
+            "type": "string",
+            "title": "Secret"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "workspace_id",
+          "name",
+          "scopes",
+          "created_at",
+          "last_used_at",
+          "revoked_at",
+          "secret"
+        ],
+        "title": "KeyCreated"
+      },
+      "KeyOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Scopes"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "last_used_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Used At"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "workspace_id",
+          "name",
+          "scopes",
+          "created_at",
+          "last_used_at",
+          "revoked_at"
+        ],
+        "title": "KeyOut"
+      },
+      "KeyUsage": {
+        "properties": {
+          "api_key_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key Id"
+          },
+          "key_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key Name"
+          },
+          "searches": {
+            "type": "integer",
+            "title": "Searches"
+          },
+          "gaps": {
+            "type": "integer",
+            "title": "Gaps"
+          },
+          "last_used_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Used At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "api_key_id",
+          "key_name",
+          "searches",
+          "gaps",
+          "last_used_at"
+        ],
+        "title": "KeyUsage"
+      },
+      "OverviewOut": {
+        "properties": {
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "total_questions": {
+            "type": "integer",
+            "title": "Total Questions"
+          },
+          "total_gaps": {
+            "type": "integer",
+            "title": "Total Gaps"
+          },
+          "gap_rate": {
+            "type": "number",
+            "title": "Gap Rate"
+          },
+          "total_uncertain": {
+            "type": "integer",
+            "title": "Total Uncertain"
+          },
+          "avg_useful_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Useful Score"
+          },
+          "avg_latency_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Latency Ms"
+          },
+          "timeseries": {
+            "items": {
+              "$ref": "#/components/schemas/DayPoint"
+            },
+            "type": "array",
+            "title": "Timeseries"
+          }
+        },
+        "type": "object",
+        "required": [
+          "days",
+          "total_questions",
+          "total_gaps",
+          "gap_rate",
+          "total_uncertain",
+          "avg_useful_score",
+          "avg_latency_ms",
+          "timeseries"
+        ],
+        "title": "OverviewOut"
       },
       "Proposal": {
         "properties": {
@@ -2765,7 +4968,7 @@
           "summary"
         ],
         "title": "SearchHit",
-        "description": "One fact returned by ``/search``.\n\nA fact is a graph edge \u2014 a one-line statement relating two entities\n(``source_node_id`` and ``target_node_id``) extracted from a source\nchunk (``episode_ids``). Clients that want more context either\ndrill into an entity via ``/fetch_entity`` or \u2014 usually preferred \u2014\npull the original paragraph via ``/fetch_source``."
+        "description": "One chunk returned by ``/search``.\n\n``summary`` is the chunk's heading + snippet; ``episode_ids`` carries\nthe chunk uuid \u2014 feed it to ``/fetch_source`` for the full text.\n``source_node_id`` / ``target_node_id`` / ``valid_until`` are retained\nfor wire compatibility but are always null (flat-RAG has no entity\nlayer)."
       },
       "SearchResponse": {
         "properties": {
@@ -2838,6 +5041,103 @@
         ],
         "title": "SourceResponse",
         "description": "One source chunk returned by ``/fetch_source``."
+      },
+      "SourceUsageOut": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "references": {
+            "type": "integer",
+            "title": "References"
+          },
+          "last_referenced_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Referenced At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "references",
+          "last_referenced_at"
+        ],
+        "title": "SourceUsageOut"
+      },
+      "TopQueryOut": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "gap_count": {
+            "type": "integer",
+            "title": "Gap Count"
+          },
+          "avg_hits": {
+            "type": "number",
+            "title": "Avg Hits"
+          },
+          "last_asked_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Asked At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query",
+          "count",
+          "gap_count",
+          "avg_hits",
+          "last_asked_at"
+        ],
+        "title": "TopQueryOut"
+      },
+      "UsageOut": {
+        "properties": {
+          "workspace_id": {
+            "type": "string",
+            "title": "Workspace Id"
+          },
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "total_searches": {
+            "type": "integer",
+            "title": "Total Searches"
+          },
+          "by_key": {
+            "items": {
+              "$ref": "#/components/schemas/KeyUsage"
+            },
+            "type": "array",
+            "title": "By Key"
+          },
+          "by_day": {
+            "items": {
+              "$ref": "#/components/schemas/DayUsage"
+            },
+            "type": "array",
+            "title": "By Day"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspace_id",
+          "days",
+          "total_searches",
+          "by_key",
+          "by_day"
+        ],
+        "title": "UsageOut"
       },
       "ValidationError": {
         "properties": {
@@ -3166,6 +5466,70 @@
         },
         "type": "object",
         "title": "WebhookUpdate"
+      },
+      "WorkspaceOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "require_auth": {
+            "type": "boolean",
+            "title": "Require Auth"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "require_auth",
+          "description",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "WorkspaceOut"
+      },
+      "WorkspaceUpsert": {
+        "properties": {
+          "require_auth": {
+            "type": "boolean",
+            "title": "Require Auth",
+            "default": false
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "title": "WorkspaceUpsert"
       }
     },
     "securitySchemes": {

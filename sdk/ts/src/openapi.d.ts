@@ -167,6 +167,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/importers/provision/s3": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Provision S3 Route
+         * @description Idempotently provision the per-workspace S3 importer for the
+         *     caller's workspace (from ``X-Workspace``). Safe to call on every
+         *     workspace setup — repeat calls return the existing importer.
+         */
+        post: operations["provision_s3_route_admin_importers_provision_s3_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/importers/{importer_id}": {
         parameters: {
             query?: never;
@@ -290,6 +312,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/importers/provision/s3": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Provision S3 Route
+         * @description Idempotently provision the per-workspace S3 importer for the
+         *     caller's workspace (from ``X-Workspace``). Safe to call on every
+         *     workspace setup — repeat calls return the existing importer.
+         */
+        post: operations["provision_s3_route_v1_importers_provision_s3_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/importers/{importer_id}": {
         parameters: {
             query?: never;
@@ -361,7 +405,8 @@ export interface paths {
         };
         /**
          * Stats
-         * @description Roll-up counters over the chunks table. Cheap — one indexed scan.
+         * @description Roll-up counters over the chunks table, scoped to the caller's
+         *     workspace. Cheap — one indexed scan.
          */
         get: operations["stats_v1_corpus_stats_get"];
         put?: never;
@@ -381,8 +426,9 @@ export interface paths {
         };
         /**
          * Sources
-         * @description Per-source roll-up. `order=chunks` ranks by chunk count
-         *     (largest sources first); `order=recent` by most recent ingest.
+         * @description Per-source roll-up, scoped to the caller's workspace. `order=chunks`
+         *     ranks by chunk count (largest sources first); `order=recent` by most
+         *     recent ingest.
          */
         get: operations["sources_v1_corpus_sources_get"];
         put?: never;
@@ -468,6 +514,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/webhooks/{webhook_id}/deliveries/requeue-dead": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Requeue Dead
+         * @description Bulk-requeue every `dead` delivery of this webhook (attempts
+         *     exhausted). Resets the retry counter so the worker walks the full
+         *     backoff curve again — use after fixing the receiver.
+         */
+        post: operations["requeue_dead_v1_webhooks__webhook_id__deliveries_requeue_dead_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/webhooks/{webhook_id}/test": {
         parameters: {
             query?: never;
@@ -485,6 +553,221 @@ export interface paths {
          *     parsing without waiting for a real importer run.
          */
         post: operations["test_v1_webhooks__webhook_id__test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/analytics/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Overview */
+        get: operations["overview_v1_analytics_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/analytics/top-queries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Top Queries */
+        get: operations["top_queries_v1_analytics_top_queries_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/analytics/gaps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Gaps
+         * @description Zero-hit query clusters — the corpus' coverage gaps. Resolved /
+         *     ignored clusters are hidden unless ``include_resolved`` is set, so
+         *     triaged gaps stop cluttering the dashboard.
+         */
+        get: operations["gaps_v1_analytics_gaps_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/analytics/gaps/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Set Gap Status */
+        patch: operations["set_gap_status_v1_analytics_gaps_status_patch"];
+        trace?: never;
+    };
+    "/v1/analytics/gaps/prune": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Prune Gap Statuses
+         * @description Garbage-collect triage state for clusters nobody asks anymore.
+         *
+         *     Deletes ``coverage_gap_status`` rows whose query has no query_log
+         *     entry in the trailing window — including orphans created by triaging
+         *     a never-logged string. Triage state for live clusters is untouched.
+         */
+        post: operations["prune_gap_statuses_v1_analytics_gaps_prune_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/analytics/source-usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Source Usage
+         * @description References per source — how often each indexed source actually
+         *     shows up in search results. Sources with many chunks but no
+         *     references are dead weight; heavily-referenced ones deserve more
+         *     ingest attention.
+         */
+        get: operations["source_usage_v1_analytics_source_usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/keys/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Keys */
+        get: operations["list_keys_v1_keys__get"];
+        put?: never;
+        /** Create Key */
+        post: operations["create_key_v1_keys__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/keys/{key_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke Key
+         * @description Soft-revoke: the key stops authenticating immediately but the
+         *     row (and query_log attribution) is kept.
+         */
+        delete: operations["revoke_key_v1_keys__key_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Workspaces
+         * @description The registry — registered workspaces with their auth policy.
+         *     (Tenants that never registered still work; they just have no row
+         *     here and default to the instance-wide policy.)
+         */
+        get: operations["list_workspaces_v1_workspaces__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspace_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Upsert Workspace */
+        put: operations["upsert_workspace_v1_workspaces__workspace_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/usage/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Usage */
+        get: operations["usage_v1_usage__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -520,6 +803,28 @@ export interface components {
             chunks_with_embedding: number;
             /** Last Ingest At */
             last_ingest_at: string | null;
+        };
+        /** DayPoint */
+        DayPoint: {
+            /**
+             * Day
+             * Format: date-time
+             */
+            day: string;
+            /** Questions */
+            questions: number;
+            /** Gaps */
+            gaps: number;
+        };
+        /** DayUsage */
+        DayUsage: {
+            /**
+             * Day
+             * Format: date-time
+             */
+            day: string;
+            /** Searches */
+            searches: number;
         };
         /** DeliveryOut */
         DeliveryOut: {
@@ -607,6 +912,33 @@ export interface components {
                 [key: string]: string;
             };
         };
+        /** GapOut */
+        GapOut: {
+            /** Query */
+            query: string;
+            /** Count */
+            count: number;
+            /**
+             * Last Asked At
+             * Format: date-time
+             */
+            last_asked_at: string;
+            /**
+             * Status
+             * @default open
+             */
+            status: string;
+        };
+        /** GapStatusIn */
+        GapStatusIn: {
+            /** Query */
+            query: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "open" | "planned" | "resolved" | "ignored";
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -656,6 +988,8 @@ export interface components {
             enabled: boolean;
             /** Status */
             status: string;
+            /** Workspace Id */
+            workspace_id: string;
             /** Last Run At */
             last_run_at: string | null;
             /** Last Error */
@@ -702,6 +1036,94 @@ export interface components {
             } | null;
             /** Enabled */
             enabled?: boolean | null;
+        };
+        /** KeyCreate */
+        KeyCreate: {
+            /** Name */
+            name: string;
+        };
+        /** KeyCreated */
+        KeyCreated: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Workspace Id */
+            workspace_id: string;
+            /** Name */
+            name: string;
+            /** Scopes */
+            scopes: string[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Last Used At */
+            last_used_at: string | null;
+            /** Revoked At */
+            revoked_at: string | null;
+            /** Secret */
+            secret: string;
+        };
+        /** KeyOut */
+        KeyOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Workspace Id */
+            workspace_id: string;
+            /** Name */
+            name: string;
+            /** Scopes */
+            scopes: string[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Last Used At */
+            last_used_at: string | null;
+            /** Revoked At */
+            revoked_at: string | null;
+        };
+        /** KeyUsage */
+        KeyUsage: {
+            /** Api Key Id */
+            api_key_id: string | null;
+            /** Key Name */
+            key_name: string | null;
+            /** Searches */
+            searches: number;
+            /** Gaps */
+            gaps: number;
+            /**
+             * Last Used At
+             * Format: date-time
+             */
+            last_used_at: string;
+        };
+        /** OverviewOut */
+        OverviewOut: {
+            /** Days */
+            days: number;
+            /** Total Questions */
+            total_questions: number;
+            /** Total Gaps */
+            total_gaps: number;
+            /** Gap Rate */
+            gap_rate: number;
+            /** Total Uncertain */
+            total_uncertain: number;
+            /** Avg Useful Score */
+            avg_useful_score: number | null;
+            /** Avg Latency Ms */
+            avg_latency_ms: number | null;
+            /** Timeseries */
+            timeseries: components["schemas"]["DayPoint"][];
         };
         /** Proposal */
         Proposal: {
@@ -833,13 +1255,13 @@ export interface components {
         };
         /**
          * SearchHit
-         * @description One fact returned by ``/search``.
+         * @description One chunk returned by ``/search``.
          *
-         *     A fact is a graph edge — a one-line statement relating two entities
-         *     (``source_node_id`` and ``target_node_id``) extracted from a source
-         *     chunk (``episode_ids``). Clients that want more context either
-         *     drill into an entity via ``/fetch_entity`` or — usually preferred —
-         *     pull the original paragraph via ``/fetch_source``.
+         *     ``summary`` is the chunk's heading + snippet; ``episode_ids`` carries
+         *     the chunk uuid — feed it to ``/fetch_source`` for the full text.
+         *     ``source_node_id`` / ``target_node_id`` / ``valid_until`` are retained
+         *     for wire compatibility but are always null (flat-RAG has no entity
+         *     layer).
          */
         SearchHit: {
             /** Node Id */
@@ -883,6 +1305,47 @@ export interface components {
             created_at?: string | null;
             /** Valid At */
             valid_at?: string | null;
+        };
+        /** SourceUsageOut */
+        SourceUsageOut: {
+            /** Source */
+            source: string;
+            /** References */
+            references: number;
+            /**
+             * Last Referenced At
+             * Format: date-time
+             */
+            last_referenced_at: string;
+        };
+        /** TopQueryOut */
+        TopQueryOut: {
+            /** Query */
+            query: string;
+            /** Count */
+            count: number;
+            /** Gap Count */
+            gap_count: number;
+            /** Avg Hits */
+            avg_hits: number;
+            /**
+             * Last Asked At
+             * Format: date-time
+             */
+            last_asked_at: string;
+        };
+        /** UsageOut */
+        UsageOut: {
+            /** Workspace Id */
+            workspace_id: string;
+            /** Days */
+            days: number;
+            /** Total Searches */
+            total_searches: number;
+            /** By Key */
+            by_key: components["schemas"]["KeyUsage"][];
+            /** By Day */
+            by_day: components["schemas"]["DayUsage"][];
         };
         /** ValidationError */
         ValidationError: {
@@ -985,6 +1448,35 @@ export interface components {
              */
             rotate_secret: boolean;
         };
+        /** WorkspaceOut */
+        WorkspaceOut: {
+            /** Id */
+            id: string;
+            /** Require Auth */
+            require_auth: boolean;
+            /** Description */
+            description: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** WorkspaceUpsert */
+        WorkspaceUpsert: {
+            /**
+             * Require Auth
+             * @default false
+             */
+            require_auth: boolean;
+            /** Description */
+            description?: string | null;
+        };
     };
     responses: never;
     parameters: never;
@@ -1023,7 +1515,10 @@ export interface operations {
                 q: string;
                 top_k?: number;
             };
-            header?: never;
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -1052,7 +1547,10 @@ export interface operations {
     fetch_entity_v1_fetch_entity__node_id__get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
             path: {
                 node_id: string;
             };
@@ -1083,7 +1581,10 @@ export interface operations {
     fetch_source_v1_fetch_source__episode_id__get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
             path: {
                 episode_id: string;
             };
@@ -1246,6 +1747,7 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                "x-workspace"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -1277,6 +1779,7 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                "x-workspace"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -1307,11 +1810,44 @@ export interface operations {
             };
         };
     };
+    provision_s3_route_admin_importers_provision_s3_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImporterOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_route_admin_importers__importer_id__get: {
         parameters: {
             query?: never;
             header?: {
                 authorization?: string | null;
+                "x-workspace"?: string | null;
             };
             path: {
                 importer_id: string;
@@ -1345,6 +1881,7 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                "x-workspace"?: string | null;
             };
             path: {
                 importer_id: string;
@@ -1376,6 +1913,7 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                "x-workspace"?: string | null;
             };
             path: {
                 importer_id: string;
@@ -1413,6 +1951,7 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                "x-workspace"?: string | null;
             };
             path: {
                 importer_id: string;
@@ -1448,6 +1987,7 @@ export interface operations {
             };
             header?: {
                 authorization?: string | null;
+                "x-workspace"?: string | null;
             };
             path: {
                 importer_id: string;
@@ -1547,6 +2087,7 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                "x-workspace"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -1578,6 +2119,7 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                "x-workspace"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -1608,11 +2150,44 @@ export interface operations {
             };
         };
     };
+    provision_s3_route_v1_importers_provision_s3_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImporterOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_route_v1_importers__importer_id__get: {
         parameters: {
             query?: never;
             header?: {
                 authorization?: string | null;
+                "x-workspace"?: string | null;
             };
             path: {
                 importer_id: string;
@@ -1646,6 +2221,7 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                "x-workspace"?: string | null;
             };
             path: {
                 importer_id: string;
@@ -1677,6 +2253,7 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                "x-workspace"?: string | null;
             };
             path: {
                 importer_id: string;
@@ -1714,6 +2291,7 @@ export interface operations {
             query?: never;
             header?: {
                 authorization?: string | null;
+                "x-workspace"?: string | null;
             };
             path: {
                 importer_id: string;
@@ -1749,6 +2327,7 @@ export interface operations {
             };
             header?: {
                 authorization?: string | null;
+                "x-workspace"?: string | null;
             };
             path: {
                 importer_id: string;
@@ -1780,7 +2359,10 @@ export interface operations {
     stats_v1_corpus_stats_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -1795,6 +2377,15 @@ export interface operations {
                     "application/json": components["schemas"]["CorpusStats"];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     sources_v1_corpus_sources_get: {
@@ -1803,7 +2394,10 @@ export interface operations {
                 limit?: number;
                 order?: string;
             };
-            header?: never;
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -1832,7 +2426,10 @@ export interface operations {
     list_all_v1_webhooks__get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -1847,12 +2444,24 @@ export interface operations {
                     "application/json": components["schemas"]["WebhookOut"][];
                 };
             };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
         };
     };
     create_v1_webhooks__post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -1885,7 +2494,10 @@ export interface operations {
     get_v1_webhooks__webhook_id__get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
             path: {
                 webhook_id: string;
             };
@@ -1916,7 +2528,10 @@ export interface operations {
     delete_v1_webhooks__webhook_id__delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
             path: {
                 webhook_id: string;
             };
@@ -1945,7 +2560,10 @@ export interface operations {
     update_v1_webhooks__webhook_id__patch: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
             path: {
                 webhook_id: string;
             };
@@ -1982,7 +2600,10 @@ export interface operations {
             query?: {
                 limit?: number;
             };
-            header?: never;
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
             path: {
                 webhook_id: string;
             };
@@ -2013,7 +2634,10 @@ export interface operations {
     redeliver_v1_webhooks__webhook_id__deliveries__delivery_id__redeliver_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
             path: {
                 webhook_id: string;
                 delivery_id: string;
@@ -2044,10 +2668,49 @@ export interface operations {
             };
         };
     };
+    requeue_dead_v1_webhooks__webhook_id__deliveries_requeue_dead_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
+            path: {
+                webhook_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: number;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     test_v1_webhooks__webhook_id__test_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
             path: {
                 webhook_id: string;
             };
@@ -2064,6 +2727,422 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    overview_v1_analytics_overview_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    top_queries_v1_analytics_top_queries_get: {
+        parameters: {
+            query?: {
+                days?: number;
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TopQueryOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    gaps_v1_analytics_gaps_get: {
+        parameters: {
+            query?: {
+                days?: number;
+                limit?: number;
+                include_resolved?: boolean;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GapOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_gap_status_v1_analytics_gaps_status_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GapStatusIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GapOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    prune_gap_statuses_v1_analytics_gaps_prune_post: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: number;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    source_usage_v1_analytics_source_usage_get: {
+        parameters: {
+            query?: {
+                days?: number;
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceUsageOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_keys_v1_keys__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KeyOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_key_v1_keys__post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KeyCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KeyCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_key_v1_keys__key_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
+            path: {
+                key_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KeyOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_workspaces_v1_workspaces__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upsert_workspace_v1_workspaces__workspace_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceUpsert"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    usage_v1_usage__get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-workspace"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsageOut"];
                 };
             };
             /** @description Validation Error */
