@@ -15,7 +15,6 @@ from typing import Any
 
 import pytest
 
-
 # --- WebConnector --------------------------------------------------------
 
 
@@ -101,7 +100,7 @@ async def test_web_connector_routes_pdf_to_docling(monkeypatch, respx_mock=None)
         def __init__(self, *args: Any, **kwargs: Any) -> None:
             pass
 
-        async def __aenter__(self) -> "FakeClient":
+        async def __aenter__(self) -> FakeClient:
             return self
 
         async def __aexit__(self, *args: Any) -> None:

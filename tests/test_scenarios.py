@@ -447,6 +447,33 @@ class TestS6BrownfieldUpgrade:
         )
         assert "INSERT INTO query_log" in pool.conn.executed[0][0]
 
+    def test_usage_rollup_per_key_and_day(self, fake_graph) -> None:
+        """The billing read-side: GET /v1/usage breaks the workspace's
+        searches down per key (keyless legacy = null key) and per day."""
+        kid = uuid4()
+        pool = FakePool([
+            ("LEFT JOIN api_keys", [
+                {"api_key_id": kid, "key_name": "alice", "searches": 5,
+                 "gaps": 1, "last_used_at": NOW},
+                {"api_key_id": None, "key_name": None, "searches": 2,
+                 "gaps": 0, "last_used_at": NOW},
+            ]),
+            ("date_trunc('day', created_at)", [{"day": NOW, "searches": 7}]),
+        ])
+        with make_client(fake_graph, pool) as client:
+            res = client.get(
+                "/v1/usage/?days=7", headers={"X-Workspace": "team-a"}
+            )
+        assert res.status_code == 200
+        body = res.json()
+        assert body["total_searches"] == 7
+        assert body["by_key"][0]["key_name"] == "alice"
+        assert body["by_key"][1]["api_key_id"] is None  # keyless traffic
+        assert body["by_day"][0]["searches"] == 7
+        # Both aggregates scoped to the requested workspace.
+        for _, args in pool.conn.executed:
+            assert args[0] == "team-a"
+
     def test_usage_attribution_flows_to_query_log(self, fake_graph) -> None:
         """Billing prerequisite: searches made with a key carry the key
         id into the analytics log."""

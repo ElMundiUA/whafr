@@ -1,0 +1,44 @@
+name: CI
+
+# Lint + unit suite + the PG-gated integration scenarios (which were
+# previously never exercised in CI — a hardcoded migration list in
+# them rotted twice before this workflow existed).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: pw
+          POSTGRES_DB: lh
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d lh"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Install uv
+        run: pip install uv
+      - name: Install package + dev tools
+        run: uv pip install --system -e ".[dev]"
+      - name: Lint
+        run: ruff check src tests
+      - name: Unit + integration tests
+        env:
+          # Unit tests need no external services; this DSN additionally
+          # un-skips the integration scenarios (migrations, BM25-only
+          # ingest+search, workspace isolation, brownfield upgrade).
+          LIGHTHOUSE_TEST_PG_URL: postgresql://postgres:pw@127.0.0.1:55432/lh
+        run: pytest -q

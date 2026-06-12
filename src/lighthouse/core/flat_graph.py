@@ -673,11 +673,11 @@ class FlatGraph:
         # prose; code/JSON can dip to ~2. 24K chars at 2 chars/tok
         # = 12K tokens, still over 8192 — so cap at 16000 chars to
         # be safe for the most token-dense inputs.
-        PER_INPUT_CHAR_CAP = 16_000
+        PER_INPUT_CHAR_CAP = 16_000  # noqa: N806 — function-local constant
         # Sub-batch budget. ~64K chars ≈ 32K tokens for prose; even
         # at code density (~16K tokens) we stay an order of
         # magnitude under the 300K request cap.
-        PER_BATCH_CHAR_BUDGET = 64_000
+        PER_BATCH_CHAR_BUDGET = 64_000  # noqa: N806 — function-local constant
 
         truncated = [t[:PER_INPUT_CHAR_CAP] for t in texts]
 

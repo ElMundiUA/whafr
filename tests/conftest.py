@@ -144,10 +144,14 @@ def _insecure_admin(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("LIGHTHOUSE_ADMIN_TOKEN", raising=False)
     monkeypatch.delenv("LIGHTHOUSE_RETRIEVAL_AUTH_REQUIRED", raising=False)
     # Per-workspace auth flags are TTL-cached module-wide — never let
-    # one test's flag leak into the next.
+    # one test's flag leak into the next. Same for the lru-cached
+    # Settings: a previous test's env tweaks must not persist (bit us
+    # when unit + PG-integration tests share one process in CI).
     from lighthouse.core.auth import invalidate_workspace_auth_cache
+    from lighthouse.core.config import get_settings
 
     invalidate_workspace_auth_cache()
+    get_settings.cache_clear()
 
 
 @pytest.fixture

@@ -111,5 +111,7 @@ async def test_mcp_propose_without_store_raises() -> None:
     submission. Regression fence so an operator misconfiguring stdio
     server gets a loud signal."""
     server = build_server(FakeGraph())  # no store, no librarian
-    with pytest.raises(Exception):  # RuntimeError wrapped by FastMCP
+    # FastMCP wraps the RuntimeError in its own error type — the
+    # fence only cares that the call fails loudly.
+    with pytest.raises(Exception):  # noqa: B017
         await server.call_tool("propose", {"content": "anything"})

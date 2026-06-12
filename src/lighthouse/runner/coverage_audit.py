@@ -129,7 +129,11 @@ async def run_audit(
         mean_gap_rate=overall_gaps / overall_n if overall_n else 0,
         mean_useful=overall_useful / overall_n if overall_n else 0,
         per_domain=sorted(summaries, key=lambda d: d.gap_rate, reverse=True),
-        config={"top_k": top_k, "queries_path": str(queries_path), "useful_threshold": USEFUL_THRESHOLD},
+        config={
+            "top_k": top_k,
+            "queries_path": str(queries_path),
+            "useful_threshold": USEFUL_THRESHOLD,
+        },
     )
 
     out_json = json.dumps(asdict(report), indent=2, default=str)
